@@ -32,7 +32,7 @@
                 <SelectValue placeholder="全部角色" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部角色</SelectItem>
+                <SelectItem value="all">全部角色</SelectItem>
                 <SelectItem value="super_admin">超级管理员</SelectItem>
                 <SelectItem value="director">总监</SelectItem>
                 <SelectItem value="leader">主管</SelectItem>
@@ -49,7 +49,7 @@
                 <SelectValue placeholder="全部状态" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部状态</SelectItem>
+                <SelectItem value="all">全部状态</SelectItem>
                 <SelectItem value="active">正常</SelectItem>
                 <SelectItem value="inactive">禁用</SelectItem>
                 <SelectItem value="pending">待审核</SelectItem>
@@ -120,7 +120,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
 import { Plus, Trash2, Download, Edit, KeyRound, Eye } from 'lucide-vue-next'
-import type { User, UserQueryParams } from '@/types/user'
+import type { User, UserQueryParams, UserSearchParams, SearchRole, SearchStatus, UserStatus, UserRole } from '@/types/user'
 import { userApi } from '@/api/user'
 import DataTable from '@/components/business/DataTable.vue'
 import UserFormDialog from '@/components/business/UserFormDialog.vue'
@@ -157,14 +157,16 @@ const selectedUser = ref<User | null>(null)
 const batchDeleting = ref(false)
 const batchExporting = ref(false)
 
-const searchParams = reactive<Partial<UserQueryParams>>({
+// 使用UserSearchParams类型
+const searchParams = reactive<UserSearchParams>({
   keyword: '',
-  role: '',
-  status: '',
+  role: 'all',
+  status: 'all',
   page: 1,
   page_size: 10,
 })
 
+// 修复Badge variant类型问题
 const columns = [
   {
     id: 'avatar',
@@ -229,10 +231,12 @@ const columns = [
     header: '状态',
     cell: ({ row }: any) => {
       const user = row.original as User
-      const statusMap = {
+      type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline'
+      // 定义状态映射
+      const statusMap: Record<UserStatus, { text: string, variant: BadgeVariant }> = {
         active: { text: '正常', variant: 'default' },
         inactive: { text: '禁用', variant: 'secondary' },
-        pending: { text: '待审核', variant: 'warning' },
+        pending: { text: '待审核', variant: 'outline' }, // 改为outline代替warning
         banned: { text: '封禁', variant: 'destructive' },
       }
       const status = statusMap[user.status]
@@ -305,23 +309,37 @@ const columns = [
   },
 ]
 
+// 修复loadUserList函数中的类型问题
 const loadUserList = async () => {
   loading.value = true
   try {
-    const params: UserQueryParams = {
-      ...searchParams,
+    // 创建基础参数对象
+    const params: Partial<UserQueryParams> = {
       page: currentPage.value,
       page_size: pageSize.value,
+      keyword: searchParams.keyword,
+    };
+    
+    // 只有非'all'值才添加到params，使用类型转换
+    if (searchParams.role && searchParams.role !== 'all') {
+      params.role = searchParams.role as UserRole;
     }
-    const response = await userApi.getUserList(params)
-    userList.value = response.items
-    totalItems.value = response.total
+    if (searchParams.status && searchParams.status !== 'all') {
+      params.status = searchParams.status as UserStatus;
+    }
+    
+    const response = await userApi.getUserList(params as UserQueryParams);
+    userList.value = response?.items || []; // 确保始终是数组
+    totalItems.value = response?.total || 0;
   } catch (error) {
+    console.error('加载用户列表失败:', error)
     toast({
       title: '获取用户列表失败',
       description: error instanceof Error ? error.message : '未知错误',
       variant: 'destructive',
     })
+    // 确保即使出错时也有一个空数组
+    userList.value = []
   } finally {
     loading.value = false
   }
@@ -334,8 +352,8 @@ const handleSearch = () => {
 
 const handleReset = () => {
   searchParams.keyword = ''
-  searchParams.role = ''
-  searchParams.status = ''
+  searchParams.role = 'all'
+  searchParams.status = 'all'
   handleSearch()
 }
 

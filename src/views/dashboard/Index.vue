@@ -100,6 +100,7 @@ const stats = ref<Stat[]>([
 ])
 
 onMounted(() => {
+  console.log('仪表盘组件已加载')
   // TODO: 获取仪表盘数据
   // loadDashboardData()
 })

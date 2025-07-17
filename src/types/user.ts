@@ -18,12 +18,28 @@ export interface User {
 export type UserRole = 'super_admin' | 'director' | 'leader' | 'sales' | 'agent'
 export type UserStatus = 'active' | 'inactive' | 'pending' | 'banned'
 
+// 为搜索参数添加特殊的"all"类型
+export type SearchRole = UserRole | 'all'
+export type SearchStatus = UserStatus | 'all'
+
 export interface UserQueryParams {
   page: number
   page_size: number
   keyword?: string
   role?: UserRole
   status?: UserStatus
+  level?: number
+  date_from?: string
+  date_to?: string
+}
+
+// 特殊的前端搜索参数接口
+export interface UserSearchParams {
+  page: number
+  page_size: number
+  keyword?: string
+  role?: SearchRole
+  status?: SearchStatus
   level?: number
   date_from?: string
   date_to?: string

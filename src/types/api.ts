@@ -28,6 +28,7 @@ export interface PaginationParams {
 export interface User {
   id: number
   username: string
+  nickname?: string  // 添加昵称字段
   email: string
   phone?: string
   role: UserRole

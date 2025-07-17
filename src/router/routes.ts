@@ -34,6 +34,22 @@ export const constantRoutes: AppRouteRecordRaw[] = [
       hidden: true,
     },
   },
+  // 根路径重定向
+  {
+    path: '/',
+    redirect: '/login',
+    meta: {
+      hidden: true,
+    },
+  },
+  // 通配符路由，捕获所有未定义的路由，必须放在最后
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/404',
+    meta: {
+      hidden: true,
+    },
+  }
 ]
 
 // 动态路由（需要权限）
@@ -56,6 +72,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
           title: '仪表盘',
           icon: 'dashboard',
           roles: ['super_admin', 'director', 'leader', 'sales'],
+          requiresAuth: true,
         },
       },
     ],
@@ -69,6 +86,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       title: '用户管理',
       icon: 'users',
       roles: ['super_admin', 'director', 'leader'],
+      requiresAuth: true,
     },
     children: [
       {
@@ -78,6 +96,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         meta: {
           title: '用户列表',
           roles: ['super_admin', 'director', 'leader'],
+          requiresAuth: true,
         },
       },
     ],
@@ -91,6 +110,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       title: '客资管理',
       icon: 'target',
       roles: ['super_admin', 'director', 'leader', 'sales'],
+      requiresAuth: true,
     },
     children: [
       {
@@ -100,6 +120,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         meta: {
           title: '客资列表',
           roles: ['super_admin', 'director', 'leader', 'sales'],
+          requiresAuth: true,
         },
       },
     ],
@@ -113,6 +134,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       title: '成交管理',
       icon: 'dollar-sign',
       roles: ['super_admin', 'director', 'leader', 'sales'],
+      requiresAuth: true,
     },
     children: [
       {
@@ -122,6 +144,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         meta: {
           title: '成交列表',
           roles: ['super_admin', 'director', 'leader', 'sales'],
+          requiresAuth: true,
         },
       },
     ],
@@ -135,6 +158,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       title: '推广管理',
       icon: 'megaphone',
       roles: ['super_admin', 'director', 'leader'],
+      requiresAuth: true,
     },
     children: [
       {
@@ -144,6 +168,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         meta: {
           title: '推广审核',
           roles: ['super_admin', 'director', 'leader'],
+          requiresAuth: true,
         },
       },
     ],
@@ -157,6 +182,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       title: '系统配置',
       icon: 'settings',
       roles: ['super_admin'],
+      requiresAuth: true,
     },
     children: [
       {
@@ -166,6 +192,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         meta: {
           title: '等级规则',
           roles: ['super_admin'],
+          requiresAuth: true,
         },
       },
     ],

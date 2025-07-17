@@ -33,6 +33,7 @@
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "autoprefixer": "^10.4.21",
+    "axios-mock-adapter": "^2.1.0",
     "npm-run-all2": "^8.0.4",
     "pinia-plugin-persistedstate": "^4.4.1",
     "postcss": "^8.5.6",
