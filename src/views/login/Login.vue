@@ -108,6 +108,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle, Loader2 } from 'lucide-vue-next'
+import { toast } from '@/components/ui/toast/use-toast'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -131,12 +132,61 @@ const handleLogin = async () => {
   error.value = ''
 
   try {
+    // 登录并获取用户信息
     await userStore.login(loginForm)
+
+    console.log('登录成功，用户信息:', userStore.userInfo)
+    console.log('用户角色:', userStore.roles)
+    console.log('当前路由:', router.currentRoute.value.path)
+    console.log('路由是否已加载:', userStore.routesLoaded)
+
+    // 显示登录成功提示
+    toast({
+      title: '登录成功',
+      description: `欢迎回来，${userStore.userInfo?.nickname || userStore.userInfo?.username}`,
+      variant: 'default',
+    })
     
-    // 登录成功，跳转到首页
-    await router.push('/dashboard')
+    // 登录成功后，初始化动态路由并直接导航到dashboard
+    if (!userStore.routesLoaded && userStore.token) {
+      console.log('登录后手动添加动态路由')
+      // 导入所需的函数
+      const { asyncRoutes, filterRoutesByRole } = await import('@/router/routes')
+      
+      // 过滤并添加路由
+      const accessibleRoutes = filterRoutesByRole(asyncRoutes, userStore.roles || [])
+      // 使用外部已声明的router实例，而不是在这里重新声明
+      accessibleRoutes.forEach(route => {
+        if (route.name && !router.hasRoute(route.name)) {
+          console.log('添加路由:', route.path, route.name)
+          router.addRoute(route)
+        }
+      })
+      userStore.$patch({ routesLoaded: true })
+    }
+    
+    // 直接导航到dashboard
+    console.log('尝试直接跳转到dashboard')
+    try {
+      // 确保Layout路由已加载
+      if (!router.hasRoute('Layout')) {
+        console.warn('Layout路由尚未加载，可能导致导航失败')
+      }
+      
+      // 先检查router.getRoutes()中是否有dashboard路径
+      const routes = router.getRoutes()
+      console.log('当前所有路由:', routes.map(r => ({ path: r.path, name: r.name })))
+      
+      await router.push('/dashboard')
+      console.log('跳转结束，当前路由:', router.currentRoute.value.path)
+    } catch (navError) {
+      console.error('导航到dashboard失败:', navError)
+      error.value = '页面跳转失败，请刷新页面重试'
+    }
+    
   } catch (err: any) {
     error.value = err.message || '登录失败，请检查用户名和密码'
+    console.error('登录失败:', err)
   } finally {
     loading.value = false
   }

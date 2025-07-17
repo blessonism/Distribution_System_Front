@@ -13,7 +13,7 @@ const request: AxiosInstance = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
-    // 从 Pinia store 获取 token (后续集成)
+    // 从 localStorage 获取 token
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -29,14 +29,14 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const { data } = response
-    
+
     // 业务成功
     if (data.code === 200 || data.success) {
       return data.data
     }
-    
+
     // 业务失败
-    // 使用 console.error 作为后备方案，避免在服务端渲染时出错
+    // 使用 console.error，避免在服务端渲染时出错
     if (typeof window !== 'undefined') {
       console.error('API Error:', data.message)
     }
@@ -46,7 +46,7 @@ request.interceptors.response.use(
     // 网络错误或服务器错误
     if (error.response) {
       const { status, data } = error.response
-      
+
       switch (status) {
         case 401:
           // Token 失效，清除本地存储并跳转登录
@@ -81,27 +81,24 @@ request.interceptors.response.use(
     } else {
       console.error('请求配置错误:', error.message)
     }
-    
+
     return Promise.reject(error)
   }
 )
 
 // 封装请求方法
 export const http = {
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => 
+  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
     request.get(url, config),
-  
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => 
+
+  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> =>
     request.post(url, data, config),
-  
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => 
+
+  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> =>
     request.put(url, data, config),
-  
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => 
+
+  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
     request.delete(url, config),
-  
-  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => 
-    request.patch(url, data, config),
 }
 
 export default request

@@ -35,8 +35,11 @@ export const useUserStore = defineStore('user', {
         
         this.token = response.token
         this.userInfo = response.user
-        this.roles = [response.user.role]
+        // 确保角色是字符串数组形式
+        this.roles = response.user.role ? [response.user.role] : []
         this.permissions = response.permissions
+        
+        console.log('登录成功，用户角色:', this.roles)
         
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', response.token)
@@ -53,8 +56,11 @@ export const useUserStore = defineStore('user', {
         const response: LoginResponse = await http.get('/user/profile')
         
         this.userInfo = response.user
-        this.roles = [response.user.role]
+        // 确保角色是字符串数组形式
+        this.roles = response.user.role ? [response.user.role] : []
         this.permissions = response.permissions
+        
+        console.log('获取用户信息成功，用户角色:', this.roles)
         
         return response
       } catch (error) {

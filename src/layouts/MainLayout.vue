@@ -34,16 +34,24 @@
             :to="route.path"
             class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
             :class="[
-              $route.path === route.path
+              $route.path === route.path || $route.path.startsWith(route.path + '/')
                 ? 'bg-blue-50 text-blue-600'
                 : 'text-gray-700 hover:bg-gray-100'
             ]"
+            custom
+            v-slot="{ navigate }"
           >
-            <component 
-              :is="getIcon(route.meta?.icon)" 
-              class="w-5 h-5 mr-3"
-            />
-            {{ route.meta?.title }}
+            <a 
+              href="javascript:void(0)" 
+              @click="handleRouterLink(route.path); navigate()" 
+              class="flex items-center w-full"
+            >
+              <component 
+                :is="getIcon(route.meta?.icon)" 
+                class="w-5 h-5 mr-3"
+              />
+              {{ route.meta?.title }}
+            </a>
           </router-link>
 
           <!-- 多级菜单 -->
@@ -85,12 +93,20 @@
                 :to="child.path"
                 class="block px-3 py-2 text-sm rounded-md transition-colors"
                 :class="[
-                  $route.path === child.path
+                  $route.path === child.path || $route.path.startsWith(child.path + '/')
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-600 hover:bg-gray-100'
                 ]"
+                custom
+                v-slot="{ navigate }"
               >
-                {{ child.meta?.title }}
+                <a 
+                  href="javascript:void(0)" 
+                  @click="handleRouterLink(child.path); navigate()"
+                  class="block px-3 py-2"
+                >
+                  {{ child.meta?.title }}
+                </a>
               </router-link>
             </div>
           </div>
@@ -172,7 +188,11 @@
       <!-- 页面内容 -->
       <main class="flex-1 overflow-y-auto bg-gray-50">
         <div class="p-4 sm:p-6 lg:p-8">
-          <router-view />
+          <router-view :key="$route.path" v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
         </div>
       </main>
     </div>
@@ -196,10 +216,12 @@ const expandedMenus = ref<string[]>([])
 
 // 获取有权限的菜单路由
 const menuRoutes = computed(() => {
+  console.log('计算菜单路由，当前用户角色:', userStore.roles)
   const accessibleRoutes = asyncRoutes.filter(route => {
     if (!route.meta?.roles) return true
     return route.meta.roles.some(role => userStore.hasPermission([role]))
   })
+  console.log('可访问的菜单路由:', accessibleRoutes.map(r => r.path))
   return accessibleRoutes
 })
 
@@ -239,7 +261,38 @@ const toggleSubmenu = (name: string) => {
 
 // 检查是否是活跃父菜单
 const isActiveParent = (route: AppRouteRecordRaw) => {
-  return route.children?.some(child => route.path === child.path) || false
+  // 如果当前路由以父路由开头，则认为父菜单激活
+  if (route.path !== '/' && router.currentRoute.value.path.startsWith(route.path)) {
+    return true
+  }
+  
+  // 检查子路由是否活跃
+  return route.children?.some(child => 
+    router.currentRoute.value.path === child.path || 
+    router.currentRoute.value.path.startsWith(child.path + '/')
+  ) || false
+}
+
+// 点击菜单项时，记录路由信息并修复路径
+const handleRouterLink = (to: string) => {
+  // 特殊处理dashboard路由
+  if (to === 'dashboard') {
+    to = '/dashboard';
+  }
+  
+  console.log('[Menu] 路由点击:', to)
+  console.log('[Menu] 当前路由:', router.currentRoute.value.path)
+  
+  // 检查路由是否存在
+  const foundRoute = router.getRoutes().find(r => r.path === to);
+  console.log('[Menu] 路由匹配情况:', foundRoute)
+  
+  // 如果路由不存在，可能需要使用完整路径
+  if (!foundRoute && !to.startsWith('/')) {
+    const fullPath = `/${to}`;
+    console.log('[Menu] 尝试完整路径:', fullPath)
+    console.log('[Menu] 使用完整路径匹配结果:', router.getRoutes().find(r => r.path === fullPath))
+  }
 }
 
 // 退出登录
@@ -275,5 +328,15 @@ onMounted(() => {
 <style scoped>
 .router-link-active {
   @apply bg-blue-50 text-blue-600;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
