@@ -49,7 +49,7 @@
           <!-- 多级菜单 -->
           <div v-else>
             <button
-              @click="toggleSubmenu(route.name)"
+              @click="toggleSubmenu(String(route.name))"
               class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md transition-colors"
               :class="[
                 isActiveParent(route)
@@ -66,7 +66,7 @@
               </div>
               <svg 
                 class="w-4 h-4 transition-transform" 
-                :class="{ 'rotate-90': expandedMenus.includes(route.name) }"
+                :class="{ 'rotate-90': route.name && expandedMenus.includes(String(route.name)) }"
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -76,7 +76,7 @@
             </button>
             
             <div 
-              v-show="expandedMenus.includes(route.name)" 
+              v-show="expandedMenus.includes(String(route.name))" 
               class="mt-1 ml-8 space-y-1"
             >
               <router-link

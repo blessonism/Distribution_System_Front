@@ -1,0 +1,53 @@
+// API通用响应格式
+export interface ApiResponse<T = any> {
+  code: number
+  success: boolean
+  message: string
+  data: T
+}
+
+// 分页响应格式
+export interface PaginatedResponse<T> {
+  list: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+// 分页请求参数
+export interface PaginationParams {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  sortField?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+// 用户相关类型
+export interface User {
+  id: number
+  username: string
+  email: string
+  phone?: string
+  role: UserRole
+  status: UserStatus
+  avatar?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type UserRole = 'super_admin' | 'director' | 'leader' | 'sales' | 'agent'
+export type UserStatus = 'active' | 'inactive' | 'pending'
+
+// 登录相关类型
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface LoginResponse {
+  token: string
+  user: User
+  permissions: string[]
+}

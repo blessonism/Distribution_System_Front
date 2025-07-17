@@ -11,20 +11,30 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@vee-validate/zod": "^4.15.1",
+    "@vueuse/core": "^13.5.0",
+    "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-vue-next": "^0.525.0",
+    "pinia": "^3.0.3",
+    "reka-ui": "^2.3.2",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
-    "vue": "^3.5.17"
+    "vee-validate": "^4.15.1",
+    "vue": "^3.5.17",
+    "vue-router": "^4.5.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@tanstack/vue-table": "^8.21.3",
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^22.16.4",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "autoprefixer": "^10.4.21",
     "npm-run-all2": "^8.0.4",
+    "pinia-plugin-persistedstate": "^4.4.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.0",
