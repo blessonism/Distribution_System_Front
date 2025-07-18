@@ -222,7 +222,8 @@ router.beforeEach(async (to, from, next) => {
 
     // 检查用户角色权限
     if (to.meta?.roles && Array.isArray(to.meta.roles) && to.meta.roles.length > 0 && userStore.userInfo?.role) {
-      const hasPermission = userStore.hasPermission(to.meta.roles)
+      // 修正hasPermission调用，检查用户是否有权限访问当前路由
+      const hasPermission = to.meta.roles.some(role => userStore.hasPermission(role))
       if (!hasPermission) {
         debug.error('用户无权限访问此页面', to.path, userStore.userInfo.role, to.meta.roles)
         next('/404')

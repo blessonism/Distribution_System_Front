@@ -22,9 +22,9 @@ export const useUserStore = defineStore('user', {
   getters: {
     isLoggedIn: (state) => !!state.token,
     userRole: (state) => state.userInfo?.role || null,
-    hasPermission: (state) => (roles: string[]) => {
+    hasPermission: (state) => (role: string) => {
       if (!state.userInfo?.role) return false
-      return roles.includes(state.userInfo.role)
+      return role === state.userInfo.role || state.userInfo.role === 'super_admin'
     },
   },
 

@@ -34,12 +34,42 @@
             <div v-for="route in businessMenuRoutes" :key="route.path">
               <!-- 单级菜单 -->
               <router-link
-                v-if="!route.children?.length"
+                v-if="!route.children?.length || route.path === '/dashboard'"
                 :to="route.path"
+                @click="() => {
+                  console.log('[Menu] 点击菜单项', route.path);
+                  sidebarOpen = false;
+                }"
                 class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
                 active-class="bg-blue-50 text-blue-600"
                 exact-active-class="bg-blue-50 text-blue-600"
               >
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 <component 
                   :is="getIcon(route.meta?.icon)" 
                   class="w-5 h-5 mr-3"
@@ -105,18 +135,31 @@
           <div class="space-y-1">
             <div v-for="route in systemMenuRoutes" :key="route.path">
               <!-- 单级菜单 -->
+
+
+
+
+
               <router-link
                 v-if="!route.children?.length"
                 :to="route.path"
                 class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
                 active-class="bg-blue-50 text-blue-600"
                 exact-active-class="bg-blue-50 text-blue-600"
+
+
+
+
+
+
               >
                   <component 
                     :is="getIcon(route.meta?.icon)" 
                     class="w-5 h-5 mr-3"
                   />
                   {{ route.meta?.title }}
+
+
               </router-link>
 
               <!-- 多级菜单 -->
@@ -304,7 +347,7 @@ const menuRoutes = computed(() => {
   console.log('计算菜单路由，当前用户角色:', userStore.roles)
   const accessibleRoutes = asyncRoutes.filter(route => {
     if (!route.meta?.roles) return true
-    return route.meta.roles.some(role => userStore.hasPermission([role]))
+    return route.meta.roles.some(role => userStore.hasPermission(role))
   })
   console.log('可访问的菜单路由:', accessibleRoutes.map(r => r.path))
   return accessibleRoutes
@@ -313,7 +356,13 @@ const menuRoutes = computed(() => {
 // 获取业务管理菜单
 const businessMenuRoutes = computed(() => {
   const routes = menuRoutes.value.filter(route => route.meta?.group === 'business')
-  console.log('[Menu] 业务菜单路由:', routes.map(r => ({path: r.path, name: r.name, title: r.meta?.title})))
+  console.log('[Menu] 业务菜单路由详细信息:', routes.map(r => ({
+    path: r.path, 
+    name: r.name, 
+    title: r.meta?.title,
+    hasChildren: !!r.children?.length,
+    children: r.children?.map(c => ({ path: c.path, name: c.name }))
+  })))
   return routes
 })
 
@@ -370,16 +419,46 @@ const toggleSubmenu = (name: string) => {
 // 检查是否是活跃父菜单
 const isActiveParent = (route: AppRouteRecordRaw) => {
   const currentPath = router.currentRoute.value.path
+
+  // 特殊处理dashboard路由
+  if (route.path === '/dashboard' && currentPath === '/dashboard') {
+    console.log('[Menu] Dashboard路由匹配成功')
+    return true
+  }
+
   return route.children?.some(child => 
     currentPath.startsWith(child.path)
   ) || false
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // 退出登录
 const handleLogout = async () => {
   try {
     console.log('[Layout] 执行退出登录操作')
   userStore.logout()
+
   userMenuOpen.value = false
     // 为了确保路由状态正确重置，使用直接跳转
     window.location.href = '/login'
