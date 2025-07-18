@@ -3,18 +3,19 @@
     <!-- 侧边栏 -->
     <aside 
       :class="[
-        'fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        'fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out lg:static lg:translate-x-0',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full',
       ]"
     >
       <!-- Logo -->
-      <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+      <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200">
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
             <span class="text-white font-bold text-sm">DS</span>
           </div>
-          <span class="text-lg font-semibold text-gray-900">分销系统</span>
+          <span class="text-lg font-semibold text-gray-900 truncate">分销系统</span>
         </div>
+        <!-- 移动端关闭按钮 -->
         <button 
           @click="toggleSidebar" 
           class="lg:hidden p-2 rounded-md hover:bg-gray-100"
@@ -26,10 +27,10 @@
       </div>
 
       <!-- 导航菜单 -->
-      <nav class="flex-1 py-4 overflow-y-auto">
+      <nav class="flex-1 py-3 overflow-y-auto scrollbar-thin">
         <!-- 业务菜单 -->
-        <div class="px-4 mb-4">
-          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">业务功能</h2>
+        <div class="px-3 mb-3">
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">业务功能</h2>
           <div class="space-y-1">
             <div v-for="route in businessMenuRoutes" :key="route.path">
               <!-- 单级菜单 -->
@@ -40,41 +41,15 @@
                   console.log('[Menu] 点击菜单项', route.path);
                   sidebarOpen = false;
                 }"
-                class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-blue-50"
                 active-class="bg-blue-50 text-blue-600"
                 exact-active-class="bg-blue-50 text-blue-600"
               >
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                 <component 
                   :is="getIcon(route.meta?.icon)" 
                   class="w-5 h-5 mr-3"
                 />
-                {{ route.meta?.title }}
+                <span>{{ route.meta?.title }}</span>
               </router-link>
 
               <!-- 多级菜单 -->
@@ -108,13 +83,13 @@
                 
                 <div 
                   v-show="expandedMenus.includes(String(route.name))" 
-                  class="mt-1 ml-4 pl-4 border-l-2 border-gray-200"
+                  class="mt-1 ml-4 pl-3 border-l-2 border-gray-200"
                 >
                   <router-link
                     v-for="child in route.children"
                     :key="child.path"
                     :to="child.path"
-                    class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
+                    class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors hover:bg-gray-50"
                     active-class="text-blue-600 font-medium"
                     exact-active-class="text-blue-600 font-medium"
                   >
@@ -130,36 +105,23 @@
         </div>
 
         <!-- 系统菜单 -->
-        <div class="px-4">
-          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">系统设置</h2>
+        <div class="px-3">
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">系统设置</h2>
           <div class="space-y-1">
             <div v-for="route in systemMenuRoutes" :key="route.path">
               <!-- 单级菜单 -->
-
-
-
-
-
               <router-link
                 v-if="!route.children?.length"
                 :to="route.path"
-                class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-blue-50"
                 active-class="bg-blue-50 text-blue-600"
                 exact-active-class="bg-blue-50 text-blue-600"
-
-
-
-
-
-
               >
-                  <component 
-                    :is="getIcon(route.meta?.icon)" 
-                    class="w-5 h-5 mr-3"
-                  />
-                  {{ route.meta?.title }}
-
-
+                <component 
+                  :is="getIcon(route.meta?.icon)" 
+                  class="w-5 h-5 mr-3"
+                />
+                <span>{{ route.meta?.title }}</span>
               </router-link>
 
               <!-- 多级菜单 -->
@@ -194,13 +156,13 @@
                 
                 <div 
                   v-show="expandedMenus.includes(String(route.name))" 
-                  class="mt-1 ml-4 pl-4 border-l-2 border-gray-200"
+                  class="mt-1 ml-4 pl-3 border-l-2 border-gray-200"
                 >
                   <router-link
                     v-for="child in route.children"
                     :key="child.path"
                     :to="child.path"
-                    class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
+                    class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors hover:bg-gray-50"
                     active-class="text-blue-600 font-medium"
                     exact-active-class="text-blue-600 font-medium"
                   >
@@ -230,6 +192,7 @@
       <header class="bg-white shadow-sm border-b border-gray-200">
         <div class="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
           <div class="flex items-center">
+            <!-- 移动端菜单按钮 -->
             <button 
               @click="toggleSidebar" 
               class="p-2 rounded-md hover:bg-gray-100 lg:hidden"
@@ -315,7 +278,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { asyncRoutes } from '@/router/routes'
@@ -431,35 +394,13 @@ const isActiveParent = (route: AppRouteRecordRaw) => {
   ) || false
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // 退出登录
 const handleLogout = async () => {
   try {
     console.log('[Layout] 执行退出登录操作')
-  userStore.logout()
+    userStore.logout()
 
-  userMenuOpen.value = false
+    userMenuOpen.value = false
     // 为了确保路由状态正确重置，使用直接跳转
     window.location.href = '/login'
   } catch (error) {
@@ -500,10 +441,25 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.router-link-active {
-  @apply bg-blue-50 text-blue-600;
+/* 自定义滚动条样式 */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
 }
 
+.scrollbar-thin::-webkit-scrollbar-track {
+  background-color: rgba(243, 244, 246, 0.5);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(209, 213, 219, 0.8);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.8);
+}
+
+/* 页面切换动画 */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -512,5 +468,22 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 菜单项悬停效果 */
+.router-link-active {
+  position: relative;
+}
+
+.router-link-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 70%;
+  background-color: #2563eb;
+  border-radius: 0 2px 2px 0;
 }
 </style>
