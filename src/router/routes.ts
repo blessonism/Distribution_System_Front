@@ -107,6 +107,17 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       requiresAuth: true,
       group: 'business'
     },
+    children: [
+      {
+        path: '',
+        name: 'DashboardIndex',
+        component: () => import('@/views/dashboard/Index.vue'),
+        meta: {
+          title: '仪表盘',
+          requiresAuth: true,
+        },
+      },
+    ],
   },
   {
     path: '/user',

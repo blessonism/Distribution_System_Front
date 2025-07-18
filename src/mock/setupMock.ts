@@ -133,34 +133,163 @@ export function setupMockApi() {
   })
 
   // 模拟用户列表API
-  mock.onGet('/users').reply(200, {
-    code: 200,
-    success: true,
-    data: {
-      list: Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        username: `user${i + 1}`,
-        nickname: `用户${i + 1}`,
-        email: `user${i + 1}@example.com`,
-        phone: `1381234${String(i).padStart(4, '0')}`,
-        role: i === 0 ? 'super_admin' : i < 3 ? 'leader' : 'sales',
-        status: i % 3 === 0 ? 'inactive' : 'active',
-        createdAt: new Date(Date.now() - i * 86400000).toISOString(),
-        updatedAt: new Date(Date.now() - i * 86400000).toISOString(),
-      })),
-      total: 25,
-    }
-  })
+  mock.onGet('/users').reply((config) => {
+    const { page = 1, page_size = 10 } = config.params || {};
+    
+    const users = Array.from({ length: 10 }, (_, i) => {
+      const index = (page - 1) * page_size + i;
+      return {
+        id: `${index + 1}`,
+        username: `user${index + 1}`,
+        nickname: `用户${index + 1}`,
+        email: `user${index + 1}@example.com`,
+        phone: `1381234${String(index).padStart(4, '0')}`,
+        role: index === 0 ? 'super_admin' : index < 3 ? 'leader' : 'sales',
+        status: index % 3 === 0 ? 'inactive' : 'active',
+        level: Math.floor(Math.random() * 6) + 1,
+        commission_rate: 5 + (index % 6),
+        created_at: new Date(Date.now() - index * 86400000).toISOString(),
+        updated_at: new Date(Date.now() - index * 86400000).toISOString(),
+      };
+    });
+    
+    console.log('Mock API: 返回用户列表，参数:', config.params);
+    
+    return [
+      200, 
+      {
+        code: 200,
+        success: true,
+        data: {
+          items: users,
+          total: 25,
+          page: Number(page),
+          page_size: Number(page_size)
+        }
+      }
+    ];
+  });
 
-  // 模拟仪表盘数据API
-  mock.onGet('/dashboard/stats').reply(200, {
-    code: 200,
-    success: true,
-    data: {
+  // 模拟代理API
+  // 1. 获取代理列表
+  mock.onGet('/agents').reply((config) => {
+    const { page = 1, pageSize = 10 } = config.params || {};
+    
+    // 生成代理数据
+    const agents = Array.from({ length: pageSize }, (_, i) => {
+      const index = (page - 1) * pageSize + i;
+      return {
+        id: `agent-${index}`,
+        name: `代理${index}`,
+        phone: `139${String(10000000 + index).slice(1)}`,
+        wechatName: `wx_agent${index}`,
+        redBookAccount: index % 3 === 0 ? `redbook_${index}` : '',
+        referrer: index % 5 === 0 ? '系统推荐' : index % 2 === 0 ? `代理${index-1}` : '',
+        category: ['a', 'b', 'c', 'd'][index % 4],
+        level: [`sv${index % 6 + 1}`],
+        status: ['active', 'inactive', 'pending', 'blocked'][index % 4],
+        isAdded: index % 2 === 0,
+        isPosting: index % 3 === 0,
+        isIntercept: index % 4 === 0,
+        isAttracting: index % 5 === 0,
+        isInGroup: index % 2 === 1,
+        notes: index % 3 === 0 ? '表现优秀，积极参与活动' : '',
+        addedDate: new Date(Date.now() - index * 86400000 * 7).toISOString(),
+        createdAt: new Date(Date.now() - index * 86400000 * 7).toISOString(),
+        updatedAt: new Date(Date.now() - index * 3600000).toISOString()
+      };
+    });
+    
+    return [
+      200,
+      {
+        code: 200,
+        success: true,
+        data: {
+          data: agents,
+          total: 100,
+          page: Number(page),
+          pageSize: Number(pageSize)
+        }
+      }
+    ];
+  });
+  
+  // 2. 获取单个代理详情
+  mock.onGet(/\/agents\/[^\/]+$/).reply((config) => {
+    const id = config.url?.split('/').pop() || '';
+    
+    const agent = {
+      id,
+      name: `代理${id}`,
+      phone: `139${String(10000000 + (id.includes('-') ? Number(id.split('-')[1]) : 0)).slice(1)}`,
+      wechatName: `wx_agent${id}`,
+      redBookAccount: `redbook_${id}`,
+      referrer: '系统推荐',
+      category: 'a',
+      level: 'sv3',
+      status: 'active',
+      isAdded: true,
+      isPosting: true,
+      isIntercept: false,
+      isAttracting: true,
+      isInGroup: true,
+      notes: '优秀代理，活跃度高',
+      addedDate: new Date(Date.now() - 30 * 86400000).toISOString(),
+      createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+      updatedAt: new Date(Date.now() - 2 * 3600000).toISOString()
+    };
+    
+    return [
+      200,
+      {
+        code: 200,
+        success: true,
+        data: agent
+      }
+    ];
+  });
+  
+  // 3. 获取代理业绩数据
+  mock.onGet(/\/agents\/[^\/]+\/performance/).reply((config) => {
+    const id = config.url?.split('/')[2];
+    
+    const performance = {
+      clientsTotal: 42,
+      validClients: 25,
+      invalidClients: 10,
+      pendingClients: 7,
+      closedDeals: 15,
+      totalRevenue: 35000,
+      commission: 2450,
+      baseSalary: 1000,
+      performance: 1450,
+      periodStart: new Date(new Date().getFullYear(), 0, 1).toISOString(),
+      periodEnd: new Date().toISOString()
+    };
+    
+    return [
+      200,
+      {
+        code: 200,
+        success: true,
+        data: performance
+      }
+    ];
+  });
+
+  // 模拟仪表盘统计数据API
+  mock.onGet('/dashboard/stats').reply(() => {
+    console.log('Mock API: 请求dashboard/stats');
+    
+    const data = {
       today: {
         leadCount: 85,
         dealCount: 12,
         salesAmount: 26500,
+        agentCount: 33,
+        validLeadCount: 56,
+        commissionAmount: 1250
       },
       thisWeek: {
         leadCount: 420,
@@ -175,9 +304,76 @@ export function setupMockApi() {
       pending: {
         promotionAuditCount: 27,
         leadAssignCount: 35,
+        dealConfirmCount: 12
       }
-    }
-  })
+    };
+    
+    return [
+      200, 
+      {
+        code: 200,
+        success: true,
+        data: data
+      }
+    ];
+  });
+
+  // 模拟仪表盘图表数据API
+  mock.onGet('/dashboard/charts').reply(() => {
+    console.log('Mock API: 请求dashboard/charts');
+    
+    const data = {
+      // 代理数量趋势
+      agentTrend: Array.from({ length: 30 }, (_, i) => ({
+        date: `${new Date().getMonth() + 1}/${i + 1}`,
+        count: 100 + Math.floor(Math.random() * 50),
+        activeCount: 70 + Math.floor(Math.random() * 30)
+      })),
+      
+      // 客资来源分布
+      leadSourceDistribution: [
+        { source: '小红书', value: 35 },
+        { source: '微信', value: 28 },
+        { source: '朋友介绍', value: 22 },
+        { source: '其他渠道', value: 15 }
+      ],
+      
+      // 成交金额统计
+      dealAmountStats: Array.from({ length: 12 }, (_, i) => ({
+        month: `${i + 1}月`,
+        amount: 20000 + Math.floor(Math.random() * 60000)
+      })),
+      
+      // 代理等级分布
+      agentLevelDistribution: [
+        { level: 'SV1', count: 45 },
+        { level: 'SV2', count: 32 },
+        { level: 'SV3', count: 18 },
+        { level: 'SV4', count: 12 },
+        { level: 'SV5', count: 8 },
+        { level: 'SV6', count: 3 }
+      ],
+      
+      // 客资状态分布
+      leadStatusDistribution: [
+        { status: '未添加', count: 45 },
+        { status: '已成交', count: 32 },
+        { status: '未回复', count: 25 },
+        { status: '已流失', count: 15 },
+        { status: '考虑中', count: 30 },
+        { status: '周内给答复', count: 18 }
+      ]
+    };
+    
+    return [
+      200, 
+      {
+        code: 200,
+        success: true,
+        data: data
+      }
+    ];
+  });
 
   // 更多模拟API可以根据需要添加
 } 

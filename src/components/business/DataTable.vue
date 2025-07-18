@@ -20,7 +20,12 @@
               :key="column.id || column.accessorKey" 
               class="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
             >
-              {{ column.header }}
+              <template v-if="typeof column.header === 'function'">
+                <component :is="renderHeaderContent(column)" />
+              </template>
+              <template v-else>
+                {{ column.header }}
+              </template>
             </th>
           </tr>
         </thead>
@@ -127,7 +132,7 @@ import { computed, h, defineComponent, markRaw } from 'vue'
 interface Column {
   id?: string
   accessorKey?: string
-  header?: string
+  header?: string | (() => any)
   cell?: (props: { row: any }) => any
 }
 
@@ -166,12 +171,36 @@ const getColumnValue = (row: any, column: Column) => {
   return row[column.accessorKey]
 }
 
+// 渲染表头内容
+const renderHeaderContent = (column: Column) => {
+  if (typeof column.header === 'function') {
+    try {
+      const headerContent = column.header()
+      return h(() => headerContent)
+    } catch (error) {
+      console.error('Error rendering header content:', error)
+      return h('span', 'Error')
+    }
+  }
+  return h('span', column.header)
+}
+
 // 渲染单元格内容
 const renderCellContent = (column: Column, row: any) => {
   if (!column.cell) return null
   
   try {
-    const cellContent = column.cell({ row })
+    // 检查row是否存在
+    if (!row) {
+      console.error('表格行数据不存在', { column })
+      return h('div', { class: 'text-red-500 text-xs' }, '行数据错误')
+    }
+    
+    // 创建一个包装对象以保持与原有API兼容
+    const rowWrapper = { original: row }
+    
+    // 尝试执行cell函数
+    const cellContent = column.cell({ row: rowWrapper })
     
     // 如果是对象且有template和setup属性，则创建一个组件
     if (cellContent && typeof cellContent === 'object' && cellContent.template) {
@@ -186,8 +215,8 @@ const renderCellContent = (column: Column, row: any) => {
     // 否则使用渲染函数
     return h(() => cellContent)
   } catch (error) {
-    console.error('Error rendering cell content:', error)
-    return h('span', 'Error')
+    console.error('Error rendering cell content:', error, { column, row })
+    return h('div', { class: 'text-red-500 text-xs' }, `渲染错误: ${error instanceof Error ? error.message : '未知错误'}`)
   }
 }
 

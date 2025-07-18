@@ -267,7 +267,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import { 
   PlusIcon, CheckIcon, SearchIcon, TrashIcon, 
   PencilIcon, MoreHorizontalIcon, DownloadIcon, RefreshCcwIcon
@@ -365,226 +365,201 @@ const columns = [
   {
     id: 'select',
     header: '选择',
-    cell: ({ row }) => {
-      return {
-        template: `
-          <input 
-            type="checkbox" 
-            :checked="selectedAgents.includes(row.id)" 
-            @change="toggleSelection(row.id)"
-            class="rounded border-gray-300"
-          />
-        `,
-        setup() {
-          const toggleSelection = (id) => {
-            const index = selectedAgents.value.indexOf(id)
+    cell: ({ row }: { row: any }) => {
+      return h('div', { class: 'flex items-center justify-center' }, [
+        h('input', {
+          type: 'checkbox',
+          checked: selectedAgents.value.includes(row.id),
+          class: 'rounded border-gray-300',
+          onChange: () => {
+            const index = selectedAgents.value.indexOf(row.id)
             if (index === -1) {
-              selectedAgents.value.push(id)
+              selectedAgents.value.push(row.id)
             } else {
               selectedAgents.value.splice(index, 1)
             }
           }
-          return { selectedAgents, toggleSelection, row }
-        }
-      }
+        })
+      ])
     }
   },
   {
     accessorKey: 'name',
     header: '代理姓名',
-    cell: ({ row }) => {
-      return {
-        template: `
-          <div>
-            <div class="font-medium">{{ row.name }}</div>
-            <div class="text-xs text-gray-500">{{ row.phone }}</div>
-          </div>
-        `,
-        setup() {
-          return { row }
-        }
-      }
+    cell: ({ row }: { row: any }) => {
+      return h('div', {}, [
+        h('div', { class: 'font-medium' }, row.name),
+        h('div', { class: 'text-xs text-gray-500' }, row.phone)
+      ])
     }
   },
   {
     accessorKey: 'wechatName',
-    header: '微信名称'
+    header: '微信名称',
+    cell: ({ row }: { row: any }) => h('div', {}, row.wechatName || '-')
   },
   {
     accessorKey: 'addedDate',
     header: '添加日期',
-    cell: ({ row }) => {
-      return {
-        template: `<div>{{ formatDate(row.addedDate) }}</div>`,
-        setup() {
-          const formatDate = (dateString) => {
-            if (!dateString) return '未知'
-            try {
-              const date = new Date(dateString)
-              return date.toLocaleDateString()
-            } catch (e) {
-              return dateString
-            }
-          }
-          return { row, formatDate }
+    cell: ({ row }: { row: any }) => {
+      const formatDate = (dateString: string) => {
+        if (!dateString) return '未知'
+        try {
+          const date = new Date(dateString)
+          return date.toLocaleDateString()
+        } catch (e) {
+          return dateString
         }
       }
+      return h('div', {}, formatDate(row.addedDate))
     }
   },
   {
     accessorKey: 'redBookAccount',
-    header: '小红书账号'
+    header: '小红书账号',
+    cell: ({ row }: { row: any }) => h('div', {}, row.redBookAccount || '-')
   },
   {
     accessorKey: 'category',
     header: '代理属性',
-    cell: ({ row }) => {
-      return {
-        template: `
-          <span :class="getBgColor(row.category)" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
-            {{ getLabel(row.category) }}
-          </span>
-        `,
-        setup() {
-          const getLabel = (category) => {
-            switch (category) {
-              case AgentCategory.A: return 'A类'
-              case AgentCategory.B: return 'B类'
-              case AgentCategory.C: return 'C类'
-              case AgentCategory.D: return 'D类'
-              default: return '未分类'
-            }
-          }
-          
-          const getBgColor = (category) => {
-            switch (category) {
-              case AgentCategory.A: return 'bg-green-100 text-green-800'
-              case AgentCategory.B: return 'bg-blue-100 text-blue-800'
-              case AgentCategory.C: return 'bg-yellow-100 text-yellow-800'
-              case AgentCategory.D: return 'bg-red-100 text-red-800'
-              default: return 'bg-gray-100 text-gray-800'
-            }
-          }
-          
-          return { row, getLabel, getBgColor }
+    cell: ({ row }: { row: any }) => {
+      const getLabel = (category: string) => {
+        switch (category) {
+          case AgentCategory.A: return 'A类'
+          case AgentCategory.B: return 'B类'
+          case AgentCategory.C: return 'C类'
+          case AgentCategory.D: return 'D类'
+          default: return '未分类'
         }
       }
+      
+      const getBgColor = (category: string) => {
+        switch (category) {
+          case AgentCategory.A: return 'bg-green-100 text-green-800'
+          case AgentCategory.B: return 'bg-blue-100 text-blue-800'
+          case AgentCategory.C: return 'bg-yellow-100 text-yellow-800'
+          case AgentCategory.D: return 'bg-red-100 text-red-800'
+          default: return 'bg-gray-100 text-gray-800'
+        }
+      }
+      
+      return h('span', { 
+        class: `inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getBgColor(row.category)}` 
+      }, getLabel(row.category))
     }
   },
   {
     accessorKey: 'level',
     header: '代理级别',
-    cell: ({ row }) => {
-      return {
-        template: `
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-            {{ row.level }}
-          </span>
-        `,
-        setup() {
-          return { row }
-        }
-      }
+    cell: ({ row }: { row: any }) => {
+      return h('span', {
+        class: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800'
+      }, row.level)
     }
   },
   {
     accessorKey: 'status',
     header: '状态',
-    cell: ({ row }) => {
-      return {
-        template: `
-          <span :class="getBgColor(row.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-            {{ getLabel(row.status) }}
-          </span>
-        `,
-        setup() {
-          const getLabel = (status) => {
-            switch (status) {
-              case AgentStatus.ACTIVE: return '活跃'
-              case AgentStatus.INACTIVE: return '非活跃'
-              case AgentStatus.PENDING: return '待审核'
-              case AgentStatus.BLOCKED: return '已封禁'
-              default: return '未知'
-            }
-          }
-          
-          const getBgColor = (status) => {
-            switch (status) {
-              case AgentStatus.ACTIVE: return 'bg-green-100 text-green-800'
-              case AgentStatus.INACTIVE: return 'bg-yellow-100 text-yellow-800'
-              case AgentStatus.PENDING: return 'bg-blue-100 text-blue-800'
-              case AgentStatus.BLOCKED: return 'bg-red-100 text-red-800'
-              default: return 'bg-gray-100 text-gray-800'
-            }
-          }
-          
-          return { row, getLabel, getBgColor }
+    cell: ({ row }: { row: any }) => {
+      const getLabel = (status: string) => {
+        switch (status) {
+          case AgentStatus.ACTIVE: return '活跃'
+          case AgentStatus.INACTIVE: return '非活跃'
+          case AgentStatus.PENDING: return '待审核'
+          case AgentStatus.BLOCKED: return '已封禁'
+          default: return '未知'
         }
       }
+      
+      const getBgColor = (status: string) => {
+        switch (status) {
+          case AgentStatus.ACTIVE: return 'bg-green-100 text-green-800'
+          case AgentStatus.INACTIVE: return 'bg-yellow-100 text-yellow-800'
+          case AgentStatus.PENDING: return 'bg-blue-100 text-blue-800'
+          case AgentStatus.BLOCKED: return 'bg-red-100 text-red-800'
+          default: return 'bg-gray-100 text-gray-800'
+        }
+      }
+      
+      return h('span', { 
+        class: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBgColor(row.status)}` 
+      }, getLabel(row.status))
     }
   },
   {
     id: 'flags',
     header: '标记',
-    cell: ({ row }) => {
-      return {
-        template: `
-          <div class="flex space-x-1">
-            <span v-if="row.isAdded" class="inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-green-100 text-green-800" title="已添加">
-              添加
-            </span>
-            <span v-if="row.isPosting" class="inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-blue-100 text-blue-800" title="发帖">
-              发帖
-            </span>
-            <span v-if="row.isIntercept" class="inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-purple-100 text-purple-800" title="截流">
-              截流
-            </span>
-            <span v-if="row.isAttracting" class="inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-yellow-100 text-yellow-800" title="引流获客">
-              引流
-            </span>
-            <span v-if="row.isInGroup" class="inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-pink-100 text-pink-800" title="进群">
-              进群
-            </span>
-          </div>
-        `,
-        setup() {
-          return { row }
-        }
+    cell: ({ row }: { row: any }) => {
+      // 创建各种标记
+      const flags = []
+      
+      if (row.isAdded) {
+        flags.push(h('span', {
+          class: 'inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-green-100 text-green-800',
+          title: '已添加'
+        }, '添加'))
       }
+      
+      if (row.isPosting) {
+        flags.push(h('span', {
+          class: 'inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-blue-100 text-blue-800',
+          title: '发帖'
+        }, '发帖'))
+      }
+      
+      if (row.isIntercept) {
+        flags.push(h('span', {
+          class: 'inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-purple-100 text-purple-800',
+          title: '截流'
+        }, '截流'))
+      }
+      
+      if (row.isAttracting) {
+        flags.push(h('span', {
+          class: 'inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-yellow-100 text-yellow-800',
+          title: '引流获客'
+        }, '引流'))
+      }
+      
+      if (row.isInGroup) {
+        flags.push(h('span', {
+          class: 'inline-flex items-center px-1.5 rounded-sm text-xs font-medium bg-pink-100 text-pink-800',
+          title: '进群'
+        }, '进群'))
+      }
+      
+      return h('div', { class: 'flex space-x-1' }, flags)
     }
   },
   {
     id: 'actions',
     header: '操作',
-    cell: ({ row }) => {
-      return {
-        template: `
-          <div class="flex items-center space-x-2">
-            <Button size="sm" variant="ghost" class="h-8 w-8 p-0" @click="onEdit(row.id)">
-              <PencilIcon class="h-4 w-4" />
-            </Button>
-            <Button size="sm" variant="ghost" class="h-8 w-8 p-0" @click="onDelete(row.id)">
-              <TrashIcon class="h-4 w-4" />
-            </Button>
-            <router-link :to="{ name: 'AgentDetail', params: { id: row.id } }">
-              <Button size="sm" variant="ghost" class="h-8 w-8 p-0">
-                <MoreHorizontalIcon class="h-4 w-4" />
-              </Button>
-            </router-link>
-          </div>
-        `,
-        setup() {
-          const onEdit = (id) => {
-            editAgent(id)
-          }
-          
-          const onDelete = (id) => {
-            deleteAgent(id)
-          }
-          
-          return { row, onEdit, onDelete, PencilIcon, TrashIcon, MoreHorizontalIcon, Button }
-        }
-      }
+    cell: ({ row }: { row: any }) => {
+      return h('div', { class: 'flex items-center space-x-2' }, [
+        h(Button, {
+          size: 'sm',
+          variant: 'ghost',
+          class: 'h-8 w-8 p-0',
+          onClick: () => editAgent(row.id)
+        }, () => h(PencilIcon, { class: 'h-4 w-4' })),
+        
+        h(Button, {
+          size: 'sm',
+          variant: 'ghost',
+          class: 'h-8 w-8 p-0',
+          onClick: () => deleteAgent(row.id)
+        }, () => h(TrashIcon, { class: 'h-4 w-4' })),
+        
+        h('router-link', {
+          to: { name: 'AgentDetail', params: { id: row.id } }
+        }, [
+          h(Button, {
+            size: 'sm',
+            variant: 'ghost',
+            class: 'h-8 w-8 p-0'
+          }, () => h(MoreHorizontalIcon, { class: 'h-4 w-4' }))
+        ])
+      ])
     }
   }
 ]
@@ -609,11 +584,41 @@ const fetchAgents = async () => {
       isInGroup: filters.value.isInGroup ? true : undefined,
     }
     
+    console.log('获取代理列表，请求参数:', queryParams)
     const response = await agentApi.getAgentList(queryParams)
-    agents.value = response.data
-    totalItems.value = response.total
+    console.log('代理列表响应数据:', response)
+    
+    // 处理不同的返回数据结构
+    if (response && typeof response === 'object') {
+      // 如果response.data是数组，直接使用
+      if (Array.isArray(response.data)) {
+        agents.value = response.data
+        totalItems.value = response.total || response.data.length
+      } 
+      // 如果response.data是对象且包含data字段，则使用嵌套的data
+      else if (response.data && Array.isArray(response.data.data)) {
+        agents.value = response.data.data
+        totalItems.value = response.data.total || response.data.data.length
+      }
+      // 如果response本身是数组，直接使用
+      else if (Array.isArray(response)) {
+        agents.value = response
+        totalItems.value = response.length
+      }
+      else {
+        console.error('代理数据格式不正确:', response)
+        agents.value = []
+        totalItems.value = 0
+      }
+    } else {
+      console.error('获取代理列表失败，响应格式不正确:', response)
+      agents.value = []
+      totalItems.value = 0
+    }
   } catch (error) {
     console.error('Failed to fetch agents:', error)
+    agents.value = []
+    totalItems.value = 0
     // TODO: 显示错误提示
   } finally {
     loading.value = false

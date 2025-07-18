@@ -16,6 +16,17 @@ const debug = (message: string, ...args: any[]) => {
   console.log(`[App Init] ${message}`, ...args)
 }
 
+// 配置Vue警告
+if (import.meta.env.PROD) {
+  app.config.warnHandler = (msg, instance, trace) => {
+    // 在生产环境中忽略某些特定警告
+    if (msg.includes('Non-function value encountered for default slot')) {
+      return
+    }
+    console.warn(`[Vue warn]: ${msg}${trace}`)
+  }
+}
+
 // 我们将使用router/index.ts中的路由守卫处理动态路由，这里只做初始检查
 const checkInitialState = () => {
   // 检查是否有token和用户角色

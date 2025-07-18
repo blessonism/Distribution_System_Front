@@ -170,13 +170,15 @@ const searchParams = reactive<UserSearchParams>({
 const columns = [
   {
     id: 'avatar',
-    header: () => h('div', { class: 'text-center' }, '头像'),
+    header: '头像',
     cell: ({ row }: any) => {
       const user = row.original as User
+      if (!user) return h('div', '-')
+      
       return h('div', { class: 'flex justify-center' }, [
         h(Avatar, { class: 'h-10 w-10' }, () => [
-          h(AvatarImage, { src: user.avatar }),
-          h(AvatarFallback, user.username.slice(0, 2).toUpperCase()),
+          h(AvatarImage, { src: user.avatar || '' }),
+          h(AvatarFallback, {}, () => user.username?.slice(0, 2).toUpperCase() || '--'),
         ]),
       ])
     },
@@ -194,7 +196,7 @@ const columns = [
     header: '邮箱',
     cell: ({ row }: any) => {
       const user = row.original as User
-      return h('div', { class: 'text-sm text-gray-600' }, user.email)
+      return h('div', { class: 'text-sm text-gray-600' }, user?.email || '-')
     },
   },
   {
@@ -202,7 +204,7 @@ const columns = [
     header: '手机号',
     cell: ({ row }: any) => {
       const user = row.original as User
-      return h('div', { class: 'text-sm' }, user.phone)
+      return h('div', { class: 'text-sm' }, user?.phone || '-')
     },
   },
   {
@@ -210,6 +212,8 @@ const columns = [
     header: '角色',
     cell: ({ row }: any) => {
       const user = row.original as User
+      if (!user?.role) return h('div', '-')
+      
       const roleMap = {
         super_admin: '超级管理员',
         director: '总监',
@@ -222,7 +226,7 @@ const columns = [
         {
           variant: user.role === 'super_admin' ? 'default' : 'secondary',
         },
-        roleMap[user.role] || user.role
+        () => roleMap[user.role] || user.role
       )
     },
   },
@@ -231,6 +235,8 @@ const columns = [
     header: '状态',
     cell: ({ row }: any) => {
       const user = row.original as User
+      if (!user?.status) return h('div', '-')
+      
       type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline'
       // 定义状态映射
       const statusMap: Record<UserStatus, { text: string, variant: BadgeVariant }> = {
@@ -240,7 +246,7 @@ const columns = [
         banned: { text: '封禁', variant: 'destructive' },
       }
       const status = statusMap[user.status]
-      return h(Badge, { variant: status.variant }, status.text)
+      return h(Badge, { variant: status.variant }, () => status.text)
     },
   },
   {
@@ -248,7 +254,7 @@ const columns = [
     header: '等级',
     cell: ({ row }: any) => {
       const user = row.original as User
-      return h('div', { class: 'text-center' }, user.level)
+      return h('div', { class: 'text-center' }, user?.level ?? '-')
     },
   },
   {
@@ -256,7 +262,7 @@ const columns = [
     header: '佣金比例',
     cell: ({ row }: any) => {
       const user = row.original as User
-      return h('div', { class: 'text-center' }, `${user.commission_rate}%`)
+      return h('div', { class: 'text-center' }, user?.commission_rate ? `${user.commission_rate}%` : '-')
     },
   },
   {
@@ -267,7 +273,7 @@ const columns = [
       return h(
         'div',
         { class: 'text-sm text-gray-600' },
-        new Date(user.created_at).toLocaleDateString()
+        user?.created_at ? new Date(user.created_at).toLocaleDateString() : '-'
       )
     },
   },
@@ -276,6 +282,8 @@ const columns = [
     header: '操作',
     cell: ({ row }: any) => {
       const user = row.original as User
+      if (!user) return h('div', '-')
+      
       return h('div', { class: 'flex items-center space-x-1' }, [
         h(
           Button,
@@ -314,13 +322,17 @@ const loadUserList = async () => {
   loading.value = true
   try {
     // 创建基础参数对象
-    const params: Partial<UserQueryParams> = {
+    const params: UserQueryParams = {
       page: currentPage.value,
       page_size: pageSize.value,
-      keyword: searchParams.keyword,
     };
     
-    // 只有非'all'值才添加到params，使用类型转换
+    // 添加可选参数
+    if (searchParams.keyword) {
+      params.keyword = searchParams.keyword;
+    }
+    
+    // 只有非'all'值才添加到params
     if (searchParams.role && searchParams.role !== 'all') {
       params.role = searchParams.role as UserRole;
     }
@@ -328,7 +340,8 @@ const loadUserList = async () => {
       params.status = searchParams.status as UserStatus;
     }
     
-    const response = await userApi.getUserList(params as UserQueryParams);
+    const response = await userApi.getUserList(params);
+    console.log('API返回的用户数据:', response);
     userList.value = response?.items || []; // 确保始终是数组
     totalItems.value = response?.total || 0;
   } catch (error) {
@@ -414,7 +427,26 @@ const handleBatchDelete = async () => {
 const handleBatchExport = async () => {
   batchExporting.value = true
   try {
-    const blob = await userApi.exportUsers(searchParams)
+    // 创建导出参数对象
+    const exportParams: Partial<UserQueryParams> = {
+      page: currentPage.value,
+      page_size: pageSize.value,
+    };
+    
+    // 添加可选参数
+    if (searchParams.keyword) {
+      exportParams.keyword = searchParams.keyword;
+    }
+    
+    // 只有非'all'值才添加到params
+    if (searchParams.role && searchParams.role !== 'all') {
+      exportParams.role = searchParams.role as UserRole;
+    }
+    if (searchParams.status && searchParams.status !== 'all') {
+      exportParams.status = searchParams.status as UserStatus;
+    }
+    
+    const blob = await userApi.exportUsers(exportParams)
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
