@@ -1,6 +1,7 @@
 import axios from 'axios'
 import MockAdapter from 'axios-mock-adapter'
 import request from '@/utils/request'
+import { realAgentsData } from './agentData'
 
 export function setupMockApi() {
   // 创建一个MockAdapter实例，使用项目中的request实例而不是全局axios实例
@@ -173,32 +174,63 @@ export function setupMockApi() {
   // 模拟代理API
   // 1. 获取代理列表
   mock.onGet('/agents').reply((config) => {
-    const { page = 1, pageSize = 10 } = config.params || {};
+    const { page = 1, pageSize = 10, keyword = '', status = '', category = '', level = '' } = config.params || {};
     
-    // 生成代理数据
-    const agents = Array.from({ length: pageSize }, (_, i) => {
-      const index = (page - 1) * pageSize + i;
-      return {
-        id: `agent-${index}`,
-        name: `代理${index}`,
-        phone: `139${String(10000000 + index).slice(1)}`,
-        wechatName: `wx_agent${index}`,
-        redBookAccount: index % 3 === 0 ? `redbook_${index}` : '',
-        referrer: index % 5 === 0 ? '系统推荐' : index % 2 === 0 ? `代理${index-1}` : '',
-        category: ['a', 'b', 'c', 'd'][index % 4],
-        level: [`sv${index % 6 + 1}`],
-        status: ['active', 'inactive', 'pending', 'blocked'][index % 4],
-        isAdded: index % 2 === 0,
-        isPosting: index % 3 === 0,
-        isIntercept: index % 4 === 0,
-        isAttracting: index % 5 === 0,
-        isInGroup: index % 2 === 1,
-        notes: index % 3 === 0 ? '表现优秀，积极参与活动' : '',
-        addedDate: new Date(Date.now() - index * 86400000 * 7).toISOString(),
-        createdAt: new Date(Date.now() - index * 86400000 * 7).toISOString(),
-        updatedAt: new Date(Date.now() - index * 3600000).toISOString()
-      };
-    });
+    // 从真实数据中筛选
+    let filteredAgents = [...realAgentsData];
+    
+    // 应用筛选条件
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filteredAgents = filteredAgents.filter(agent => 
+        agent.name.toLowerCase().includes(lowerKeyword) ||
+        agent.phone.includes(lowerKeyword) ||
+        agent.wechatName.toLowerCase().includes(lowerKeyword)
+      );
+    }
+    
+    if (status) {
+      filteredAgents = filteredAgents.filter(agent => agent.status === status);
+    }
+    
+    if (category) {
+      filteredAgents = filteredAgents.filter(agent => agent.category === category);
+    }
+    
+    if (level) {
+      filteredAgents = filteredAgents.filter(agent => agent.level === level);
+    }
+    
+    // 应用标记筛选
+    if (config.params?.isAdded) {
+      filteredAgents = filteredAgents.filter(agent => agent.isAdded);
+    }
+    
+    if (config.params?.isPosting) {
+      filteredAgents = filteredAgents.filter(agent => agent.isPosting);
+    }
+    
+    if (config.params?.isIntercept) {
+      filteredAgents = filteredAgents.filter(agent => agent.isIntercept);
+    }
+    
+    if (config.params?.isAttracting) {
+      filteredAgents = filteredAgents.filter(agent => agent.isAttracting);
+    }
+    
+    if (config.params?.isInGroup) {
+      filteredAgents = filteredAgents.filter(agent => agent.isInGroup);
+    }
+    
+    // 计算总数
+    const total = filteredAgents.length;
+    
+    // 分页
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + Number(pageSize);
+    const pagedAgents = filteredAgents.slice(startIndex, endIndex);
+    
+    console.log('Mock API: 返回代理列表，参数:', config.params, '结果数量:', pagedAgents.length);
     
     return [
       200,
@@ -206,8 +238,8 @@ export function setupMockApi() {
         code: 200,
         success: true,
         data: {
-          data: agents,
-          total: 100,
+          data: pagedAgents,
+          total: total,
           page: Number(page),
           pageSize: Number(pageSize)
         }
@@ -219,33 +251,27 @@ export function setupMockApi() {
   mock.onGet(/\/agents\/[^\/]+$/).reply((config) => {
     const id = config.url?.split('/').pop() || '';
     
-    const agent = {
-      id,
-      name: `代理${id}`,
-      phone: `139${String(10000000 + (id.includes('-') ? Number(id.split('-')[1]) : 0)).slice(1)}`,
-      wechatName: `wx_agent${id}`,
-      redBookAccount: `redbook_${id}`,
-      referrer: '系统推荐',
-      category: 'a',
-      level: 'sv3',
-      status: 'active',
-      isAdded: true,
-      isPosting: true,
-      isIntercept: false,
-      isAttracting: true,
-      isInGroup: true,
-      notes: '优秀代理，活跃度高',
-      addedDate: new Date(Date.now() - 30 * 86400000).toISOString(),
-      createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-      updatedAt: new Date(Date.now() - 2 * 3600000).toISOString()
-    };
+    // 从真实数据中查找
+    const agent = realAgentsData.find(a => a.id === id);
     
+    if (agent) {
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          data: agent
+        }
+      ];
+    }
+    
+    // 如果找不到，返回404
     return [
-      200,
+      404,
       {
-        code: 200,
-        success: true,
-        data: agent
+        code: 404,
+        success: false,
+        message: '代理不存在'
       }
     ];
   });

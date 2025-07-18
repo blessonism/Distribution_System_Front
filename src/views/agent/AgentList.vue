@@ -364,20 +364,72 @@ const deleting = ref(false)
 const columns = [
   {
     id: 'select',
-    header: '选择',
-    cell: ({ row }: { row: any }) => {
+    header: () => {
       return h('div', { class: 'flex items-center justify-center' }, [
         h('input', {
           type: 'checkbox',
-          checked: selectedAgents.value.includes(row.id),
+          checked: agents.value.length > 0 && selectedAgents.value.length === agents.value.length,
+          indeterminate: selectedAgents.value.length > 0 && selectedAgents.value.length < agents.value.length,
           class: 'rounded border-gray-300',
-          onChange: () => {
-            const index = selectedAgents.value.indexOf(row.id)
-            if (index === -1) {
-              selectedAgents.value.push(row.id)
+          onClick: (e: Event) => {
+            e.stopPropagation()
+          },
+          onChange: (e: Event) => {
+            // 获取事件目标元素
+            const target = e.target as HTMLInputElement
+            
+            if (target.checked) {
+              // 全选：获取当前页所有代理ID并添加到selectedAgents
+              const allCurrentPageAgentIds = agents.value.map(agent => agent.id)
+              // 使用Set去重并转回数组
+              selectedAgents.value = Array.from(new Set([...selectedAgents.value, ...allCurrentPageAgentIds]))
             } else {
-              selectedAgents.value.splice(index, 1)
+              // 取消全选：从selectedAgents中移除当前页所有代理ID
+              const allCurrentPageAgentIds = new Set(agents.value.map(agent => agent.id))
+              selectedAgents.value = selectedAgents.value.filter(id => !allCurrentPageAgentIds.has(id))
             }
+            
+            console.log(`全选/取消全选操作，已选中: ${target.checked}, 当前选中数量: ${selectedAgents.value.length}`)
+            console.log('当前选中的代理IDs:', selectedAgents.value)
+          }
+        })
+      ])
+    },
+    cell: ({ row }: { row: any }) => {
+      // 兼容新旧两种访问方式
+      const agentId = row.id || (row.original && row.original.id)
+      if (!agentId) {
+        console.error('无法获取代理ID:', row)
+        return h('div', {}, '数据错误')
+      }
+      
+      return h('div', { class: 'flex items-center justify-center' }, [
+        h('input', {
+          type: 'checkbox',
+          // 使用计算属性检查当前行是否被选中
+          checked: selectedAgents.value.includes(agentId),
+          class: 'rounded border-gray-300',
+          onClick: (e: Event) => {
+            e.stopPropagation() // 阻止事件冒泡
+          },
+          onChange: (e: Event) => {
+            // 获取事件目标元素
+            const target = e.target as HTMLInputElement
+            // 根据checkbox是否被选中来更新selectedAgents数组
+            if (target.checked) {
+              // 如果被选中，并且不在数组中，则添加
+              if (!selectedAgents.value.includes(agentId)) {
+                selectedAgents.value.push(agentId)
+              }
+            } else {
+              // 如果未被选中，从数组中移除
+              const index = selectedAgents.value.indexOf(agentId)
+              if (index !== -1) {
+                selectedAgents.value.splice(index, 1)
+              }
+            }
+            console.log(`切换代理选择状态: ${agentId}, 已选中: ${target.checked}, 当前选中数量: ${selectedAgents.value.length}`)
+            console.log('当前选中的代理IDs:', selectedAgents.value)
           }
         })
       ])
@@ -656,6 +708,8 @@ const searchAgents = () => {
 // 处理分页变更
 const handlePageChange = (page: number) => {
   pagination.value.page = page
+  console.log(`分页切换到第${page}页，当前选中的代理数量: ${selectedAgents.value.length}`)
+  console.log('当前选中的代理IDs:', selectedAgents.value)
   fetchAgents()
 }
 

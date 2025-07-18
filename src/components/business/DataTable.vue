@@ -189,18 +189,23 @@ const renderHeaderContent = (column: Column) => {
 const renderCellContent = (column: Column, row: any) => {
   if (!column.cell) return null
   
+  // 检查row是否存在
+  if (!row) {
+    console.error('表格行数据不存在', { column })
+    return h('div', { class: 'text-red-500 text-xs' }, '行数据错误')
+  }
+  
+  // 修改：支持两种访问方式，兼容原有的API调用
   try {
-    // 检查row是否存在
-    if (!row) {
-      console.error('表格行数据不存在', { column })
-      return h('div', { class: 'text-red-500 text-xs' }, '行数据错误')
-    }
+    // 准备传递的参数，同时支持直接访问row和通过row.original访问
+    const rowParam = {
+      row: {
+        ...row,  // 直接将row数据传递
+        original: row  // 同时提供original属性以兼容旧代码
+      }
+    };
     
-    // 创建一个包装对象以保持与原有API兼容
-    const rowWrapper = { original: row }
-    
-    // 尝试执行cell函数
-    const cellContent = column.cell({ row: rowWrapper })
+    const cellContent = column.cell(rowParam);
     
     // 如果是对象且有template和setup属性，则创建一个组件
     if (cellContent && typeof cellContent === 'object' && cellContent.template) {
