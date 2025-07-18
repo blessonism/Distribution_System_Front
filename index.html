@@ -1,10 +1,23 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8">
     <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vite App</title>
+    <title>分销系统管理后台</title>
+    <script>
+      // 初始路由检查 - 确保已登录用户访问根路径时会被重定向到dashboard
+      (function() {
+        if (window.location.pathname === '/') {
+          var token = localStorage.getItem('token');
+          if (token) {
+            console.log('检测到token，首次访问将重定向到dashboard');
+            // 将路径存储到会话存储中，等待应用加载完成后重定向
+            sessionStorage.setItem('redirect_path', '/dashboard');
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -26,88 +26,148 @@
       </div>
 
       <!-- 导航菜单 -->
-      <nav class="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-        <div v-for="route in menuRoutes" :key="route.path">
-          <!-- 单级菜单 -->
-          <router-link
-            v-if="!route.children?.length"
-            :to="route.path"
-            class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
-            :class="[
-              $route.path === route.path || $route.path.startsWith(route.path + '/')
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-700 hover:bg-gray-100'
-            ]"
-            custom
-            v-slot="{ navigate }"
-          >
-            <a 
-              href="javascript:void(0)" 
-              @click="handleRouterLink(route.path); navigate()" 
-              class="flex items-center w-full"
-            >
-              <component 
-                :is="getIcon(route.meta?.icon)" 
-                class="w-5 h-5 mr-3"
-              />
-              {{ route.meta?.title }}
-            </a>
-          </router-link>
-
-          <!-- 多级菜单 -->
-          <div v-else>
-            <button
-              @click="toggleSubmenu(String(route.name))"
-              class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md transition-colors"
-              :class="[
-                isActiveParent(route)
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-100'
-              ]"
-            >
-              <div class="flex items-center">
+      <nav class="flex-1 py-4 overflow-y-auto">
+        <!-- 业务菜单 -->
+        <div class="px-4 mb-4">
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">业务功能</h2>
+          <div class="space-y-1">
+            <div v-for="route in businessMenuRoutes" :key="route.path">
+              <!-- 单级菜单 -->
+              <router-link
+                v-if="!route.children?.length"
+                :to="route.path"
+                class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                active-class="bg-blue-50 text-blue-600"
+                exact-active-class="bg-blue-50 text-blue-600"
+              >
                 <component 
                   :is="getIcon(route.meta?.icon)" 
                   class="w-5 h-5 mr-3"
                 />
                 {{ route.meta?.title }}
-              </div>
-              <svg 
-                class="w-4 h-4 transition-transform" 
-                :class="{ 'rotate-90': route.name && expandedMenus.includes(String(route.name)) }"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            
-            <div 
-              v-show="expandedMenus.includes(String(route.name))" 
-              class="mt-1 ml-8 space-y-1"
-            >
-              <router-link
-                v-for="child in route.children"
-                :key="child.path"
-                :to="child.path"
-                class="block px-3 py-2 text-sm rounded-md transition-colors"
-                :class="[
-                  $route.path === child.path || $route.path.startsWith(child.path + '/')
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-600 hover:bg-gray-100'
-                ]"
-                custom
-                v-slot="{ navigate }"
-              >
-                <a 
-                  href="javascript:void(0)" 
-                  @click="handleRouterLink(child.path); navigate()"
-                  class="block px-3 py-2"
-                >
-                  {{ child.meta?.title }}
-                </a>
               </router-link>
+
+              <!-- 多级菜单 -->
+              <div v-else class="mb-2">
+                <button
+                  @click="toggleSubmenu(String(route.name))"
+                  class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                  :class="[
+                    isActiveParent(route)
+                      ? 'bg-blue-100 text-blue-700 shadow-sm'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  ]"
+                >
+                  <div class="flex items-center">
+                    <component 
+                      :is="getIcon(route.meta?.icon)" 
+                      class="w-5 h-5 mr-3"
+                    />
+                    <span class="font-semibold">{{ route.meta?.title }}</span>
+                  </div>
+                  <svg 
+                    class="w-4 h-4 transition-transform" 
+                    :class="{ 'rotate-90': route.name && expandedMenus.includes(String(route.name)) }"
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                
+                <div 
+                  v-show="expandedMenus.includes(String(route.name))" 
+                  class="mt-1 ml-4 pl-4 border-l-2 border-gray-200"
+                >
+                  <router-link
+                    v-for="child in route.children"
+                    :key="child.path"
+                    :to="child.path"
+                    class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
+                    active-class="text-blue-600 font-medium"
+                    exact-active-class="text-blue-600 font-medium"
+                  >
+                    <div class="w-1.5 h-1.5 rounded-full mr-2"
+                      :class="$route.path.startsWith(child.path) ? 'bg-blue-500' : 'bg-gray-300'">
+                    </div>
+                    {{ child.meta?.title }}
+                  </router-link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 系统菜单 -->
+        <div class="px-4">
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">系统设置</h2>
+          <div class="space-y-1">
+            <div v-for="route in systemMenuRoutes" :key="route.path">
+              <!-- 单级菜单 -->
+              <router-link
+                v-if="!route.children?.length"
+                :to="route.path"
+                class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                active-class="bg-blue-50 text-blue-600"
+                exact-active-class="bg-blue-50 text-blue-600"
+              >
+                  <component 
+                    :is="getIcon(route.meta?.icon)" 
+                    class="w-5 h-5 mr-3"
+                  />
+                  {{ route.meta?.title }}
+              </router-link>
+
+              <!-- 多级菜单 -->
+              <div v-else class="mb-2">
+                <!-- 与业务菜单相同的多级菜单结构 -->
+                <button
+                  @click="toggleSubmenu(String(route.name))"
+                  class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                  :class="[
+                    isActiveParent(route)
+                      ? 'bg-blue-100 text-blue-700 shadow-sm'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  ]"
+                >
+                  <div class="flex items-center">
+                    <component 
+                      :is="getIcon(route.meta?.icon)" 
+                      class="w-5 h-5 mr-3"
+                    />
+                    <span class="font-semibold">{{ route.meta?.title }}</span>
+                  </div>
+                  <svg 
+                    class="w-4 h-4 transition-transform" 
+                    :class="{ 'rotate-90': route.name && expandedMenus.includes(String(route.name)) }"
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                
+                <div 
+                  v-show="expandedMenus.includes(String(route.name))" 
+                  class="mt-1 ml-4 pl-4 border-l-2 border-gray-200"
+                >
+                  <router-link
+                    v-for="child in route.children"
+                    :key="child.path"
+                    :to="child.path"
+                    class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors"
+                    active-class="text-blue-600 font-medium"
+                    exact-active-class="text-blue-600 font-medium"
+                  >
+                    <div class="w-1.5 h-1.5 rounded-full mr-2"
+                      :class="$route.path.startsWith(child.path) ? 'bg-blue-500' : 'bg-gray-300'">
+                    </div>
+                    {{ child.meta?.title }}
+                  </router-link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -145,9 +205,20 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </button>
+            
+            <!-- 退出登录按钮 -->
+            <button 
+              @click="handleLogout" 
+              class="hidden md:flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            >
+              <svg class="w-5 h-5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              退出登录
+            </button>
 
             <!-- 用户信息 -->
-            <div class="relative">
+            <div class="relative user-menu-container">
               <button 
                 @click="toggleUserMenu" 
                 class="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-100"
@@ -173,9 +244,10 @@
                 >
                   个人设置
                 </router-link>
+                <!-- 在移动设备上显示的退出登录选项 -->
                 <button 
                   @click="handleLogout" 
-                  class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  class="md:hidden block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
                   退出登录
                 </button>
@@ -206,6 +278,19 @@ import { useUserStore } from '@/store/user'
 import { asyncRoutes } from '@/router/routes'
 import type { AppRouteRecordRaw } from '@/router/routes'
 
+// 导入必要的图标组件
+import { 
+  HomeIcon, 
+  UsersIcon, 
+  UserCheckIcon,
+  NetworkIcon,
+  TargetIcon, 
+  DollarSignIcon, 
+  MegaphoneIcon, 
+  SettingsIcon, 
+  LayoutDashboardIcon 
+} from 'lucide-vue-next'
+
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
@@ -225,6 +310,20 @@ const menuRoutes = computed(() => {
   return accessibleRoutes
 })
 
+// 获取业务管理菜单
+const businessMenuRoutes = computed(() => {
+  const routes = menuRoutes.value.filter(route => route.meta?.group === 'business')
+  console.log('[Menu] 业务菜单路由:', routes.map(r => ({path: r.path, name: r.name, title: r.meta?.title})))
+  return routes
+})
+
+// 获取系统设置菜单
+const systemMenuRoutes = computed(() => {
+  const routes = menuRoutes.value.filter(route => route.meta?.group === 'system')
+  console.log('[Menu] 系统菜单路由:', routes.map(r => ({path: r.path, name: r.name, title: r.meta?.title})))
+  return routes
+})
+
 // 页面标题
 const pageTitle = computed(() => {
   const matched = route.matched
@@ -234,9 +333,18 @@ const pageTitle = computed(() => {
 
 // 获取图标组件
 const getIcon = (icon?: string) => {
-  // 这里返回实际的图标组件
-  // 暂时使用占位符
-  return 'div'
+  // 返回实际的图标组件
+  switch (icon) {
+    case 'dashboard': return LayoutDashboardIcon
+    case 'users': return UsersIcon
+    case 'users-2': return NetworkIcon
+    case 'target': return TargetIcon
+    case 'dollar-sign': return DollarSignIcon
+    case 'megaphone': return MegaphoneIcon
+    case 'settings': return SettingsIcon
+    case 'home': return HomeIcon
+    default: return 'div' // 默认返回一个空div作为占位符
+  }
 }
 
 // 切换侧边栏
@@ -261,45 +369,23 @@ const toggleSubmenu = (name: string) => {
 
 // 检查是否是活跃父菜单
 const isActiveParent = (route: AppRouteRecordRaw) => {
-  // 如果当前路由以父路由开头，则认为父菜单激活
-  if (route.path !== '/' && router.currentRoute.value.path.startsWith(route.path)) {
-    return true
-  }
-  
-  // 检查子路由是否活跃
+  const currentPath = router.currentRoute.value.path
   return route.children?.some(child => 
-    router.currentRoute.value.path === child.path || 
-    router.currentRoute.value.path.startsWith(child.path + '/')
+    currentPath.startsWith(child.path)
   ) || false
-}
-
-// 点击菜单项时，记录路由信息并修复路径
-const handleRouterLink = (to: string) => {
-  // 特殊处理dashboard路由
-  if (to === 'dashboard') {
-    to = '/dashboard';
-  }
-  
-  console.log('[Menu] 路由点击:', to)
-  console.log('[Menu] 当前路由:', router.currentRoute.value.path)
-  
-  // 检查路由是否存在
-  const foundRoute = router.getRoutes().find(r => r.path === to);
-  console.log('[Menu] 路由匹配情况:', foundRoute)
-  
-  // 如果路由不存在，可能需要使用完整路径
-  if (!foundRoute && !to.startsWith('/')) {
-    const fullPath = `/${to}`;
-    console.log('[Menu] 尝试完整路径:', fullPath)
-    console.log('[Menu] 使用完整路径匹配结果:', router.getRoutes().find(r => r.path === fullPath))
-  }
 }
 
 // 退出登录
 const handleLogout = async () => {
+  try {
+    console.log('[Layout] 执行退出登录操作')
   userStore.logout()
-  await router.push('/login')
   userMenuOpen.value = false
+    // 为了确保路由状态正确重置，使用直接跳转
+    window.location.href = '/login'
+  } catch (error) {
+    console.error('[Layout] 退出登录失败:', error)
+  }
 }
 
 // 点击外部关闭用户菜单
@@ -322,6 +408,15 @@ onMounted(() => {
       expandedMenus.value.push(matchedRoute.name as string)
     }
   })
+  
+  // 确保Layout菜单展开
+  if (!expandedMenus.value.includes('Layout')) {
+    expandedMenus.value.push('Layout')
+  }
+  
+  // 输出当前菜单展开状态
+  console.log('[Menu] 当前展开的菜单:', expandedMenus.value)
+  console.log('[Menu] 当前路由匹配:', route.matched.map(r => r.name))
 })
 </script>
 

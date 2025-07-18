@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>分销系统管理后台 - 重定向中...</title>
+  <script>
+    // 单页应用路由重定向处理
+    (function() {
+      // 获取当前URL并提取路径
+      var path = window.location.pathname;
+      var searchParams = window.location.search || '';
+      var hash = window.location.hash || '';
+      
+      // 记录路径到sessionStorage，用于在主页中重定向
+      sessionStorage.setItem('redirect_path', path + searchParams + hash);
+      
+      // 重定向到首页，让应用正常加载
+      window.location.href = '/';
+    })();
+  </script>
+</head>
+<body>
+  <h1>页面重定向中...</h1>
+  <p>如果页面没有自动跳转，请点击<a href="/">这里</a>返回首页</p>
+</body>
+</html> 

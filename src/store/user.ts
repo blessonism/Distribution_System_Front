@@ -43,6 +43,8 @@ export const useUserStore = defineStore('user', {
         
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', response.token)
+          // 保存用户角色到localStorage，用于刷新时恢复路由
+          localStorage.setItem('userRoles', JSON.stringify(this.roles))
         }
         
         return response
@@ -77,9 +79,18 @@ export const useUserStore = defineStore('user', {
       this.routesLoaded = false
       
       if (typeof window !== 'undefined') {
+        // 先清除localStorage中的状态
         localStorage.removeItem('token')
-        import('@/router').then(({ resetRouter }) => {
+        localStorage.removeItem('routesLoaded')
+        localStorage.removeItem('userRoles')
+        
+        // 重置路由
+        import('@/router').then(({ resetRouter, default: router }) => {
           resetRouter()
+          // 确保路由状态被重置后再跳转到登录页
+          setTimeout(() => {
+            router.push('/login')
+          }, 100)
         })
       }
     },
