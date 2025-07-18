@@ -626,9 +626,9 @@ const fetchAgents = async () => {
       page,
       pageSize,
       keyword: filters.value.keyword,
-      status: filters.value.status || undefined,
-      category: filters.value.category || undefined,
-      level: filters.value.level || undefined,
+      status: filters.value.status ? filters.value.status as AgentStatus : undefined,
+      category: filters.value.category ? filters.value.category as AgentCategory : undefined,
+      level: filters.value.level ? filters.value.level as AgentLevel : undefined,
       isAdded: filters.value.isAdded ? true : undefined,
       isPosting: filters.value.isPosting ? true : undefined,
       isIntercept: filters.value.isIntercept ? true : undefined,
@@ -648,9 +648,9 @@ const fetchAgents = async () => {
         totalItems.value = response.total || response.data.length
       } 
       // 如果response.data是对象且包含data字段，则使用嵌套的data
-      else if (response.data && Array.isArray(response.data.data)) {
-        agents.value = response.data.data
-        totalItems.value = response.data.total || response.data.data.length
+      else if (response.data && 'data' in response.data && Array.isArray((response.data as any).data)) {
+        agents.value = (response.data as any).data
+        totalItems.value = (response.data as any).total || (response.data as any).data.length
       }
       // 如果response本身是数组，直接使用
       else if (Array.isArray(response)) {
@@ -679,7 +679,13 @@ const fetchAgents = async () => {
 
 // 切换筛选条件
 const toggleFilter = (filterName: string) => {
-  filters.value[filterName as keyof typeof filters.value] = !filters.value[filterName as keyof typeof filters.value]
+  // 使用类型守卫确保我们只处理布尔类型的过滤器
+  if (filterName === 'isAdded' || filterName === 'isPosting' || 
+      filterName === 'isIntercept' || filterName === 'isAttracting' || 
+      filterName === 'isInGroup') {
+    const key = filterName as 'isAdded' | 'isPosting' | 'isIntercept' | 'isAttracting' | 'isInGroup';
+    filters.value[key] = !filters.value[key];
+  }
   searchAgents()
 }
 
@@ -728,8 +734,8 @@ const editAgent = async (agentId: string) => {
       name: agent.name,
       phone: agent.phone,
       wechatName: agent.wechatName,
-      redBookAccount: agent.redBookAccount,
-      referrer: agent.referrer,
+      redBookAccount: agent.redBookAccount || '',
+      referrer: agent.referrer || '',
       category: agent.category,
       level: agent.level,
       isAdded: agent.isAdded,
@@ -737,7 +743,7 @@ const editAgent = async (agentId: string) => {
       isIntercept: agent.isIntercept,
       isAttracting: agent.isAttracting,
       isInGroup: agent.isInGroup,
-      notes: agent.notes,
+      notes: agent.notes || '',
     }
     currentAgentId.value = agentId
     editMode.value = true
@@ -772,10 +778,16 @@ const resetAgentForm = () => {
 const handleSubmitAgent = async () => {
   submitting.value = true
   try {
+    const formData = {
+      ...agentForm.value,
+      category: agentForm.value.category as AgentCategory,
+      level: agentForm.value.level as AgentLevel
+    };
+    
     if (editMode.value && currentAgentId.value) {
-      await agentApi.updateAgent(currentAgentId.value, agentForm.value)
+      await agentApi.updateAgent(currentAgentId.value, formData)
     } else {
-      await agentApi.createAgent(agentForm.value as any)
+      await agentApi.createAgent(formData as any)
     }
     showAgentDialog.value = false
     fetchAgents()
@@ -823,8 +835,14 @@ const confirmDelete = async () => {
 // 导出数据
 const exportData = async () => {
   try {
-    const { keyword, status, category, level } = filters.value
-    const blob = await agentApi.exportAgents({ keyword, status, category, level })
+    const exportParams = {
+      keyword: filters.value.keyword,
+      status: filters.value.status ? filters.value.status as AgentStatus : undefined,
+      category: filters.value.category ? filters.value.category as AgentCategory : undefined,
+      level: filters.value.level ? filters.value.level as AgentLevel : undefined
+    };
+    
+    const blob = await agentApi.exportAgents(exportParams)
     
     // 创建临时下载链接
     const url = window.URL.createObjectURL(blob)
