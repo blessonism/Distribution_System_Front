@@ -1,216 +1,234 @@
 <template>
-  <div class="space-y-4">
-    <!-- 搜索和操作区域 -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center space-x-2">
-        <Input
-          v-if="searchable"
-          v-model="searchQuery"
-          type="text"
-          :placeholder="searchPlaceholder"
-          class="w-64"
-          @input="handleSearch"
-        />
-        <slot name="toolbar" />
+  <div class="w-full">
+    <!-- 工具栏 -->
+    <div class="flex justify-between items-center mb-4">
+      <div>
+        <slot name="toolbar"></slot>
       </div>
-      <div class="flex items-center space-x-2">
-        <slot name="actions" />
+      <div>
+        <slot name="actions"></slot>
       </div>
     </div>
 
     <!-- 表格 -->
     <div class="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-            <TableHead v-for="header in headerGroup.headers" :key="header.id">
-              <FlexRender
-                v-if="!header.isPlaceholder"
-                :render="header.column.columnDef.header"
-                :props="header.getContext()"
-              />
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <template v-if="table.getRowModel().rows?.length">
-            <TableRow
-              v-for="row in table.getRowModel().rows"
-              :key="row.id"
-              :data-state="row.getIsSelected() && 'selected'"
-              class="hover:bg-gray-50"
+      <table class="w-full caption-bottom text-sm">
+        <thead class="[&_tr]:border-b">
+          <tr class="border-b transition-colors hover:bg-muted/20">
+            <th 
+              v-for="column in columns" 
+              :key="column.id || column.accessorKey" 
+              class="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
             >
-              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-              </TableCell>
-            </TableRow>
+              {{ column.header }}
+            </th>
+          </tr>
+        </thead>
+        <tbody class="[&_tr:last-child]:border-0">
+          <template v-if="!loading && safeData.length > 0">
+            <tr 
+              v-for="(row, index) in safeData" 
+              :key="index"
+              class="border-b transition-colors hover:bg-muted/20"
+            >
+              <td 
+                v-for="column in columns" 
+                :key="column.id || column.accessorKey" 
+                class="p-4 align-middle"
+              >
+                <template v-if="column.cell">
+                  <component :is="renderCellContent(column, row)" />
+                </template>
+                <template v-else>
+                  {{ getColumnValue(row, column) }}
+                </template>
+              </td>
+            </tr>
+          </template>
+          <template v-else-if="loading">
+            <tr v-for="i in 5" :key="i">
+              <td 
+                v-for="column in columns" 
+                :key="column.id || column.accessorKey" 
+                class="p-4 align-middle"
+              >
+                <div class="h-4 bg-muted/30 rounded animate-pulse"></div>
+              </td>
+            </tr>
           </template>
           <template v-else>
-            <TableRow>
-              <TableCell
-                :colspan="columns.length"
-                class="h-24 text-center text-gray-500"
-              >
+            <tr>
+              <td :colspan="columns.length" class="h-24 text-center">
                 <div class="flex flex-col items-center justify-center">
-                  <div class="text-lg font-medium">{{ emptyText }}</div>
-                  <div v-if="searchQuery" class="text-sm text-gray-400 mt-1">
-                    没有找到与 "{{ searchQuery }}" 相关的结果
-                  </div>
+                  <p class="text-muted-foreground">{{ emptyText || '暂无数据' }}</p>
                 </div>
-              </TableCell>
-            </TableRow>
+              </td>
+            </tr>
           </template>
-        </TableBody>
-      </Table>
+        </tbody>
+      </table>
     </div>
 
     <!-- 分页 -->
-    <div v-if="pagination" class="flex items-center justify-between">
-      <div class="text-sm text-gray-700">
-        共 {{ totalItems }} 条记录
+    <div v-if="pagination && totalItems > 0" class="flex items-center justify-end space-x-2 py-4">
+      <div class="text-sm text-muted-foreground">
+        共 <span class="font-medium">{{ totalItems }}</span> 条记录
       </div>
-      <div class="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
+      <div class="space-x-1">
+        <button
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors h-8 w-8 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+          :disabled="currentPage === 1"
+          @click="handlePageChange(1)"
+        >
+          <span class="sr-only">首页</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevrons-left"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>
+        </button>
+        <button
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors h-8 w-8 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
           :disabled="currentPage === 1"
           @click="handlePageChange(currentPage - 1)"
         >
-          上一页
-        </Button>
-        <div class="text-sm">
-          第 {{ currentPage }} 页 / 共 {{ totalPages }} 页
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
+          <span class="sr-only">上一页</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button
+          v-for="page in displayedPages"
+          :key="page"
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors h-8 min-w-[2rem] border border-input"
+          :class="page === currentPage ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-accent hover:text-accent-foreground'"
+          @click="handlePageChange(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors h-8 w-8 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
           :disabled="currentPage === totalPages"
           @click="handlePageChange(currentPage + 1)"
         >
-          下一页
-        </Button>
+          <span class="sr-only">下一页</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+        <button
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors h-8 w-8 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+          :disabled="currentPage === totalPages"
+          @click="handlePageChange(totalPages)"
+        >
+          <span class="sr-only">末页</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevrons-right"><path d="m13 17 5-5-5-5"/><path d="m6 17 5-5-5-5"/></svg>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts" generic="T">
-import { computed, ref, watch } from 'vue'
-import {
-  FlexRender,
-  getCoreRowModel,
-  useVueTable,
-  type ColumnDef,
-  type RowSelectionState,
-  type SortingState,
-  type ColumnFiltersState,
-  type VisibilityState,
-} from '@tanstack/vue-table'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+<script setup lang="ts">
+import { computed, h, defineComponent, markRaw } from 'vue'
 
-interface DataTableProps {
-  columns: ColumnDef<T>[]
-  data: T[]
+interface Column {
+  id?: string
+  accessorKey?: string
+  header?: string
+  cell?: (props: { row: any }) => any
+}
+
+interface Props {
+  columns: Column[]
+  data: any[] | undefined
   loading?: boolean
-  searchable?: boolean
-  searchPlaceholder?: string
-  emptyText?: string
   pagination?: boolean
   totalItems?: number
   pageSize?: number
   currentPage?: number
-  onPageChange?: (page: number) => void
-  onSearch?: (query: string) => void
-  rowSelection?: RowSelectionState
-  onRowSelectionChange?: (selection: RowSelectionState) => void
+  emptyText?: string
 }
 
-const props = withDefaults(defineProps<DataTableProps>(), {
+const props = withDefaults(defineProps<Props>(), {
   loading: false,
-  searchable: true,
-  searchPlaceholder: '搜索...',
-  emptyText: '暂无数据',
-  pagination: true,
+  pagination: false,
   totalItems: 0,
   pageSize: 10,
   currentPage: 1,
+  emptyText: '暂无数据'
 })
 
 const emit = defineEmits<{
-  pageChange: [page: number]
-  search: [query: string]
-  rowSelectionChange: [selection: RowSelectionState]
+  (e: 'page-change', page: number): void
 }>()
 
-const searchQuery = ref('')
-const sorting = ref<SortingState>([])
-const columnFilters = ref<ColumnFiltersState>([])
-const columnVisibility = ref<VisibilityState>({})
-const rowSelection = ref<RowSelectionState>({})
-
-const table = useVueTable({
-  get data() {
-    return props.data
-  },
-  get columns() {
-    return props.columns
-  },
-  state: {
-    get sorting() {
-      return sorting.value
-    },
-    get columnFilters() {
-      return columnFilters.value
-    },
-    get columnVisibility() {
-      return columnVisibility.value
-    },
-    get rowSelection() {
-      return props.rowSelection || rowSelection.value
-    },
-  },
-  enableRowSelection: true,
-  onSortingChange: (updaterOrValue) => {
-    sorting.value = typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue
-  },
-  onRowSelectionChange: (updaterOrValue) => {
-    const newSelection = typeof updaterOrValue === 'function' ? updaterOrValue(rowSelection.value) : updaterOrValue
-    if (props.onRowSelectionChange) {
-      props.onRowSelectionChange(newSelection)
-    } else {
-      rowSelection.value = newSelection
-    }
-  },
-  getCoreRowModel: getCoreRowModel(),
+// 确保data是一个安全的数组
+const safeData = computed(() => {
+  return Array.isArray(props.data) ? props.data : []
 })
 
-const totalPages = computed(() =>
-  props.pagination ? Math.ceil(props.totalItems / props.pageSize) : 1
-)
-
-const handleSearch = () => {
-  emit('search', searchQuery.value)
+// 获取列值
+const getColumnValue = (row: any, column: Column) => {
+  if (!column.accessorKey) return ''
+  return row[column.accessorKey]
 }
 
-const handlePageChange = (page: number) => {
-  emit('pageChange', page)
+// 渲染单元格内容
+const renderCellContent = (column: Column, row: any) => {
+  if (!column.cell) return null
+  
+  try {
+    const cellContent = column.cell({ row })
+    
+    // 如果是对象且有template和setup属性，则创建一个组件
+    if (cellContent && typeof cellContent === 'object' && cellContent.template) {
+      const component = defineComponent({
+        template: cellContent.template,
+        setup: cellContent.setup || (() => ({}))
+      })
+      
+      return markRaw(component)
+    }
+    
+    // 否则使用渲染函数
+    return h(() => cellContent)
+  } catch (error) {
+    console.error('Error rendering cell content:', error)
+    return h('span', 'Error')
+  }
 }
 
-watch(
-  () => props.currentPage,
-  (newPage) => {
-    if (newPage) {
-      // 可以在这里添加页面变化的逻辑
+// 分页相关
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(props.totalItems / props.pageSize))
+})
+
+const displayedPages = computed(() => {
+  const current = props.currentPage
+  const total = totalPages.value
+  const delta = 2 // 当前页前后显示的页数
+  
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  
+  let start = Math.max(1, current - delta)
+  let end = Math.min(total, current + delta)
+  
+  // 调整开始和结束，确保始终显示5个页码
+  if (end - start < 4) {
+    if (start === 1) {
+      end = Math.min(start + 4, total)
+    } else if (end === total) {
+      start = Math.max(end - 4, 1)
     }
   }
-)
+  
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
+
+// 处理页码变更
+const handlePageChange = (page: number) => {
+  if (page < 1 || page > totalPages.value) return
+  emit('page-change', page)
+}
+</script>
+
+<script lang="ts">
+export default {
+  name: 'DataTable'
+}
 </script>

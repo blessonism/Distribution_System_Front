@@ -7,6 +7,7 @@ export interface RouteMeta {
   roles?: UserRole[]
   icon?: string
   hidden?: boolean
+  group?: 'main' | 'business' | 'system'  // 导航菜单分组
 }
 
 export type AppRouteRecordRaw = RouteRecordRaw & {
@@ -34,10 +35,15 @@ export const constantRoutes: AppRouteRecordRaw[] = [
       hidden: true,
     },
   },
-  // 根路径重定向
+  // 根路径 - 动态重定向
   {
     path: '/',
-    redirect: '/login',
+    name: 'Root',
+    redirect: () => {
+      // 检查是否有token，决定重定向到dashboard还是login
+      const token = localStorage.getItem('token')
+      return token ? '/dashboard' : '/login'
+    },
     meta: {
       hidden: true,
     },
@@ -62,20 +68,45 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     meta: {
       title: '首页',
       requiresAuth: true,
+      group: 'main' // 添加group标识
+    },
+    children: []
+  },
+  // 个人设置路由
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('@/layouts/MainLayout.vue'),
+    meta: {
+      title: '个人设置',
+      requiresAuth: true,
+      hidden: true, // 在菜单中隐藏
     },
     children: [
       {
-        path: '/dashboard',
-        name: 'Dashboard',
-        component: () => import('@/views/dashboard/Index.vue'),
+        path: '',
+        name: 'ProfileIndex',
+        component: () => import('@/views/profile/Index.vue'),
         meta: {
-          title: '仪表盘',
-          icon: 'dashboard',
-          roles: ['super_admin', 'director', 'leader', 'sales'],
+          title: '个人设置',
           requiresAuth: true,
+          hidden: true,
         },
       },
-    ],
+    ]
+  },
+  // 将dashboard配置为独立的一级路由
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('@/layouts/MainLayout.vue'),
+    meta: {
+      title: '仪表盘',
+      icon: 'dashboard',
+      roles: ['super_admin', 'director', 'leader', 'sales'],
+      requiresAuth: true,
+      group: 'business'
+    },
   },
   {
     path: '/user',
@@ -87,6 +118,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       icon: 'users',
       roles: ['super_admin', 'director', 'leader'],
       requiresAuth: true,
+      group: 'business'
     },
     children: [
       {
@@ -102,6 +134,42 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     ],
   },
   {
+    path: '/agent',
+    name: 'Agent',
+    component: () => import('@/layouts/MainLayout.vue'),
+    redirect: '/agent/list',
+    meta: {
+      title: '代理管理',
+      icon: 'users-2',
+      roles: ['super_admin', 'director', 'leader'],
+      requiresAuth: true,
+      group: 'business'
+    },
+    children: [
+      {
+        path: '/agent/list',
+        name: 'AgentList',
+        component: () => import('@/views/agent/AgentList.vue'),
+        meta: {
+          title: '代理列表',
+          roles: ['super_admin', 'director', 'leader'],
+          requiresAuth: true,
+        },
+      },
+      {
+        path: '/agent/:id',
+        name: 'AgentDetail',
+        component: () => import('@/views/agent/AgentDetail.vue'),
+        meta: {
+          title: '代理详情',
+          roles: ['super_admin', 'director', 'leader'],
+          requiresAuth: true,
+          hidden: true,
+        },
+      },
+    ],
+  },
+  {
     path: '/lead',
     name: 'Lead',
     component: () => import('@/layouts/MainLayout.vue'),
@@ -111,6 +179,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       icon: 'target',
       roles: ['super_admin', 'director', 'leader', 'sales'],
       requiresAuth: true,
+      group: 'business'
     },
     children: [
       {
@@ -135,6 +204,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       icon: 'dollar-sign',
       roles: ['super_admin', 'director', 'leader', 'sales'],
       requiresAuth: true,
+      group: 'business'
     },
     children: [
       {
@@ -159,6 +229,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       icon: 'megaphone',
       roles: ['super_admin', 'director', 'leader'],
       requiresAuth: true,
+      group: 'business'
     },
     children: [
       {
@@ -183,6 +254,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
       icon: 'settings',
       roles: ['super_admin'],
       requiresAuth: true,
+      group: 'system'
     },
     children: [
       {
@@ -191,6 +263,26 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         component: () => import('@/views/settings/LevelRule.vue'),
         meta: {
           title: '等级规则',
+          roles: ['super_admin'],
+          requiresAuth: true,
+        },
+      },
+      {
+        path: '/settings/agent-rules',
+        name: 'AgentRules',
+        component: () => import('@/views/settings/LevelRule.vue'), // 临时使用已存在的组件
+        meta: {
+          title: '代理规则',
+          roles: ['super_admin'],
+          requiresAuth: true,
+        },
+      },
+      {
+        path: '/settings/commission',
+        name: 'CommissionRules',
+        component: () => import('@/views/settings/LevelRule.vue'), // 临时使用已存在的组件
+        meta: {
+          title: '返佣规则',
           roles: ['super_admin'],
           requiresAuth: true,
         },
