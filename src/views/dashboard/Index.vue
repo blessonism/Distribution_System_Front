@@ -86,7 +86,7 @@
     <!-- 待处理事项 -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card>
-        <CardHeader>
+        <CardHeader class="pb-8">
           <CardTitle>待处理事项</CardTitle>
         </CardHeader>
         <CardContent>
@@ -126,6 +126,18 @@
                 </div>
               </div>
               <Button variant="outline" size="sm" @click="navigateTo('/deal/list')">查看</Button>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 mr-3">
+                  <UserPlusIcon class="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 class="font-medium">代理申请审核</h4>
+                  <p class="text-sm text-gray-500">{{ dashboardData.pending?.agentApplyCount || 3 }} 条待审核</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" @click="navigateTo('/agent/list')">查看</Button>
             </div>
           </div>
         </CardContent>
@@ -196,9 +208,9 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- 代理数量趋势图 -->
       <Card>
-        <CardHeader>
+        <CardHeader class="pb-2">
           <CardTitle>代理数量趋势</CardTitle>
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2 mt-2">
             <Button variant="outline" size="sm" @click="changeAgentTrendPeriod('week')" :class="{ 'bg-primary/10': agentTrendPeriod === 'week' }">本周</Button>
             <Button variant="outline" size="sm" @click="changeAgentTrendPeriod('month')" :class="{ 'bg-primary/10': agentTrendPeriod === 'month' }">本月</Button>
             <Button variant="outline" size="sm" @click="changeAgentTrendPeriod('year')" :class="{ 'bg-primary/10': agentTrendPeriod === 'year' }">全年</Button>
@@ -228,9 +240,9 @@
 
       <!-- 成交金额统计图 -->
       <Card>
-        <CardHeader>
+        <CardHeader class="pb-2">
           <CardTitle>成交金额统计</CardTitle>
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2 mt-2">
             <Button variant="outline" size="sm" @click="changeDealPeriod('week')" :class="{ 'bg-primary/10': dealPeriod === 'week' }">本周</Button>
             <Button variant="outline" size="sm" @click="changeDealPeriod('month')" :class="{ 'bg-primary/10': dealPeriod === 'month' }">本月</Button>
             <Button variant="outline" size="sm" @click="changeDealPeriod('year')" :class="{ 'bg-primary/10': dealPeriod === 'year' }">全年</Button>
@@ -308,7 +320,8 @@ import { Badge } from '@/components/ui/badge'
 import { 
   TrendingUpIcon, TrendingDownIcon, MinusIcon, UsersIcon, 
   TargetIcon, DollarSignIcon, PercentIcon, BarChartIcon, 
-  MegaphoneIcon, CheckCircleIcon, RefreshCwIcon, SettingsIcon
+  MegaphoneIcon, CheckCircleIcon, RefreshCwIcon, SettingsIcon,
+  UserPlusIcon,
 } from 'lucide-vue-next'
 import request from '@/utils/request'
 import Chart from 'chart.js/auto'
