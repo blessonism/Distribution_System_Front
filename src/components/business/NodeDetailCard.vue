@@ -102,50 +102,38 @@
               </div>
             </div>
 
-            <!-- 直接下级 -->
+                          <!-- 直接下级 -->
             <div class="mt-4">
               <h3 class="text-sm font-medium mb-2">直接下级</h3>
               <div class="rounded-lg border p-2">
                 <div v-if="directSubordinates.length === 0" class="text-center text-muted-foreground py-2 text-sm">
                   暂无直接下级
                 </div>
-                <div v-else class="divide-y">
-                  <div 
-                    v-for="subordinate in directSubordinates.slice(0, 3)" 
-                    :key="subordinate.id"
-                    class="py-2 flex items-center justify-between"
-                  >
-                    <div class="flex items-center">
-                      <Avatar class="h-6 w-6 mr-2">
-                        <AvatarFallback class="text-xs">
-                          {{ subordinate.name.charAt(0) }}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span class="text-sm">{{ subordinate.name }}</span>
+                <div v-else>
+                  <!-- 显示前3个下级 -->
+                  <div class="divide-y">
+                    <div 
+                      v-for="subordinate in directSubordinates.slice(0, showMore ? directSubordinates.length : 3)" 
+                      :key="subordinate.id"
+                      class="py-2 flex items-center justify-between"
+                    >
+                      <div class="flex items-center">
+                        <Avatar class="h-6 w-6 mr-2">
+                          <AvatarFallback class="text-xs">
+                            {{ subordinate.name.charAt(0) }}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span class="text-sm">{{ subordinate.name }}</span>
+                      </div>
+                      <Badge variant="outline">{{ roleMap[subordinate.role] }}</Badge>
                     </div>
-                    <Badge variant="outline">{{ roleMap[subordinate.role] }}</Badge>
                   </div>
-                </div>
-                <div v-if="directSubordinates.length > 3" class="text-center mt-2">
-                  <Button variant="ghost" size="sm" class="text-xs" @click="showMore = !showMore">
-                    {{ showMore ? '收起' : `显示更多(${directSubordinates.length - 3})` }}
-                  </Button>
-                </div>
-                <div v-if="showMore" class="divide-y mt-1">
-                  <div 
-                    v-for="subordinate in directSubordinates.slice(3)" 
-                    :key="subordinate.id"
-                    class="py-2 flex items-center justify-between"
-                  >
-                    <div class="flex items-center">
-                      <Avatar class="h-6 w-6 mr-2">
-                        <AvatarFallback class="text-xs">
-                          {{ subordinate.name.charAt(0) }}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span class="text-sm">{{ subordinate.name }}</span>
-                    </div>
-                    <Badge variant="outline">{{ roleMap[subordinate.role] }}</Badge>
+                  
+                  <!-- 显示更多/收起按钮 -->
+                  <div v-if="directSubordinates.length > 3" class="text-center mt-0">
+                    <Button variant="ghost" size="sm" class="text-xs" @click="showMore = !showMore">
+                      {{ showMore ? '收起' : `显示更多(${directSubordinates.length - 3})` }}
+                    </Button>
                   </div>
                 </div>
               </div>
