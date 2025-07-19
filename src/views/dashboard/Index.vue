@@ -24,7 +24,7 @@
         <div class="mt-2">
           <p class="text-2xl font-semibold">{{ metric.value }}</p>
           <div class="flex items-center mt-1 text-sm">
-            <component :is="metric.trend === 'up' ? 'TrendingUpIcon' : metric.trend === 'down' ? 'TrendingDownIcon' : 'MinusIcon'" 
+            <component :is="metric.trend === 'up' ? TrendingUpIcon : metric.trend === 'down' ? TrendingDownIcon : MinusIcon" 
                        class="h-3 w-3 mr-1"
                        :class="metric.trend === 'up' ? 'text-green-600' : metric.trend === 'down' ? 'text-red-600' : 'text-blue-600'" />
             <span :class="metric.trend === 'up' ? 'text-green-600' : metric.trend === 'down' ? 'text-red-600' : 'text-blue-600'">
