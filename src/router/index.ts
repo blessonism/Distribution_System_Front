@@ -95,183 +95,76 @@ function addDynamicRoutes(routerInstance = router) {
 }
 
 // 强制添加路由 - 无论如何都添加路由，但要在创建router实例之后
-addDynamicRoutes(router)
+// addDynamicRoutes(router) // 移除此处的早期路由加载，逻辑统一到 beforeEach 中
 
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
   debug.log(`路由导航：从 ${from.path} 到 ${to.path}`)
   const userStore = useUserStore()
-  
+
   // 设置页面标题
   if (to.meta?.title) {
     document.title = `${to.meta.title} - 分销系统管理后台`
   }
 
-  debug.log('当前用户状态:', {
-    token: !!userStore.token,
-    userInfo: !!userStore.userInfo,
-    roles: userStore.roles,
-    routesLoaded: userStore.routesLoaded
-  })
+  const token = userStore.token
+  // 使用 hasRoute 检查核心动态路由（如Dashboard）是否存在，作为路由是否已加载的判断依据
+  const routesLoaded = router.hasRoute('Dashboard')
 
-  // 检查根路径"/"和处理需要登录的路径
-  if (to.path === '/' && !userStore.token) {
-    debug.log('访问根路径，但无token，重定向到登录页')
-    next('/login')
-    return
-  }
+  if (token) {
+    // 如果用户已登录
+    if (to.path === '/login') {
+      // 如果已登录且目标是登录页，重定向到仪表盘
+      debug.log('用户已登录，访问登录页，重定向到 /dashboard')
+      next({ path: '/dashboard' })
+    } else {
+      // 检查动态路由是否已加载
+      if (routesLoaded) {
+        // 路由已加载，正常放行
+        debug.log('路由已加载，正常导航')
+        next()
+      } else {
+        try {
+          // 路由未加载，开始获取用户信息、角色和权限
+          debug.log('路由未加载，开始获取用户信息和权限...')
+          await userStore.getUserInfo()
 
-  // 不需要登录的页面直接放行
-  if (!to.meta?.requiresAuth) {
-    // 特殊处理：如果用户访问404页面但已登录，尝试重定向到dashboard
-    if (to.path === '/404' && userStore.token) {
-      const hasDashboardRoute = router.hasRoute('Dashboard')
-      debug.log('已登录用户访问404页面，检查Dashboard路由:', hasDashboardRoute)
-      if (hasDashboardRoute) {
-        debug.log('已登录用户从404重定向到dashboard')
-        next('/dashboard')
-        return
-      }
-    }
-    debug.log('访问不需要认证的页面，直接放行')
-    next()
-    return
-  }
-
-  // 检查是否有token
-  if (!userStore.token) {
-    debug.log('访问需要认证的页面，但无token，重定向到登录页')
-    next('/login')
-    return
-  }
-
-  // 特殊处理Dashboard路由
-  if (to.path === '/dashboard') {
-    debug.log('访问仪表盘路由，特殊处理')
-    // 确保用户已登录
-    if (!userStore.userInfo && userStore.token) {
-      debug.log('有token但无用户信息，获取用户信息')
-      await userStore.getUserInfo()
-    }
-    next()
-    return
-  }
-
-  try {
-    // 如果用户信息未加载且有token，先获取用户信息
-    if (!userStore.userInfo && userStore.token) {
-      debug.log('有token但无用户信息，获取用户信息')
-      await userStore.getUserInfo()
-      
-      // 将角色保存到localStorage，用于页面刷新时路由重建
-      localStorage.setItem('userRoles', JSON.stringify(userStore.roles))
-    }
-
-    // 确保动态路由已添加
-    if (userStore.token) {
-      // 每次路由导航时，强制检查Dashboard路由是否存在
-      const hasDashboardRoute = router.hasRoute('Dashboard')
-      debug.log('Dashboard路由是否已存在:', hasDashboardRoute)
-      
-      // 检查所有主要路由是否已添加
-      const hasAgentRoute = router.hasRoute('Agent')
-      const hasUserRoute = router.hasRoute('User')
-      
-      // 始终重新添加动态路由，确保路由表完整
-      // 解决直接地址栏输入问题
-        debug.log('添加/确保动态路由存在', userStore.roles)
-        const accessibleRoutes = filterRoutesByRole(asyncRoutes, userStore.roles || [])
-        debug.log('可访问的路由', accessibleRoutes.map(r => r.path))
-        
-      let routesAdded = false
-      
-      // 如果关键路由不存在，添加所有路由
-      if (!hasDashboardRoute || !hasAgentRoute || !hasUserRoute || !userStore.routesLoaded) {
-        // 先检查路由是否已存在，避免重复添加
-        accessibleRoutes.forEach(route => {
-          if (route.name) {
-            // 如果路由已存在，先移除
-            if (router.hasRoute(route.name)) {
-              debug.log('移除已存在的路由:', route.path, route.name)
-              router.removeRoute(route.name)
+          // 根据角色动态生成可访问的路由
+          const accessibleRoutes = filterRoutesByRole(asyncRoutes, userStore.roles)
+          accessibleRoutes.forEach(route => {
+            // 确保不会重复添加
+            if (route.name && !router.hasRoute(route.name)) {
+              router.addRoute(route)
             }
-            
-            debug.log('添加路由:', route.path, route.name)
-            router.addRoute(route)
-            routesAdded = true
-          } else {
-            debug.log('路由没有名称，无法添加:', route.path)
-          }
-        })
-        
-        // 更新状态并保存到localStorage
-        userStore.$patch({ routesLoaded: true })
-        localStorage.setItem('routesLoaded', 'true')
-        
-        // 输出所有已注册路由
-        debug.dumpRoutes(router)
-      }
+          })
+          debug.log('动态路由添加完毕.')
 
-      // 如果添加了新路由，需要重新导航以确保路由信息正确
-      if (routesAdded) {
-        debug.log('添加了新路由，重新导航以确保路由信息正确', to.fullPath)
-          next({ path: to.fullPath, replace: true })
-          return
-      }
-    }
-
-    // 检查用户角色权限
-    if (to.meta?.roles && Array.isArray(to.meta.roles) && to.meta.roles.length > 0 && userStore.userInfo?.role) {
-      // 修正hasPermission调用，检查用户是否有权限访问当前路由
-      const hasPermission = to.meta.roles.some(role => userStore.hasPermission(role))
-      if (!hasPermission) {
-        debug.error('用户无权限访问此页面', to.path, userStore.userInfo.role, to.meta.roles)
-        next('/404')
-        return
-      }
-    }
-
-    // 如果访问根路径且已登录，重定向到dashboard
-    if (to.path === '/' && userStore.token) {
-      debug.log('访问根路径且已登录，重定向到dashboard')
-      next('/dashboard')
-      return
-    }
-
-    // 路由匹配之前，打印当前要访问的路径和匹配情况
-    const matchedRoute = router.resolve(to.path)
-    debug.log('路由匹配结果:', {
-      path: to.path,
-      matched: matchedRoute.matched.map(m => m.path),
-      name: matchedRoute.name
-    })
-
-    // 如果路由匹配失败但应该存在，尝试重新添加路由
-    if (matchedRoute.matched.length === 0 && to.path !== '/404') {
-      debug.log('路由匹配失败，尝试重新添加路由:', to.path)
-      // 添加所有动态路由后再次尝试匹配
-      const accessibleRoutes = filterRoutesByRole(asyncRoutes, userStore.roles || [])
-      accessibleRoutes.forEach(route => {
-        if (route.name && !router.hasRoute(route.name)) {
-          debug.log('添加丢失的路由:', route.path)
-          router.addRoute(route)
+          // 标记路由已加载
+          userStore.$patch({ routesLoaded: true })
+          
+          // 使用 replace: true, 这样导航就不会留下历史记录
+          // 确保addRoute()完成后，再重新导航到目标页面
+          debug.log('路由添加完成，重新导航到:', to.fullPath)
+          next({ ...to, replace: true })
+        } catch (error) {
+          // 获取用户信息失败（例如token过期），重置状态并跳转到登录页
+          debug.error('获取用户信息失败:', error)
+          await userStore.$reset()
+          next('/login')
         }
-      })
-      
-      debug.dumpRoutes(router)
-      
-      // 重新尝试导航
-      next({ path: to.fullPath, replace: true })
-      return
+      }
     }
-
-    debug.log('通过所有检查，允许访问:', to.path)
-    next()
-  } catch (error) {
-    debug.error('路由守卫错误:', error)
-    // 清除token并跳转登录
-    userStore.logout()
-    next('/login')
+  } else {
+    // 用户未登录
+    if (to.meta.requiresAuth) {
+      // 如果目标页面需要认证，重定向到登录页
+      debug.log(`访问受限页面 ${to.path}，重定向到登录页`)
+      next('/login')
+    } else {
+      // 不需要认证的页面，直接放行
+      debug.log(`访问公共页面 ${to.path}，直接放行`)
+      next()
+    }
   }
 })
 
