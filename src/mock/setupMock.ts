@@ -3,6 +3,7 @@ import MockAdapter from 'axios-mock-adapter'
 import request from '@/utils/request'
 import { realAgentsData } from './agentData'
 import type { Lead, LeadStatus } from '@/types/lead'
+import allPersonnel from './personnelData';
 
 export function setupMockApi() {
   // 创建一个MockAdapter实例，使用项目中的request实例而不是全局axios实例
@@ -603,6 +604,28 @@ export function setupMockApi() {
         data: data
       }
     ];
+  });
+
+  // 新增人员层级关系 mock
+  mock.onGet('/api/users/hierarchy').reply(config => {
+    const parentId = config.params?.parentId || null;
+    const children = allPersonnel.filter(p => p.parentId === parentId);
+    
+    console.log('Mock API: 返回人员层级关系，参数:', config.params, '结果数量:', children.length);
+    
+    // 模拟网络延迟
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve([
+          200, 
+          {
+            code: 200,
+            success: true,
+            data: children
+          }
+        ]);
+      }, 500);
+    });
   });
 
   // 更多模拟API可以根据需要添加

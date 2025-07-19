@@ -142,7 +142,13 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
           requiresAuth: true,
         },
       },
-    ],
+      {
+        path: '/personnel/hierarchy',
+        name: 'PersonnelHierarchy',
+        component: () => import('@/views/personnel/Hierarchy.vue'),
+        meta: { title: '层级关系' }
+      }
+    ]
   },
   {
     path: '/agent',
