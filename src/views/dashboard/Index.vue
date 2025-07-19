@@ -323,7 +323,7 @@ import {
   MegaphoneIcon, CheckCircleIcon, RefreshCwIcon, SettingsIcon,
   UserPlusIcon,
 } from 'lucide-vue-next'
-import request from '@/utils/request'
+import { http } from '@/utils/request'
 import Chart from 'chart.js/auto'
 
 // 加载状态
@@ -461,15 +461,15 @@ const fetchDashboardStats = async () => {
   try {
     loading.value = true
     console.log('正在获取仪表盘统计数据...')
-    const response = await request.get('/dashboard/stats')
-    console.log('仪表盘统计数据响应:', response)
+    const responseData = await http.get('/dashboard/stats')
+    console.log('仪表盘统计数据响应:', responseData)
     
     // 确保数据格式正确
-    if (response && typeof response === 'object') {
-      dashboardData.value = response
+    if (responseData && typeof responseData === 'object') {
+      dashboardData.value = responseData
       updateKeyMetrics()
     } else {
-      console.error('仪表盘统计数据格式不正确:', response)
+      console.error('仪表盘统计数据格式不正确:', responseData)
     }
   } catch (error) {
     console.error('获取仪表盘统计数据失败:', error)
@@ -483,12 +483,12 @@ const fetchChartData = async () => {
   try {
     loading.value = true
     console.log('正在获取图表数据...')
-    const response = await request.get('/dashboard/charts')
-    console.log('图表数据响应:', response)
+    const responseData = await http.get('/dashboard/charts')
+    console.log('图表数据响应:', responseData)
     
     // 确保数据格式正确
-    if (response && typeof response === 'object') {
-      chartData.value = response
+    if (responseData && typeof responseData === 'object') {
+      chartData.value = responseData
       
       // 使用setTimeout确保DOM已经渲染
       setTimeout(() => {
@@ -496,7 +496,7 @@ const fetchChartData = async () => {
         renderCharts()
       }, 300)
     } else {
-      console.error('图表数据格式不正确:', response)
+      console.error('图表数据格式不正确:', responseData)
     }
   } catch (error) {
     console.error('获取图表数据失败:', error)
