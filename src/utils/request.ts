@@ -30,13 +30,12 @@ request.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const { data } = response
 
-    // 业务成功
-    if (data.code === 200 || data.success) {
-      return data.data
+    // 业务成功判断
+    if (data.code === 200 || data.code === 0 || data.success) {
+      return response // 保持返回整个 response 以符合 Axios 类型
     }
 
     // 业务失败
-    // 使用 console.error，避免在服务端渲染时出错
     if (typeof window !== 'undefined') {
       console.error('API Error:', data.message)
     }
@@ -88,17 +87,25 @@ request.interceptors.response.use(
 
 // 封装请求方法
 export const http = {
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
-    request.get(url, config),
+  get: async <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const response = await request.get(url, config)
+    return response.data.data // 解构两层 data
+  },
 
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> =>
-    request.post(url, data, config),
+  post: async <T = any>(url:string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    const response = await request.post(url, data, config)
+    return response.data.data
+  },
 
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> =>
-    request.put(url, data, config),
+  put: async <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    const response = await request.put(url, data, config)
+    return response.data.data
+  },
 
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
-    request.delete(url, config),
+  delete: async <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const response = await request.delete(url, config)
+    return response.data.data
+  },
 }
 
 export default request

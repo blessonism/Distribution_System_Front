@@ -198,10 +198,11 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         name: 'LeadList',
         component: () => import('@/views/lead/LeadList.vue'),
         meta: {
-          title: '客资列表',
-          roles: ['super_admin', 'director', 'leader', 'sales'],
-          requiresAuth: true,
-        },
+          title: '客资管理',
+          icon: 'target',
+          group: 'business',
+          roles: ['super_admin', 'director', 'leader', 'sales']
+        }
       },
     ],
   },

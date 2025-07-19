@@ -187,7 +187,7 @@
     ></div>
 
     <!-- 主内容区 -->
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 flex flex-col relative">
       <!-- 顶部导航 -->
       <header class="bg-white shadow-sm border-b border-gray-200">
         <div class="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
@@ -264,7 +264,7 @@
       </header>
 
       <!-- 页面内容 -->
-      <main class="flex-1 overflow-y-auto bg-gray-50">
+      <main class="absolute top-16 left-0 right-0 bottom-0 overflow-y-auto bg-gray-50">
         <div class="p-4 sm:p-6 lg:p-8">
           <router-view :key="$route.path" v-slot="{ Component }">
             <transition name="fade" mode="out-in">

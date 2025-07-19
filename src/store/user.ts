@@ -31,23 +31,21 @@ export const useUserStore = defineStore('user', {
   actions: {
     async login(loginData: LoginRequest) {
       try {
-        const response: LoginResponse = await http.post('/auth/login', loginData)
+        const responseData = await http.post<LoginResponse>('/auth/login', loginData)
         
-        this.token = response.token
-        this.userInfo = response.user
-        // 确保角色是字符串数组形式
-        this.roles = response.user.role ? [response.user.role] : []
-        this.permissions = response.permissions
+        this.token = responseData.token
+        this.userInfo = responseData.user
+        this.roles = responseData.user.role ? [responseData.user.role] : []
+        this.permissions = responseData.permissions
         
         console.log('登录成功，用户角色:', this.roles)
         
         if (typeof window !== 'undefined') {
-          localStorage.setItem('token', response.token)
-          // 保存用户角色到localStorage，用于刷新时恢复路由
+          localStorage.setItem('token', responseData.token)
           localStorage.setItem('userRoles', JSON.stringify(this.roles))
         }
         
-        return response
+        return responseData
       } catch (error) {
         throw error
       }
@@ -55,16 +53,15 @@ export const useUserStore = defineStore('user', {
 
     async getUserInfo() {
       try {
-        const response: LoginResponse = await http.get('/user/profile')
+        const profileData = await http.get<LoginResponse>('/user/profile')
         
-        this.userInfo = response.user
-        // 确保角色是字符串数组形式
-        this.roles = response.user.role ? [response.user.role] : []
-        this.permissions = response.permissions
+        this.userInfo = profileData.user
+        this.roles = profileData.user.role ? [profileData.user.role] : []
+        this.permissions = profileData.permissions
         
         console.log('获取用户信息成功，用户角色:', this.roles)
         
-        return response
+        return profileData
       } catch (error) {
         this.logout()
         throw error
@@ -97,9 +94,9 @@ export const useUserStore = defineStore('user', {
 
     async updateUserInfo(userInfo: Partial<User>) {
       try {
-        const response: User = await http.put(`/users/${this.userInfo?.id}`, userInfo)
-        this.userInfo = { ...this.userInfo, ...response }
-        return response
+        const updatedUser = await http.put<User>(`/users/${this.userInfo?.id}`, userInfo)
+        this.userInfo = { ...this.userInfo, ...updatedUser }
+        return updatedUser
       } catch (error) {
         throw error
       }

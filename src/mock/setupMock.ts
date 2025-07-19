@@ -2,6 +2,7 @@ import axios from 'axios'
 import MockAdapter from 'axios-mock-adapter'
 import request from '@/utils/request'
 import { realAgentsData } from './agentData'
+import type { Lead, LeadStatus } from '@/types/lead'
 
 export function setupMockApi() {
   // 创建一个MockAdapter实例，使用项目中的request实例而不是全局axios实例
@@ -128,6 +129,209 @@ export function setupMockApi() {
         code: 401,
         success: false,
         message: '身份验证失败',
+        data: null
+      }
+    ]
+  })
+
+  // 模拟客资API
+  const leads: Lead[] = []
+  const totalLeads = 73 // 增加数据总量
+  const leadStatus: LeadStatus[] = ['PENDING', 'FOLLOWING', 'CONVERTED', 'INVALID']
+  // 丰富来源渠道
+  const sources = ['搜索引擎', '客户推荐', '广告投放', '社交媒体-小红书', '线下活动', '合作渠道', '官网咨询']
+  // 增加销售人员
+  const salespersons = [
+    { id: 'S001', name: '张三' },
+    { id: 'S002', name: '李四' },
+    { id: 'S003', name: '王五' },
+    { id: 'S004', name: '赵六' },
+    { id: 'S005', name: '孙月' },
+    { id: 'S006', name: '周鹏' },
+    { id: 'S007', name: '吴佳琪' }
+  ]
+  // 预设一批更真实的客户姓名
+  const customerNames = [
+    '王伟', '李娜', '张敏', '刘洋', '陈静', '杨磊', '黄英', '吴刚', '赵丽', '周强',
+    '徐丹', '孙杰', '马琳', '胡斌', '郭婷', '林鹏', '高远', '郑洁', '何峰', '梁爽',
+    '宋妍', '谢超', '唐思', '韩雪', '曹阳', '邓宇', '傅海', '袁媛', '彭涛', '董雷',
+    '范文', '程程', '蒋欣', '丁浩', '沈悦', '曾兰', '萧然', '田甜', '金鑫', '石磊'
+  ]
+
+  // 生成模拟数据
+  for (let i = 1; i <= totalLeads; i++) {
+    const salesperson = salespersons[i % salespersons.length]
+    const customerName = customerNames[i % customerNames.length] + (Math.random() > 0.5 ? '先生' : '女士')
+    
+    leads.push({
+      id: `LID_${String(i).padStart(4, '0')}`,
+      name: customerName,
+      phone: `1${[3, 5, 8][i % 3]}${String(Math.floor(Math.random() * 100000000)).padStart(9, '0')}`,
+      status: leadStatus[i % leadStatus.length],
+      source: sources[i % sources.length],
+      salespersonId: salesperson.id,
+      salespersonName: salesperson.name,
+      // 扩大时间范围到最近90天
+      createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString()
+    })
+  }
+
+  // 模拟获取客资列表
+  mock.onGet('/leads/all').reply((config) => {
+    console.log('Mock API /leads/all triggered with params:', config.params)
+
+    const { page = 1, pageSize = 10, name = '', status = '', source = '', salespersonId = '' } = config.params || {}
+    const pageNum = parseInt(page, 10)
+    const size = parseInt(pageSize, 10)
+
+    // 应用筛选条件
+    let filteredLeads = [...leads]
+    
+    // 按姓名筛选
+    if (name) {
+      filteredLeads = filteredLeads.filter(lead => 
+        lead.name.includes(name)
+      )
+    }
+    
+    // 按状态筛选
+    if (status && status !== 'all') {
+      filteredLeads = filteredLeads.filter(lead => 
+        lead.status === status
+      )
+    }
+    
+    // 按来源筛选
+    if (source && source !== 'all') {
+      filteredLeads = filteredLeads.filter(lead => 
+        lead.source === source
+      )
+    }
+    
+    // 按销售人员筛选
+    if (salespersonId && salespersonId !== 'all') {
+      filteredLeads = filteredLeads.filter(lead => 
+        lead.salespersonId === salespersonId
+      )
+    }
+    
+    // 分页
+    const start = (pageNum - 1) * size
+    const end = start + size
+    const paginatedLeads = filteredLeads.slice(start, end)
+
+    return [
+      200,
+      {
+        code: 0,
+        message: '成功',
+        data: {
+          list: paginatedLeads,
+          total: filteredLeads.length // 返回过滤后的总数，而不是全部数据的总数
+        }
+      }
+    ]
+  })
+
+  // 模拟分配客资
+  mock.onPut(/\/leads\/(.*)\/assign/).reply(200, {
+    code: 0,
+    message: '分配成功',
+    data: null
+  })
+
+  // 模拟更新客资状态
+  mock.onPut(/\/leads\/(.*)\/status/).reply((config) => {
+    const leadId = config.url?.match(/\/leads\/(.*)\/status/)?.[1]
+    const { status } = JSON.parse(config.data)
+    
+    if (leadId) {
+      const leadIndex = leads.findIndex(lead => lead.id === leadId)
+      if (leadIndex !== -1) {
+        leads[leadIndex].status = status
+      }
+    }
+    
+    return [
+      200,
+      {
+        code: 0,
+        message: '状态更新成功',
+        data: null
+      }
+    ]
+  })
+  
+  // 模拟创建客资
+  mock.onPost('/leads/create').reply((config) => {
+    const leadData = JSON.parse(config.data)
+    
+    // 获取销售人员信息
+    const salesperson = salespersons.find(s => s.id === leadData.salespersonId) || salespersons[0]
+    
+    // 创建新客资
+    const newLead = {
+      id: `LID_${String(leads.length + 1).padStart(4, '0')}`,
+      name: leadData.name,
+      phone: leadData.phone,
+      status: 'PENDING' as LeadStatus,
+      source: leadData.source || '搜索引擎',
+      salespersonId: salesperson.id,
+      salespersonName: salesperson.name,
+      createdAt: new Date().toISOString()
+    }
+    
+    // 添加到数据列表
+    leads.unshift(newLead)
+    
+    return [
+      200,
+      {
+        code: 0,
+        message: '创建成功',
+        data: newLead
+      }
+    ]
+  })
+  
+  // 模拟更新客资
+  mock.onPut(/\/leads\/([^/]+)$/).reply((config) => {
+    const leadId = config.url?.match(/\/leads\/([^/]+)$/)?.[1]
+    const leadData = JSON.parse(config.data)
+    
+    if (leadId) {
+      const leadIndex = leads.findIndex(lead => lead.id === leadId)
+      if (leadIndex !== -1) {
+        // 获取销售人员信息
+        const salesperson = salespersons.find(s => s.id === leadData.salespersonId)
+        
+        // 更新客资信息
+        leads[leadIndex] = {
+          ...leads[leadIndex],
+          name: leadData.name || leads[leadIndex].name,
+          phone: leadData.phone || leads[leadIndex].phone,
+          status: leadData.status || leads[leadIndex].status,
+          source: leadData.source || leads[leadIndex].source,
+          salespersonId: salesperson?.id || leads[leadIndex].salespersonId,
+          salespersonName: salesperson?.name || leads[leadIndex].salespersonName
+        }
+        
+        return [
+          200,
+          {
+            code: 0,
+            message: '更新成功',
+            data: leads[leadIndex]
+          }
+        ]
+      }
+    }
+    
+    return [
+      404,
+      {
+        code: 404,
+        message: '客资不存在',
         data: null
       }
     ]
