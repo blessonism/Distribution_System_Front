@@ -4,6 +4,8 @@ import path from 'node:path'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+// 临时注释掉mock插件
+// import { viteMockServe } from 'vite-plugin-mock'
 // 注释掉开发工具导入
 // import vueDevTools from 'vite-plugin-vue-devtools'
 
@@ -11,6 +13,12 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [
     vue(),
+    // 临时禁用mock插件
+    // viteMockServe({
+    //   mockPath: 'src/mock',
+    //   enable: true,
+    //   watchFiles: true, // 监听文件变化
+    // }),
     // 注释掉开发工具启用
     // vueDevTools(),
   ],

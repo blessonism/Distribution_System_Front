@@ -8,6 +8,14 @@ export interface RouteMeta {
   icon?: string
   hidden?: boolean
   group?: 'main' | 'business' | 'system'  // 导航菜单分组
+  // 添加保存滚动位置和状态的配置
+  keepAlive?: boolean         // 是否缓存组件
+  saveScrollPosition?: boolean // 是否保存滚动位置
+  transition?: string         // 过渡动画名称
+  breadcrumb?: {              // 面包屑配置
+    title: string;
+    parent?: string;
+  }[];
 }
 
 export type AppRouteRecordRaw = RouteRecordRaw & {
@@ -168,24 +176,33 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     },
     children: [
       {
-        path: '/agent/list',
+        path: '/agent/list',  // 使用绝对路径，与其他路由保持一致
         name: 'AgentList',
         component: () => import('@/views/agent/AgentList.vue'),
         meta: {
           title: '代理列表',
           roles: ['super_admin', 'director', 'leader'],
           requiresAuth: true,
+          keepAlive: true, // 启用组件缓存
+          saveScrollPosition: true, // 保存滚动位置
         },
       },
       {
-        path: '/agent/:id',
+        path: '/agent/:id',  // 使用绝对路径，与其他路由保持一致
         name: 'AgentDetail',
         component: () => import('@/views/agent/AgentDetail.vue'),
+        props: true, // 启用props传参
         meta: {
           title: '代理详情',
           roles: ['super_admin', 'director', 'leader'],
           requiresAuth: true,
           hidden: true,
+          transition: 'slide-left', // 添加进入动画
+          breadcrumb: [
+            { title: '代理管理' },
+            { title: '代理列表', parent: 'AgentList' },
+            { title: '代理详情' }
+          ]
         },
       },
     ],

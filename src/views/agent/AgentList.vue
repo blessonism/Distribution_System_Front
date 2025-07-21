@@ -2,10 +2,24 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-semibold">代理管理</h1>
-      <Button @click="openCreateDialog">
+      <Button v-if="hasCreatePermission" @click="openCreateDialog">
         <PlusIcon class="h-4 w-4 mr-2" />
         添加代理
       </Button>
+    </div>
+
+    <!-- 错误提示 -->
+    <div v-if="showErrorAlert" class="bg-destructive/15 border border-destructive text-destructive px-4 py-3 rounded-md flex items-start">
+      <span class="mr-2 mt-0.5">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-alert-circle"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>
+      </span>
+      <div>
+        <h4 class="font-medium">错误</h4>
+        <p class="text-sm">{{ errorMessage }}</p>
+      </div>
+      <button @click="showErrorAlert = false" class="ml-auto">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-x"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+      </button>
     </div>
 
     <!-- 过滤和搜索区域 -->
@@ -51,12 +65,13 @@
           <label class="text-sm font-medium mb-1 block">搜索代理</label>
           <div class="flex space-x-2">
             <Input 
-              v-model="filters.keyword" 
+              :value="filters.keyword" 
               placeholder="搜索名称/电话/微信" 
               class="w-full" 
+              @input="handleSearchInput"
             />
-            <Button variant="outline" @click="searchAgents">
-              <SearchIcon class="h-4 w-4" />
+            <Button variant="outline" @click="searchAgents" :disabled="isSearching">
+              <SearchIcon :class="{ 'animate-spin': isSearching }" class="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -107,7 +122,7 @@
           <CheckIcon v-if="filters.isInGroup" class="h-4 w-4 mr-1" />
           进群
         </Button>
-        <Button size="sm" variant="outline" @click="resetFilters">
+        <Button size="sm" variant="outline" @click="resetFiltersHandler">
           <RefreshCcwIcon class="h-3 w-3 mr-1" />
           重置筛选
         </Button>
@@ -115,28 +130,38 @@
     </div>
 
     <!-- 表格区域 -->
+    <div class="relative">
+      <!-- 加载指示器 -->
+      <div v-if="loading.list" class="absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-lg">
+        <div class="flex flex-col items-center">
+          <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+          <p class="mt-2 text-sm text-muted-foreground">加载中...</p>
+        </div>
+      </div>
+      
     <DataTable
       :columns="columns"
-      :data="agents"
-      :loading="loading"
+        :data="agentList"
+        :loading="loading.list"
       :pagination="true"
       :total-items="totalItems"
-      :page-size="pagination.pageSize"
-      :current-page="pagination.page"
+        :page-size="listState.pagination.pageSize"
+        :current-page="listState.pagination.page"
       @page-change="handlePageChange"
       empty-text="暂无代理数据"
     >
       <template #toolbar>
-        <Button variant="outline" size="sm" @click="exportData">
+          <Button v-if="hasExportPermission" variant="outline" size="sm" @click="exportData">
           <DownloadIcon class="h-4 w-4 mr-1" />
           导出数据
         </Button>
       </template>
       <template #actions>
         <Button 
+            v-if="hasDeletePermission"
           variant="destructive" 
           size="sm" 
-          :disabled="selectedAgents.length === 0"
+            :disabled="listState.selectedAgents.length === 0"
           @click="confirmBatchDelete"
         >
           <TrashIcon class="h-4 w-4 mr-1" />
@@ -144,6 +169,7 @@
         </Button>
       </template>
     </DataTable>
+    </div>
 
     <!-- 创建/编辑代理对话框 -->
     <Dialog :open="showAgentDialog" @update:open="showAgentDialog = $event">
@@ -247,7 +273,7 @@
         <DialogHeader>
           <DialogTitle>确认删除</DialogTitle>
           <DialogDescription>
-            {{ deleteMode === 'single' ? '确定要删除该代理吗？此操作不可撤销。' : `确定要删除选中的 ${selectedAgents.length} 个代理吗？此操作不可撤销。` }}
+            {{ deleteMode === 'single' ? '确定要删除该代理吗？此操作不可撤销。' : `确定要删除选中的 ${listState.selectedAgents.length} 个代理吗？此操作不可撤销。` }}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -282,6 +308,19 @@ import {
 import type { ColumnDef } from '@tanstack/vue-table'
 import { agentApi } from '@/api/agent'
 import { AgentStatus, AgentCategory, AgentLevel, type Agent } from '@/types/agent'
+import { useAgentStore } from '@/store/agent'
+import { useUserStore } from '@/store/user'
+import { useListState } from '@/composables/useListState'
+import { useDebounce } from '@/composables/useDebounce'
+import { storeToRefs } from 'pinia'
+
+// 使用Pinia Store
+const agentStore = useAgentStore()
+const userStore = useUserStore()
+const { agentList, totalItems, listState, loading } = storeToRefs(agentStore)
+
+// 使用列表状态管理
+const { syncStateToURL, navigateToDetail, applyFilters, resetFilters, updatePagination } = useListState()
 
 // 状态选项
 const agentStatusOptions = [
@@ -309,31 +348,6 @@ const agentLevelOptions = [
   { value: AgentLevel.SV6, label: 'SV6伙伴' },
 ]
 
-// 代理数据
-const agents = ref<Agent[]>([])
-const totalItems = ref(0)
-const loading = ref(false)
-const selectedAgents = ref<string[]>([])
-
-// 分页配置
-const pagination = ref({
-  page: 1,
-  pageSize: 10,
-})
-
-// 筛选条件
-const filters = ref({
-  keyword: '',
-  status: '',
-  category: '',
-  level: '',
-  isAdded: false,
-  isPosting: false,
-  isIntercept: false,
-  isAttracting: false,
-  isInGroup: false,
-})
-
 // 表单相关
 const showAgentDialog = ref(false)
 const editMode = ref(false)
@@ -360,6 +374,312 @@ const showDeleteDialog = ref(false)
 const deleteMode = ref<'single' | 'batch'>('single')
 const deleting = ref(false)
 
+// 权限相关
+const hasCreatePermission = computed(() => {
+  const userRole = userStore.userRole
+  return ['super_admin', 'director', 'leader'].includes(userRole || '')
+})
+
+const hasEditPermission = computed(() => {
+  const userRole = userStore.userRole
+  return ['super_admin', 'director', 'leader'].includes(userRole || '')
+})
+
+const hasDeletePermission = computed(() => {
+  const userRole = userStore.userRole
+  return ['super_admin', 'director'].includes(userRole || '')
+})
+
+const hasExportPermission = computed(() => {
+  const userRole = userStore.userRole
+  return ['super_admin', 'director', 'leader'].includes(userRole || '')
+})
+
+// 错误处理相关
+const errorMessage = ref('')
+const showErrorAlert = ref(false)
+
+// 处理API错误的函数
+const handleApiError = (error: any, defaultMessage: string) => {
+  console.error(defaultMessage, error)
+  
+  // 尝试从错误响应中获取更详细的信息
+  if (error.response && error.response.data && error.response.data.message) {
+    errorMessage.value = error.response.data.message
+  } else if (error.message) {
+    errorMessage.value = error.message
+  } else {
+    errorMessage.value = defaultMessage
+  }
+  
+  showErrorAlert.value = true
+  
+  // 5秒后自动关闭错误提示
+  setTimeout(() => {
+    showErrorAlert.value = false
+  }, 5000)
+}
+
+// 获取代理列表数据
+const fetchAgents = async () => {
+  try {
+    await agentStore.fetchAgentList()
+    // 同步状态到URL
+    syncStateToURL()
+    // 加载成功后清除任何错误信息
+    showErrorAlert.value = false
+  } catch (error) {
+    handleApiError(error, '加载代理列表失败')
+  }
+}
+
+// 筛选条件
+const filters = computed(() => listState.value.filters)
+
+// 切换筛选条件
+const toggleFilter = (filterName: string) => {
+  if (filterName === 'isAdded' || filterName === 'isPosting' || 
+      filterName === 'isIntercept' || filterName === 'isAttracting' || 
+      filterName === 'isInGroup') {
+    const key = filterName as 'isAdded' | 'isPosting' | 'isIntercept' | 'isAttracting' | 'isInGroup';
+    agentStore.updateFilters({ [key]: !filters.value[key] });
+  }
+  searchAgents()
+}
+
+// 重置筛选条件
+const resetFiltersHandler = () => {
+  resetFilters()
+  fetchAgents()
+}
+
+// 搜索代理
+const searchAgents = () => {
+  fetchAgents()
+}
+
+// 搜索代理 - 使用防抖
+const { debouncedFn: debouncedSearch, isDebouncing: isSearching } = useDebounce(searchAgents, 500)
+
+// 搜索输入框变化处理
+const handleSearchInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  agentStore.updateFilters({ keyword: target.value })
+  debouncedSearch()
+}
+
+// 处理分页变更
+const handlePageChange = (page: number) => {
+  updatePagination(page)
+  fetchAgents()
+}
+
+// 打开创建代理对话框
+const openCreateDialog = () => {
+  editMode.value = false
+  resetAgentForm()
+  showAgentDialog.value = true
+}
+
+// 编辑代理
+const editAgent = async (agentId: string) => {
+  try {
+    const agent = await agentApi.getAgent(agentId)
+    agentForm.value = {
+      name: agent.name,
+      phone: agent.phone,
+      wechatName: agent.wechatName,
+      redBookAccount: agent.redBookAccount || '',
+      referrer: agent.referrer || '',
+      category: agent.category,
+      level: agent.level,
+      isAdded: agent.isAdded,
+      isPosting: agent.isPosting,
+      isIntercept: agent.isIntercept,
+      isAttracting: agent.isAttracting,
+      isInGroup: agent.isInGroup,
+      notes: agent.notes || '',
+    }
+    currentAgentId.value = agentId
+    editMode.value = true
+    showAgentDialog.value = true
+  } catch (error) {
+    console.error('Failed to get agent details:', error)
+    // TODO: 显示错误提示
+  }
+}
+
+// 重置表单
+const resetAgentForm = () => {
+  agentForm.value = {
+    name: '',
+    phone: '',
+    wechatName: '',
+    redBookAccount: '',
+    referrer: '',
+    category: '',
+    level: '',
+    isAdded: false,
+    isPosting: false,
+    isIntercept: false,
+    isAttracting: false,
+    isInGroup: false,
+    notes: '',
+  }
+  currentAgentId.value = null
+}
+
+// 提交代理表单
+const handleSubmitAgent = async () => {
+  submitting.value = true
+  try {
+    const formData = {
+      ...agentForm.value,
+      category: agentForm.value.category as AgentCategory,
+      level: agentForm.value.level as AgentLevel
+    };
+    
+    if (editMode.value && currentAgentId.value) {
+      await agentStore.updateAgent(currentAgentId.value, formData as any)
+    } else {
+      await agentStore.createAgent(formData as any)
+    }
+    showAgentDialog.value = false
+    fetchAgents()
+  } catch (error) {
+    handleApiError(error, editMode.value ? '更新代理失败' : '创建代理失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 删除单个代理
+const deleteAgent = (agentId: string) => {
+  currentAgentId.value = agentId
+  deleteMode.value = 'single'
+  showDeleteDialog.value = true
+}
+
+// 批量删除代理
+const confirmBatchDelete = () => {
+  deleteMode.value = 'batch'
+  showDeleteDialog.value = true
+}
+
+// 确认删除
+const confirmDelete = async () => {
+  deleting.value = true
+  try {
+    if (deleteMode.value === 'single' && currentAgentId.value) {
+      await agentStore.deleteAgent(currentAgentId.value)
+    } else if (deleteMode.value === 'batch') {
+      await agentStore.batchDeleteAgents(listState.value.selectedAgents)
+    }
+    showDeleteDialog.value = false
+    fetchAgents()
+  } catch (error) {
+    handleApiError(error, '删除代理失败')
+  } finally {
+    deleting.value = false
+  }
+}
+
+// 导出数据
+const exportData = async () => {
+  try {
+    const exportParams = {
+      keyword: filters.value.keyword,
+      status: filters.value.status ? filters.value.status as AgentStatus : undefined,
+      category: filters.value.category ? filters.value.category as AgentCategory : undefined,
+      level: filters.value.level ? filters.value.level as AgentLevel : undefined
+    };
+    
+    const blob = await agentApi.exportAgents(exportParams)
+    
+    // 创建临时下载链接
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `agents-export-${new Date().toISOString().slice(0, 10)}.xlsx`
+    link.click()
+    
+    // 释放URL对象
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url)
+    }, 100)
+  } catch (error) {
+    console.error('Failed to export agents:', error)
+    // TODO: 显示错误提示
+  }
+}
+
+// 查看代理详情
+const viewAgentDetail = (agentId: string) => {
+  navigateToDetail(agentId)
+}
+
+// 处理代理选择
+const toggleSelectAgent = (id: string) => {
+  agentStore.toggleSelectAgent(id)
+}
+
+// 处理全选/取消全选
+const toggleSelectAll = (checked: boolean) => {
+  if (checked) {
+    agentStore.selectAllAgents()
+  } else {
+    agentStore.deselectCurrentPageAgents()
+  }
+}
+
+// 判断代理是否被选中
+const isAgentSelected = (id: string) => {
+  return listState.value.selectedAgents.includes(id)
+}
+
+// 判断是否全选
+const isAllSelected = computed(() => {
+  return agentList.value.length > 0 && 
+         agentList.value.every(agent => listState.value.selectedAgents.includes(agent.id))
+})
+
+// 判断是否部分选中
+const isIndeterminate = computed(() => {
+  return listState.value.selectedAgents.length > 0 && 
+         !isAllSelected.value
+})
+
+// 根据用户角色过滤操作列
+const getAvailableActions = (agentId: string) => {
+  const actions = []
+  
+  // 查看详情按钮对所有角色可见
+  actions.push({
+    icon: MoreHorizontalIcon,
+    tooltip: '查看详情',
+    onClick: () => viewAgentDetail(agentId),
+    show: true
+  })
+  
+  // 编辑按钮根据权限显示
+  actions.push({
+    icon: PencilIcon,
+    tooltip: '编辑代理',
+    onClick: () => editAgent(agentId),
+    show: hasEditPermission.value
+  })
+  
+  // 删除按钮根据权限显示
+  actions.push({
+    icon: TrashIcon,
+    tooltip: '删除代理',
+    onClick: () => deleteAgent(agentId),
+    show: hasDeletePermission.value
+  })
+  
+  return actions.filter(action => action.show)
+}
+
 // 表格列定义
 const columns = [
   {
@@ -368,8 +688,8 @@ const columns = [
       return h('div', { class: 'flex items-center justify-center' }, [
         h('input', {
           type: 'checkbox',
-          checked: agents.value.length > 0 && selectedAgents.value.length === agents.value.length,
-          indeterminate: selectedAgents.value.length > 0 && selectedAgents.value.length < agents.value.length,
+          checked: isAllSelected.value,
+          indeterminate: isIndeterminate.value,
           class: 'rounded border-gray-300',
           onClick: (e: Event) => {
             e.stopPropagation()
@@ -377,20 +697,7 @@ const columns = [
           onChange: (e: Event) => {
             // 获取事件目标元素
             const target = e.target as HTMLInputElement
-            
-            if (target.checked) {
-              // 全选：获取当前页所有代理ID并添加到selectedAgents
-              const allCurrentPageAgentIds = agents.value.map(agent => agent.id)
-              // 使用Set去重并转回数组
-              selectedAgents.value = Array.from(new Set([...selectedAgents.value, ...allCurrentPageAgentIds]))
-            } else {
-              // 取消全选：从selectedAgents中移除当前页所有代理ID
-              const allCurrentPageAgentIds = new Set(agents.value.map(agent => agent.id))
-              selectedAgents.value = selectedAgents.value.filter(id => !allCurrentPageAgentIds.has(id))
-            }
-            
-            console.log(`全选/取消全选操作，已选中: ${target.checked}, 当前选中数量: ${selectedAgents.value.length}`)
-            console.log('当前选中的代理IDs:', selectedAgents.value)
+            toggleSelectAll(target.checked)
           }
         })
       ])
@@ -407,29 +714,13 @@ const columns = [
         h('input', {
           type: 'checkbox',
           // 使用计算属性检查当前行是否被选中
-          checked: selectedAgents.value.includes(agentId),
+          checked: isAgentSelected(agentId),
           class: 'rounded border-gray-300',
           onClick: (e: Event) => {
             e.stopPropagation() // 阻止事件冒泡
           },
           onChange: (e: Event) => {
-            // 获取事件目标元素
-            const target = e.target as HTMLInputElement
-            // 根据checkbox是否被选中来更新selectedAgents数组
-            if (target.checked) {
-              // 如果被选中，并且不在数组中，则添加
-              if (!selectedAgents.value.includes(agentId)) {
-                selectedAgents.value.push(agentId)
-              }
-            } else {
-              // 如果未被选中，从数组中移除
-              const index = selectedAgents.value.indexOf(agentId)
-              if (index !== -1) {
-                selectedAgents.value.splice(index, 1)
-              }
-            }
-            console.log(`切换代理选择状态: ${agentId}, 已选中: ${target.checked}, 当前选中数量: ${selectedAgents.value.length}`)
-            console.log('当前选中的代理IDs:', selectedAgents.value)
+            toggleSelectAgent(agentId)
           }
         })
       ])
@@ -587,279 +878,26 @@ const columns = [
     id: 'actions',
     header: '操作',
     cell: ({ row }: { row: any }) => {
-      return h('div', { class: 'flex items-center space-x-2' }, [
+      const agentId = row.id
+      const availableActions = getAvailableActions(agentId)
+      
+      return h('div', { class: 'flex items-center space-x-2' }, 
+        availableActions.map(action => 
         h(Button, {
           size: 'sm',
           variant: 'ghost',
           class: 'h-8 w-8 p-0',
-          onClick: () => editAgent(row.id)
-        }, () => h(PencilIcon, { class: 'h-4 w-4' })),
-        
-        h(Button, {
-          size: 'sm',
-          variant: 'ghost',
-          class: 'h-8 w-8 p-0',
-          onClick: () => deleteAgent(row.id)
-        }, () => h(TrashIcon, { class: 'h-4 w-4' })),
-        
-        h('router-link', {
-          to: { name: 'AgentDetail', params: { id: row.id } }
-        }, [
-          h(Button, {
-            size: 'sm',
-            variant: 'ghost',
-            class: 'h-8 w-8 p-0'
-          }, () => h(MoreHorizontalIcon, { class: 'h-4 w-4' }))
-        ])
-      ])
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              action.onClick()
+            },
+            title: action.tooltip
+          }, () => h(action.icon, { class: 'h-4 w-4' }))
+        )
+      )
     }
   }
 ]
-
-// 获取代理列表数据
-const fetchAgents = async () => {
-  loading.value = true
-  try {
-    const { page, pageSize } = pagination.value
-    
-    const queryParams = {
-      page,
-      pageSize,
-      keyword: filters.value.keyword,
-      status: filters.value.status ? filters.value.status as AgentStatus : undefined,
-      category: filters.value.category ? filters.value.category as AgentCategory : undefined,
-      level: filters.value.level ? filters.value.level as AgentLevel : undefined,
-      isAdded: filters.value.isAdded ? true : undefined,
-      isPosting: filters.value.isPosting ? true : undefined,
-      isIntercept: filters.value.isIntercept ? true : undefined,
-      isAttracting: filters.value.isAttracting ? true : undefined,
-      isInGroup: filters.value.isInGroup ? true : undefined,
-    }
-    
-    console.log('获取代理列表，请求参数:', queryParams)
-    const response = await agentApi.getAgentList(queryParams)
-    console.log('代理列表响应数据:', response)
-    
-    // 处理不同的返回数据结构
-    if (response && typeof response === 'object') {
-      // 如果response.data是数组，直接使用
-      if (Array.isArray(response.data)) {
-        agents.value = response.data
-        totalItems.value = response.total || response.data.length
-      } 
-      // 如果response.data是对象且包含data字段，则使用嵌套的data
-      else if (response.data && 'data' in response.data && Array.isArray((response.data as any).data)) {
-        agents.value = (response.data as any).data
-        totalItems.value = (response.data as any).total || (response.data as any).data.length
-      }
-      // 如果response本身是数组，直接使用
-      else if (Array.isArray(response)) {
-        agents.value = response
-        totalItems.value = response.length
-      }
-      else {
-        console.error('代理数据格式不正确:', response)
-        agents.value = []
-        totalItems.value = 0
-      }
-    } else {
-      console.error('获取代理列表失败，响应格式不正确:', response)
-      agents.value = []
-      totalItems.value = 0
-    }
-  } catch (error) {
-    console.error('Failed to fetch agents:', error)
-    agents.value = []
-    totalItems.value = 0
-    // TODO: 显示错误提示
-  } finally {
-    loading.value = false
-  }
-}
-
-// 切换筛选条件
-const toggleFilter = (filterName: string) => {
-  // 使用类型守卫确保我们只处理布尔类型的过滤器
-  if (filterName === 'isAdded' || filterName === 'isPosting' || 
-      filterName === 'isIntercept' || filterName === 'isAttracting' || 
-      filterName === 'isInGroup') {
-    const key = filterName as 'isAdded' | 'isPosting' | 'isIntercept' | 'isAttracting' | 'isInGroup';
-    filters.value[key] = !filters.value[key];
-  }
-  searchAgents()
-}
-
-// 重置筛选条件
-const resetFilters = () => {
-  filters.value = {
-    keyword: '',
-    status: '',
-    category: '',
-    level: '',
-    isAdded: false,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-  }
-  searchAgents()
-}
-
-// 搜索代理
-const searchAgents = () => {
-  pagination.value.page = 1
-  fetchAgents()
-}
-
-// 处理分页变更
-const handlePageChange = (page: number) => {
-  pagination.value.page = page
-  console.log(`分页切换到第${page}页，当前选中的代理数量: ${selectedAgents.value.length}`)
-  console.log('当前选中的代理IDs:', selectedAgents.value)
-  fetchAgents()
-}
-
-// 打开创建代理对话框
-const openCreateDialog = () => {
-  editMode.value = false
-  resetAgentForm()
-  showAgentDialog.value = true
-}
-
-// 编辑代理
-const editAgent = async (agentId: string) => {
-  try {
-    const agent = await agentApi.getAgent(agentId)
-    agentForm.value = {
-      name: agent.name,
-      phone: agent.phone,
-      wechatName: agent.wechatName,
-      redBookAccount: agent.redBookAccount || '',
-      referrer: agent.referrer || '',
-      category: agent.category,
-      level: agent.level,
-      isAdded: agent.isAdded,
-      isPosting: agent.isPosting,
-      isIntercept: agent.isIntercept,
-      isAttracting: agent.isAttracting,
-      isInGroup: agent.isInGroup,
-      notes: agent.notes || '',
-    }
-    currentAgentId.value = agentId
-    editMode.value = true
-    showAgentDialog.value = true
-  } catch (error) {
-    console.error('Failed to get agent details:', error)
-    // TODO: 显示错误提示
-  }
-}
-
-// 重置表单
-const resetAgentForm = () => {
-  agentForm.value = {
-    name: '',
-    phone: '',
-    wechatName: '',
-    redBookAccount: '',
-    referrer: '',
-    category: '',
-    level: '',
-    isAdded: false,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '',
-  }
-  currentAgentId.value = null
-}
-
-// 提交代理表单
-const handleSubmitAgent = async () => {
-  submitting.value = true
-  try {
-    const formData = {
-      ...agentForm.value,
-      category: agentForm.value.category as AgentCategory,
-      level: agentForm.value.level as AgentLevel
-    };
-    
-    if (editMode.value && currentAgentId.value) {
-      await agentApi.updateAgent(currentAgentId.value, formData)
-    } else {
-      await agentApi.createAgent(formData as any)
-    }
-    showAgentDialog.value = false
-    fetchAgents()
-  } catch (error) {
-    console.error('Failed to save agent:', error)
-    // TODO: 显示错误提示
-  } finally {
-    submitting.value = false
-  }
-}
-
-// 删除单个代理
-const deleteAgent = (agentId: string) => {
-  currentAgentId.value = agentId
-  deleteMode.value = 'single'
-  showDeleteDialog.value = true
-}
-
-// 批量删除代理
-const confirmBatchDelete = () => {
-  deleteMode.value = 'batch'
-  showDeleteDialog.value = true
-}
-
-// 确认删除
-const confirmDelete = async () => {
-  deleting.value = true
-  try {
-    if (deleteMode.value === 'single' && currentAgentId.value) {
-      await agentApi.deleteAgent(currentAgentId.value)
-    } else if (deleteMode.value === 'batch') {
-      await agentApi.batchDeleteAgents(selectedAgents.value)
-      selectedAgents.value = []
-    }
-    showDeleteDialog.value = false
-    fetchAgents()
-  } catch (error) {
-    console.error('Failed to delete agent(s):', error)
-    // TODO: 显示错误提示
-  } finally {
-    deleting.value = false
-  }
-}
-
-// 导出数据
-const exportData = async () => {
-  try {
-    const exportParams = {
-      keyword: filters.value.keyword,
-      status: filters.value.status ? filters.value.status as AgentStatus : undefined,
-      category: filters.value.category ? filters.value.category as AgentCategory : undefined,
-      level: filters.value.level ? filters.value.level as AgentLevel : undefined
-    };
-    
-    const blob = await agentApi.exportAgents(exportParams)
-    
-    // 创建临时下载链接
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `agents-export-${new Date().toISOString().slice(0, 10)}.xlsx`
-    link.click()
-    
-    // 释放URL对象
-    setTimeout(() => {
-      window.URL.revokeObjectURL(url)
-    }, 100)
-  } catch (error) {
-    console.error('Failed to export agents:', error)
-    // TODO: 显示错误提示
-  }
-}
 
 // 初始化
 onMounted(() => {

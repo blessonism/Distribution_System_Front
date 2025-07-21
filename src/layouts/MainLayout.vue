@@ -267,8 +267,10 @@
       <main class="absolute top-16 left-0 right-0 bottom-0 overflow-y-auto bg-gray-50">
         <div class="p-4 sm:p-6 lg:p-8">
           <router-view :key="$route.path" v-slot="{ Component }">
-            <transition name="fade" mode="out-in">
-              <component :is="Component" />
+            <transition :name="pageTransition" mode="out-in">
+              <keep-alive :include="keepAliveComponents">
+                <component :is="Component" :key="$route.path" />
+              </keep-alive>
             </transition>
           </router-view>
         </div>
@@ -341,6 +343,25 @@ const pageTitle = computed(() => {
   const matched = route.matched
   const lastMatched = matched[matched.length - 1]
   return lastMatched?.meta?.title || '管理后台'
+})
+
+// 页面过渡动画
+const pageTransition = computed(() => {
+  const currentTransition = route.meta.transition as string | undefined
+  return currentTransition || 'fade'
+})
+
+// 需要缓存的组件
+const keepAliveComponents = computed(() => {
+  const routes = router.getRoutes()
+  return routes
+    .filter(route => route.meta.keepAlive)
+    .map(route => {
+      // 获取组件名称，使用route.name作为缓存的key
+      const name = route.name
+      return name?.toString() || ''
+    })
+    .filter(Boolean)
 })
 
 // 获取图标组件
@@ -468,6 +489,34 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 从左滑入动画 */
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* 从右滑入动画 */
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+.slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
 }
 
 /* 菜单项悬停效果 */

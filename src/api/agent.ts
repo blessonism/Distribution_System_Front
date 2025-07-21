@@ -1,5 +1,5 @@
 import { http } from '@/utils/request';
-import type { Agent, AgentQueryParams, CreateAgentParams, UpdateAgentParams, AgentPerformance } from '@/types/agent';
+import type { Agent, AgentQueryParams, CreateAgentParams, UpdateAgentParams, AgentPerformance, AgentPerformanceQueryParams } from '@/types/agent';
 
 interface AgentListResponse {
   data: Agent[];
@@ -18,8 +18,21 @@ export const agentApi = {
   },
 
   // 获取代理业绩数据
-  getAgentPerformance: (id: string): Promise<AgentPerformance> => {
-    return http.get(`/agents/${id}/performance`);
+  getAgentPerformance: (id: string, params?: AgentPerformanceQueryParams): Promise<AgentPerformance> => {
+    console.log('[API] 调用获取业绩数据:', id, params);
+    return http.get(`/agents/${id}/performance`, { params })
+      .then(response => {
+        console.log('[API] 获取到的原始业绩数据:', response);
+        // 确保response中有trendData
+        if (!response.trendData && params?.includeTrend) {
+          console.error('[API] 响应缺少trendData属性!');
+        }
+        return response;
+      })
+      .catch(error => {
+        console.error('[API] 获取业绩数据失败:', error);
+        throw error;
+      });
   },
 
   // 创建代理

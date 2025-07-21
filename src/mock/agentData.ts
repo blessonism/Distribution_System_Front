@@ -1,606 +1,423 @@
-import { Agent, AgentCategory, AgentLevel, AgentStatus } from '@/types/agent'
+import { MockMethod } from 'vite-plugin-mock'
+import { AgentStatus, AgentCategory, AgentLevel } from '@/types/agent'
+import mockjs from 'mockjs'
+import dayjs from 'dayjs'
 
-// 真实的代理测试数据
-export const realAgentsData: Agent[] = [
-  {
-    id: 'agent-001',
-    name: '张小红',
-    phone: '13912345678',
-    wechatName: 'xiaohong123',
-    redBookAccount: 'xiaohong_redbook',
-    referrer: '系统推荐',
-    category: AgentCategory.A,
-    level: AgentLevel.SV2,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: false,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '非常积极的代理，经常参与活动并维护客户关系，转化率高',
-    addedDate: '2023-11-01T10:00:00Z',
-    createdAt: '2023-11-01T10:00:00Z',
-    updatedAt: '2024-03-20T15:30:00Z'
-  },
-  {
-    id: 'agent-002',
-    name: '李明',
-    phone: '13898765432',
-    wechatName: 'liming2024',
-    redBookAccount: '',
-    referrer: '张小红',
-    category: AgentCategory.B,
-    level: AgentLevel.SV1,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: true,
-    notes: '新加入的代理，积极性较高，需要指导',
-    addedDate: '2024-01-05T14:20:00Z',
-    createdAt: '2024-01-05T14:20:00Z',
-    updatedAt: '2024-03-15T09:45:00Z'
-  },
-  {
-    id: 'agent-003',
-    name: '王芳',
-    phone: '13756781234',
-    wechatName: 'fangfang',
-    redBookAccount: 'wangfang_beauty',
-    referrer: '系统推荐',
-    category: AgentCategory.A,
-    level: AgentLevel.SV3,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '优秀代理，有自己的粉丝群体，推广效果好',
-    addedDate: '2023-08-12T08:15:00Z',
-    createdAt: '2023-08-12T08:15:00Z',
-    updatedAt: '2024-03-22T11:20:00Z'
-  },
-  {
-    id: 'agent-004',
-    name: '刘强',
-    phone: '13612345678',
-    wechatName: 'qiangge',
-    redBookAccount: '',
-    referrer: '王芳',
-    category: AgentCategory.C,
-    level: AgentLevel.SV1,
-    status: AgentStatus.INACTIVE,
-    isAdded: true,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '最近活跃度下降，需要跟进',
-    addedDate: '2024-01-20T16:30:00Z',
-    createdAt: '2024-01-20T16:30:00Z',
-    updatedAt: '2024-03-01T10:10:00Z'
-  },
-  {
-    id: 'agent-005',
-    name: '陈静',
-    phone: '13823456789',
-    wechatName: 'jingchen',
-    redBookAccount: 'chenjing_fashion',
-    referrer: '',
-    category: AgentCategory.A,
-    level: AgentLevel.SV4,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '时尚博主，粉丝量大，转化率高',
-    addedDate: '2023-06-15T09:00:00Z',
-    createdAt: '2023-06-15T09:00:00Z',
-    updatedAt: '2024-03-18T14:25:00Z'
-  },
-  {
-    id: 'agent-006',
-    name: '赵雷',
-    phone: '13534567890',
-    wechatName: 'leileizz',
-    redBookAccount: '',
-    referrer: '李明',
-    category: AgentCategory.D,
-    level: AgentLevel.SV1,
-    status: AgentStatus.PENDING,
-    isAdded: false,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: true,
-    notes: '新注册用户，等待审核',
-    addedDate: '',
-    createdAt: '2024-03-20T11:30:00Z',
-    updatedAt: '2024-03-20T11:30:00Z'
-  },
-  {
-    id: 'agent-007',
-    name: '孙玲',
-    phone: '13645678901',
-    wechatName: 'lingling123',
-    redBookAccount: 'sunling_life',
-    referrer: '陈静',
-    category: AgentCategory.B,
-    level: AgentLevel.SV2,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: false,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '生活类内容创作者，内容质量高',
-    addedDate: '2023-10-10T13:40:00Z',
-    createdAt: '2023-10-10T13:40:00Z',
-    updatedAt: '2024-03-15T16:50:00Z'
-  },
-  {
-    id: 'agent-008',
-    name: '吴志强',
-    phone: '13756789012',
-    wechatName: 'wuzhiqiang',
-    redBookAccount: '',
-    referrer: '',
-    category: AgentCategory.C,
-    level: AgentLevel.SV2,
-    status: AgentStatus.INACTIVE,
-    isAdded: true,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '近期无活动，需要跟进',
-    addedDate: '2023-12-05T10:20:00Z',
-    createdAt: '2023-12-05T10:20:00Z',
-    updatedAt: '2024-02-10T09:15:00Z'
-  },
-  {
-    id: 'agent-009',
-    name: '郑丽',
-    phone: '13867890123',
-    wechatName: 'zhengli_beauty',
-    redBookAccount: 'zhengli_makeup',
-    referrer: '系统推荐',
-    category: AgentCategory.A,
-    level: AgentLevel.SV3,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '美妆博主，粉丝互动良好',
-    addedDate: '2023-09-18T15:10:00Z',
-    createdAt: '2023-09-18T15:10:00Z',
-    updatedAt: '2024-03-21T13:40:00Z'
-  },
-  {
-    id: 'agent-010',
-    name: '林阳',
-    phone: '13978901234',
-    wechatName: 'yangyang',
-    redBookAccount: 'linyang_travel',
-    referrer: '郑丽',
-    category: AgentCategory.B,
-    level: AgentLevel.SV2,
-    status: AgentStatus.BLOCKED,
-    isAdded: false,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '违反平台规则，账号已封禁',
-    addedDate: '2023-11-25T11:30:00Z',
-    createdAt: '2023-11-25T11:30:00Z',
-    updatedAt: '2024-03-01T09:00:00Z'
-  },
-  {
-    id: 'agent-011',
-    name: '黄建国',
-    phone: '13589012345',
-    wechatName: 'jghuang',
-    redBookAccount: '',
-    referrer: '',
-    category: AgentCategory.B,
-    level: AgentLevel.SV2,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: true,
-    notes: '',
-    addedDate: '2024-02-05T14:00:00Z',
-    createdAt: '2024-02-05T14:00:00Z',
-    updatedAt: '2024-03-10T16:20:00Z'
-  },
-  {
-    id: 'agent-012',
-    name: '周文静',
-    phone: '13690123456',
-    wechatName: 'wenjingzhou',
-    redBookAccount: 'zhouwenjing',
-    referrer: '黄建国',
-    category: AgentCategory.A,
-    level: AgentLevel.SV1,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '新晋代理，表现积极',
-    addedDate: '2024-03-01T09:30:00Z',
-    createdAt: '2024-03-01T09:30:00Z',
-    updatedAt: '2024-03-22T10:00:00Z'
-  },
-  {
-    id: 'agent-013',
-    name: '徐光明',
-    phone: '13701234567',
-    wechatName: 'guangmingxu',
-    redBookAccount: '',
-    referrer: '系统推荐',
-    category: AgentCategory.C,
-    level: AgentLevel.SV1,
-    status: AgentStatus.PENDING,
-    isAdded: false,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '等待审核中',
-    addedDate: '',
-    createdAt: '2024-03-21T16:45:00Z',
-    updatedAt: '2024-03-21T16:45:00Z'
-  },
-  {
-    id: 'agent-014',
-    name: '马丽娜',
-    phone: '13812345678',
-    wechatName: 'linalina',
-    redBookAccount: 'malina_fitness',
-    referrer: '张小红',
-    category: AgentCategory.A,
-    level: AgentLevel.SV3,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '健身博主，有固定粉丝群体',
-    addedDate: '2023-07-20T10:15:00Z',
-    createdAt: '2023-07-20T10:15:00Z',
-    updatedAt: '2024-03-19T11:30:00Z'
-  },
-  {
-    id: 'agent-015',
-    name: '谭明',
-    phone: '13923456789',
-    wechatName: 'tanming2023',
-    redBookAccount: '',
-    referrer: '',
-    category: AgentCategory.D,
-    level: AgentLevel.SV1,
-    status: AgentStatus.INACTIVE,
-    isAdded: true,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '长期不活跃',
-    addedDate: '2023-11-10T14:50:00Z',
-    createdAt: '2023-11-10T14:50:00Z',
-    updatedAt: '2024-01-15T09:20:00Z'
-  },
-  // 添加更多的代理数据用于测试
-  {
-    id: 'agent-016',
-    name: '刘敏',
-    phone: '13800001111',
-    wechatName: 'liuminbeauty',
-    redBookAccount: 'liumin_makeup',
-    referrer: '陈静',
-    category: AgentCategory.A,
-    level: AgentLevel.SV4,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '美妆达人，视频质量高',
-    addedDate: '2023-05-15T08:30:00Z',
-    createdAt: '2023-05-15T08:30:00Z',
-    updatedAt: '2024-03-10T16:45:00Z'
-  },
-  {
-    id: 'agent-017',
-    name: '王大力',
-    phone: '13800002222',
-    wechatName: 'dalistrong',
-    redBookAccount: 'dali_fitness',
-    referrer: '马丽娜',
-    category: AgentCategory.B,
-    level: AgentLevel.SV3,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: false,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '健身教练，有专业知识背景',
-    addedDate: '2023-08-22T11:20:00Z',
-    createdAt: '2023-08-22T11:20:00Z',
-    updatedAt: '2024-02-28T14:30:00Z'
-  },
-  {
-    id: 'agent-018',
-    name: '张晓华',
-    phone: '13800003333',
-    wechatName: 'xiaohua88',
-    redBookAccount: '',
-    referrer: '王芳',
-    category: AgentCategory.C,
-    level: AgentLevel.SV1,
-    status: AgentStatus.INACTIVE,
-    isAdded: false,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '很久没有活动了',
-    addedDate: '2023-10-05T09:15:00Z',
-    createdAt: '2023-10-05T09:15:00Z',
-    updatedAt: '2023-12-10T10:00:00Z'
-  },
-  {
-    id: 'agent-019',
-    name: '赵云',
-    phone: '13800004444',
-    wechatName: 'zhaoyun2023',
-    redBookAccount: 'zhaoyun_travel',
-    referrer: '系统推荐',
-    category: AgentCategory.A,
-    level: AgentLevel.SV2,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: false,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '旅游博主，内容丰富',
-    addedDate: '2023-09-01T16:40:00Z',
-    createdAt: '2023-09-01T16:40:00Z',
-    updatedAt: '2024-03-18T11:05:00Z'
-  },
-  {
-    id: 'agent-020',
-    name: '钱小花',
-    phone: '13800005555',
-    wechatName: 'qianhua',
-    redBookAccount: 'qianxiaohua',
-    referrer: '张小红',
-    category: AgentCategory.B,
-    level: AgentLevel.SV2,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: true,
-    notes: '服装穿搭达人',
-    addedDate: '2023-11-15T10:25:00Z',
-    createdAt: '2023-11-15T10:25:00Z',
-    updatedAt: '2024-03-05T15:40:00Z'
-  },
-  {
-    id: 'agent-021',
-    name: '孙大鹏',
-    phone: '13800006666',
-    wechatName: 'sundapeng',
-    redBookAccount: 'dapengfly',
-    referrer: '王芳',
-    category: AgentCategory.A,
-    level: AgentLevel.SV3,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '户外探险博主，粉丝互动高',
-    addedDate: '2023-07-07T08:50:00Z',
-    createdAt: '2023-07-07T08:50:00Z',
-    updatedAt: '2024-03-12T16:30:00Z'
-  },
-  {
-    id: 'agent-022',
-    name: '李雪',
-    phone: '13800007777',
-    wechatName: 'snowlee',
-    redBookAccount: 'lixuesnow',
-    referrer: '系统推荐',
-    category: AgentCategory.D,
-    level: AgentLevel.SV1,
-    status: AgentStatus.PENDING,
-    isAdded: false,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: true,
-    notes: '待审核，初步沟通良好',
-    addedDate: '',
-    createdAt: '2024-03-22T09:15:00Z',
-    updatedAt: '2024-03-22T09:15:00Z'
-  },
-  {
-    id: 'agent-023',
-    name: '周建军',
-    phone: '13800008888',
-    wechatName: 'jjzhou',
-    redBookAccount: '',
-    referrer: '刘强',
-    category: AgentCategory.C,
-    level: AgentLevel.SV1,
-    status: AgentStatus.BLOCKED,
-    isAdded: false,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '违反社区规则，账号已封禁',
-    addedDate: '2023-12-12T13:20:00Z',
-    createdAt: '2023-12-12T13:20:00Z',
-    updatedAt: '2024-01-05T10:30:00Z'
-  },
-  {
-    id: 'agent-024',
-    name: '郭小萍',
-    phone: '13800009999',
-    wechatName: 'xiaopingping',
-    redBookAccount: 'guoxiaoping',
-    referrer: '陈静',
-    category: AgentCategory.B,
-    level: AgentLevel.SV2,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: false,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '美食博主，视频质量好',
-    addedDate: '2023-10-28T14:15:00Z',
-    createdAt: '2023-10-28T14:15:00Z',
-    updatedAt: '2024-03-15T11:20:00Z'
-  },
-  {
-    id: 'agent-025',
-    name: '韩梅梅',
-    phone: '13800000001',
-    wechatName: 'hanmeimei',
-    redBookAccount: 'meimei2023',
-    referrer: '郑丽',
-    category: AgentCategory.A,
-    level: AgentLevel.SV5,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '高级代理，业绩突出',
-    addedDate: '2023-04-01T08:00:00Z',
-    createdAt: '2023-04-01T08:00:00Z',
-    updatedAt: '2024-03-20T17:30:00Z'
-  },
-  {
-    id: 'agent-026',
-    name: '李雷',
-    phone: '13800000002',
-    wechatName: 'lilei2023',
-    redBookAccount: 'lileicool',
-    referrer: '韩梅梅',
-    category: AgentCategory.A,
-    level: AgentLevel.SV4,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '高效代理，团队合作能力强',
-    addedDate: '2023-05-10T09:20:00Z',
-    createdAt: '2023-05-10T09:20:00Z',
-    updatedAt: '2024-03-18T15:40:00Z'
-  },
-  {
-    id: 'agent-027',
-    name: '王五',
-    phone: '13800000003',
-    wechatName: 'wangwu5',
-    redBookAccount: '',
-    referrer: '李雷',
-    category: AgentCategory.B,
-    level: AgentLevel.SV2,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '新晋代理，潜力大',
-    addedDate: '2024-01-15T11:30:00Z',
-    createdAt: '2024-01-15T11:30:00Z',
-    updatedAt: '2024-03-10T14:15:00Z'
-  },
-  {
-    id: 'agent-028',
-    name: '刘倩',
-    phone: '13800000004',
-    wechatName: 'qianqian123',
-    redBookAccount: 'liuqian_beauty',
-    referrer: '陈静',
-    category: AgentCategory.A,
-    level: AgentLevel.SV3,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: true,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '化妆品代理专家',
-    addedDate: '2023-08-18T13:45:00Z',
-    createdAt: '2023-08-18T13:45:00Z',
-    updatedAt: '2024-03-16T10:20:00Z'
-  },
-  {
-    id: 'agent-029',
-    name: '张伟',
-    phone: '13800000005',
-    wechatName: 'weizhang',
-    redBookAccount: '',
-    referrer: '刘倩',
-    category: AgentCategory.C,
-    level: AgentLevel.SV1,
-    status: AgentStatus.INACTIVE,
-    isAdded: true,
-    isPosting: false,
-    isIntercept: false,
-    isAttracting: false,
-    isInGroup: false,
-    notes: '近期无活动记录',
-    addedDate: '2023-11-05T15:10:00Z',
-    createdAt: '2023-11-05T15:10:00Z',
-    updatedAt: '2024-02-01T09:00:00Z'
-  },
-  {
-    id: 'agent-030',
-    name: '周小天',
-    phone: '13800000006',
-    wechatName: 'xiaotian666',
-    redBookAccount: 'zhouxiaotian',
-    referrer: '系统推荐',
-    category: AgentCategory.A,
-    level: AgentLevel.SV2,
-    status: AgentStatus.ACTIVE,
-    isAdded: true,
-    isPosting: true,
-    isIntercept: false,
-    isAttracting: true,
-    isInGroup: true,
-    notes: '内容丰富多样，受众广泛',
-    addedDate: '2023-10-10T09:40:00Z',
-    createdAt: '2023-10-10T09:40:00Z',
-    updatedAt: '2024-03-21T13:15:00Z'
+// 从mockjs中获取Random
+const { Random } = mockjs
+
+// 生成代理数据
+const generateAgents = (count: number) => {
+  const agents = []
+  const statuses = Object.values(AgentStatus)
+  const categories = Object.values(AgentCategory)
+  const levels = Object.values(AgentLevel)
+
+  for (let i = 0; i < count; i++) {
+    const createdAt = Random.datetime('yyyy-MM-dd HH:mm:ss')
+    const updatedAt = dayjs(createdAt).add(Random.integer(1, 30), 'day').format('YYYY-MM-DD HH:mm:ss')
+    const addedDate = Random.boolean() ? dayjs(createdAt).format('YYYY-MM-DD') : ''
+
+    // 生成更合理的中文备注
+    const noteTemplates = [
+      '客户对我们的产品很感兴趣，后续需要持续跟进。',
+      '已经介绍了主要产品功能，客户反馈良好。',
+      '需要提供更多的价格优惠方案，客户比较关注成本问题。',
+      '客户希望能够在下周安排一次详细的产品演示。',
+      '初次沟通顺利，客户表示会考虑我们的方案。',
+      '客户目前已有合作伙伴，但对我们的服务也很感兴趣。',
+      '需要提供更详细的产品资料和案例分析。',
+      '客户反馈我们的方案比较符合他们的需求，正在内部讨论。',
+      '已安排下次跟进时间，客户态度积极。',
+      '客户表示近期会做决定，需要持续保持联系。'
+    ]
+    
+    const notes = Random.boolean() ? Random.pick(noteTemplates) : ''
+
+    const agent = {
+      id: `agent_${i + 1}`,
+      name: Random.cname(),
+      phone: Random.integer(13000000000, 19999999999).toString(),
+      wechatName: Random.string('lower', 5, 10),
+      redBookAccount: Random.boolean() ? `redbook_${Random.word(5, 8)}` : '',
+      referrer: Random.boolean() ? Random.cname() : '',
+      referralCode: Random.boolean() ? Random.string('lower', 5) : '',
+      category: Random.pick(categories),
+      level: Random.pick(levels),
+      status: Random.pick(statuses),
+      isAdded: Random.boolean(),
+      isPosting: Random.boolean(),
+      isIntercept: Random.boolean(),
+      isAttracting: Random.boolean(),
+      isInGroup: Random.boolean(),
+      notes,
+      addedDate,
+      createdAt,
+      updatedAt,
+      
+      // 添加权限相关字段
+      groupId: `group_${Random.integer(1, 5)}`,
+      groupName: `${Random.cword(2, 4)}组`,
+      managerId: `manager_${Random.integer(1, 10)}`,
+      managerName: Random.cname(),
+    }
+
+    agents.push(agent)
   }
-] 
+
+  return agents
+}
+
+// 生成趋势数据
+const generateTrendData = (period: string) => {
+  // 根据周期生成不同数量的数据点
+  let dataPoints = 30
+  let format = 'MM-DD'
+  
+  switch (period) {
+    case 'day':
+      dataPoints = 24
+      format = 'HH:mm'
+      break
+    case 'week':
+      dataPoints = 7
+      format = 'ddd'
+      break
+    case 'month':
+      dataPoints = 30
+      format = 'MM-DD'
+      break
+    case 'quarter':
+      dataPoints = 12
+      format = 'MM-DD'
+      break
+    case 'year':
+      dataPoints = 12
+      format = 'YYYY-MM'
+      break
+  }
+  
+  const labels: string[] = []
+  const revenue: number[] = []
+  const clients: number[] = []
+  const commission: number[] = []
+  
+  // 生成起始日期
+  let startDate = dayjs()
+  
+  if (period === 'day') {
+    startDate = startDate.subtract(24, 'hour')
+    // 生成24小时的数据
+    for (let i = 0; i < dataPoints; i++) {
+      const date = startDate.add(i, 'hour')
+      labels.push(date.format(format))
+      revenue.push(Random.integer(1000, 5000))
+      clients.push(Random.integer(1, 10))
+      commission.push(Random.integer(100, 500))
+    }
+  } else if (period === 'week') {
+    startDate = startDate.subtract(7, 'day')
+    // 生成7天的数据
+    for (let i = 0; i < dataPoints; i++) {
+      const date = startDate.add(i, 'day')
+      labels.push(date.format(format))
+      revenue.push(Random.integer(5000, 20000))
+      clients.push(Random.integer(5, 30))
+      commission.push(Random.integer(500, 2000))
+    }
+  } else if (period === 'month') {
+    startDate = startDate.subtract(30, 'day')
+    // 生成30天的数据
+    for (let i = 0; i < dataPoints; i++) {
+      const date = startDate.add(i, 'day')
+      labels.push(date.format(format))
+      revenue.push(Random.integer(8000, 30000))
+      clients.push(Random.integer(10, 50))
+      commission.push(Random.integer(800, 3000))
+    }
+  } else if (period === 'quarter') {
+    startDate = startDate.subtract(12, 'week')
+    // 生成12周的数据
+    for (let i = 0; i < dataPoints; i++) {
+      const date = startDate.add(i, 'week')
+      labels.push(date.format(format))
+      revenue.push(Random.integer(30000, 100000))
+      clients.push(Random.integer(40, 200))
+      commission.push(Random.integer(3000, 10000))
+    }
+  } else if (period === 'year') {
+    startDate = startDate.subtract(12, 'month')
+    // 生成12个月的数据
+    for (let i = 0; i < dataPoints; i++) {
+      const date = startDate.add(i, 'month')
+      labels.push(date.format(format))
+      revenue.push(Random.integer(100000, 500000))
+      clients.push(Random.integer(100, 500))
+      commission.push(Random.integer(10000, 50000))
+    }
+  }
+  
+  return {
+    labels,
+    revenue,
+    clients,
+    commission
+  }
+}
+
+// 生成100个代理数据
+const agents = generateAgents(100)
+
+// 导出生成的代理数据，确保setupMock.ts可以使用
+export const realAgentsData = agents;
+
+// 定义mock接口
+const mockAgentApis: MockMethod[] = [
+  {
+    url: '/api/agents',
+    method: 'get',
+    response: ({ query }) => {
+      const { page = 1, pageSize = 10, keyword, status, category, level, isAdded, isPosting, isIntercept, isAttracting, isInGroup } = query
+      
+      let filteredAgents = [...agents]
+      
+      // 应用筛选条件
+      if (keyword) {
+        const regex = new RegExp(keyword, 'i')
+        filteredAgents = filteredAgents.filter(agent => 
+          regex.test(agent.name) || 
+          regex.test(agent.phone) || 
+          regex.test(agent.wechatName)
+        )
+      }
+      
+      if (status) {
+        filteredAgents = filteredAgents.filter(agent => agent.status === status)
+      }
+      
+      if (category) {
+        filteredAgents = filteredAgents.filter(agent => agent.category === category)
+      }
+      
+      if (level) {
+        filteredAgents = filteredAgents.filter(agent => agent.level === level)
+      }
+      
+      // 布尔值筛选
+      if (isAdded !== undefined) {
+        filteredAgents = filteredAgents.filter(agent => agent.isAdded === (isAdded === 'true'))
+      }
+      
+      if (isPosting !== undefined) {
+        filteredAgents = filteredAgents.filter(agent => agent.isPosting === (isPosting === 'true'))
+      }
+      
+      if (isIntercept !== undefined) {
+        filteredAgents = filteredAgents.filter(agent => agent.isIntercept === (isIntercept === 'true'))
+      }
+      
+      if (isAttracting !== undefined) {
+        filteredAgents = filteredAgents.filter(agent => agent.isAttracting === (isAttracting === 'true'))
+      }
+      
+      if (isInGroup !== undefined) {
+        filteredAgents = filteredAgents.filter(agent => agent.isInGroup === (isInGroup === 'true'))
+      }
+      
+      // 分页
+      const start = (page - 1) * pageSize
+      const end = start + parseInt(pageSize)
+      const paginatedAgents = filteredAgents.slice(start, end)
+      
+      return {
+        code: 0,
+        message: 'success',
+        data: paginatedAgents,
+        total: filteredAgents.length,
+      }
+    },
+  },
+  
+  {
+    url: '/api/agents/:id',
+    method: 'get',
+    response: ({ params }) => {
+      const { id } = params
+      const agent = agents.find(item => item.id === id)
+      
+      if (!agent) {
+        return {
+          code: 404,
+          message: 'Agent not found',
+          data: null,
+        }
+      }
+      
+      return {
+        code: 0,
+        message: 'success',
+        data: agent,
+      }
+    },
+  },
+  
+  {
+    url: '/api/agents/:id/performance',
+    method: 'get',
+    response: ({ params, query }) => {
+      const { id } = params
+      const { period = 'month', includeTrend = false } = query
+      const agent = agents.find(item => item.id === id)
+      
+      if (!agent) {
+        return {
+          code: 404,
+          message: 'Agent not found',
+          data: null,
+        }
+      }
+      
+      // 生成基础业绩数据
+      const performanceData = {
+        clientsTotal: Random.integer(30, 200),
+        validClients: Random.integer(20, 100),
+        invalidClients: Random.integer(5, 50),
+        pendingClients: Random.integer(5, 50),
+        closedDeals: Random.integer(10, 80),
+        totalRevenue: Random.integer(50000, 500000),
+        commission: Random.integer(5000, 50000),
+        baseSalary: Random.integer(5000, 15000),
+        performance: Random.integer(0, 10000),
+        periodStart: dayjs().subtract(1, 'month').format('YYYY-MM-DD'),
+        periodEnd: dayjs().format('YYYY-MM-DD'),
+      }
+      
+      // 添加趋势数据
+      if (includeTrend === 'true' || includeTrend === true) {
+        performanceData.trendData = generateTrendData(period)
+      }
+      
+      return {
+        code: 0,
+        message: 'success',
+        data: performanceData,
+      }
+    },
+  },
+  
+  {
+    url: '/api/agents',
+    method: 'post',
+    response: ({ body }) => {
+      const newAgent = {
+        id: `agent_${agents.length + 1}`,
+        ...body,
+        createdAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      }
+      
+      agents.push(newAgent)
+      
+      return {
+        code: 0,
+        message: 'success',
+        data: newAgent,
+      }
+    },
+  },
+  
+  {
+    url: '/api/agents/:id',
+    method: 'put',
+    response: ({ params, body }) => {
+      const { id } = params
+      const index = agents.findIndex(item => item.id === id)
+      
+      if (index === -1) {
+        return {
+          code: 404,
+          message: 'Agent not found',
+          data: null,
+        }
+      }
+      
+      const updatedAgent = {
+        ...agents[index],
+        ...body,
+        updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      }
+      
+      agents[index] = updatedAgent
+      
+      return {
+        code: 0,
+        message: 'success',
+        data: updatedAgent,
+      }
+    },
+  },
+  
+  {
+    url: '/api/agents/:id',
+    method: 'delete',
+    response: ({ params }) => {
+      const { id } = params
+      const index = agents.findIndex(item => item.id === id)
+      
+      if (index === -1) {
+        return {
+          code: 404,
+          message: 'Agent not found',
+          data: null,
+        }
+      }
+      
+      agents.splice(index, 1)
+      
+      return {
+        code: 0,
+        message: 'success',
+      }
+    },
+  },
+  
+  {
+    url: '/api/agents/batch-delete',
+    method: 'post',
+    response: ({ body }) => {
+      const { ids } = body
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return {
+          code: 400,
+          message: 'Invalid request',
+          data: null,
+        }
+      }
+      
+      ids.forEach(id => {
+        const index = agents.findIndex(item => item.id === id)
+        if (index !== -1) {
+          agents.splice(index, 1)
+        }
+      })
+      
+      return {
+        code: 0,
+        message: 'success',
+      }
+    },
+  },
+  
+  {
+    url: '/api/agents/export',
+    method: 'get',
+    response: () => {
+      // 模拟导出文件，返回一个空Blob
+      return new Blob(['mock export data'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    },
+  },
+]
+
+// 默认导出mock接口
+export default mockAgentApis 

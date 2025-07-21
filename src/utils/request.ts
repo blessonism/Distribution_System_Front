@@ -88,8 +88,24 @@ request.interceptors.response.use(
 // 封装请求方法
 export const http = {
   get: async <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
-    const response = await request.get(url, config)
-    return response.data.data // 解构两层 data
+    console.log(`[HTTP] 发送GET请求: ${url}`, config);
+    const response = await request.get(url, config);
+    console.log(`[HTTP] 获得原始响应: ${url}`, response);
+    
+    // 添加详细的响应结构日志
+    if (url.includes('performance')) {
+      console.log(`[HTTP] 响应data结构:`, {
+        hasData: !!response.data,
+        dataType: response.data ? typeof response.data : 'undefined',
+        hasInnerData: !!response.data?.data,
+        innerDataType: response.data?.data ? typeof response.data.data : 'undefined',
+        hasTrendData: !!response.data?.data?.trendData,
+        success: response.data?.success,
+        code: response.data?.code
+      });
+    }
+    
+    return response.data.data; // 解构两层 data
   },
 
   post: async <T = any>(url:string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
