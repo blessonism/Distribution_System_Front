@@ -291,6 +291,7 @@ import {
   HomeIcon, 
   UsersIcon, 
   UserCheckIcon,
+  UserPlusIcon,
   NetworkIcon,
   TargetIcon, 
   DollarSignIcon, 
@@ -371,6 +372,7 @@ const getIcon = (icon?: string) => {
     case 'dashboard': return LayoutDashboardIcon
     case 'users': return UsersIcon
     case 'users-2': return NetworkIcon
+    case 'user-plus': return UserPlusIcon
     case 'target': return TargetIcon
     case 'dollar-sign': return DollarSignIcon
     case 'megaphone': return MegaphoneIcon

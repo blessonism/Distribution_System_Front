@@ -52,3 +52,26 @@ export interface LoginResponse {
   user: User
   permissions: string[]
 }
+
+// 注册相关类型
+export interface RegisterRequest {
+  username: string
+  password: string
+  email: string
+  phone?: string
+  nickname?: string
+  inviteCode?: string  // 邀请码字段（可选）
+}
+
+export interface RegisterResponse {
+  user: User
+  token: string
+  invitationInfo?: {    // 邀请信息（仅当使用邀请码注册时返回）
+    inviterId: string
+    inviterName: string
+    relationshipEstablished: boolean
+    targetRole: UserRole
+    actualRole: UserRole
+  }
+  permissions: string[]
+}

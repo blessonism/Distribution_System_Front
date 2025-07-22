@@ -259,6 +259,53 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     ],
   },
   {
+    path: '/invitation',
+    name: 'Invitation',
+    component: () => import('@/layouts/MainLayout.vue'),
+    redirect: '/invitation/codes',
+    meta: {
+      title: '邀请管理',
+      icon: 'user-plus',
+      roles: ['super_admin', 'director', 'leader', 'sales'],
+      requiresAuth: true,
+      group: 'business'
+    },
+    children: [
+      {
+        path: '/invitation/codes',
+        name: 'InvitationCodes',
+        component: () => import('@/views/invitation/InvitationCodes.vue'),
+        meta: {
+          title: '邀请码管理',
+          roles: ['super_admin', 'director', 'leader', 'sales'],
+          requiresAuth: true,
+          keepAlive: true,
+          saveScrollPosition: true,
+          breadcrumb: [
+            { title: '邀请管理' },
+            { title: '邀请码管理' }
+          ]
+        },
+      },
+      {
+        path: '/invitation/history',
+        name: 'InvitationHistory',
+        component: () => import('@/views/invitation/InvitationHistory.vue'),
+        meta: {
+          title: '邀请历史',
+          roles: ['super_admin', 'director', 'leader', 'sales'],
+          requiresAuth: true,
+          keepAlive: true,
+          saveScrollPosition: true,
+          breadcrumb: [
+            { title: '邀请管理' },
+            { title: '邀请历史' }
+          ]
+        },
+      },
+    ],
+  },
+  {
     path: '/promotion',
     name: 'Promotion',
     component: () => import('@/layouts/MainLayout.vue'),

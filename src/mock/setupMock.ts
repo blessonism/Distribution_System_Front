@@ -5,6 +5,7 @@ import { realAgentsData } from './agentData'
 import type { Lead, LeadStatus } from '@/types/lead'
 import allPersonnel from './personnelData';
 import dayjs from 'dayjs';
+import { mockInvitationCodes, mockInvitationHistory, mockInvitationStats } from './invitationData'
 
 interface TrendData {
   labels: string[];
@@ -40,6 +41,11 @@ export function setupMockApi() {
       console.log(`[Mock] 成功加载代理数据: ${realAgentsData.length}条`)
     } else {
       console.error('[Mock] 警告: realAgentsData导入失败或不是数组', realAgentsData)
+    }
+    
+    // 检查邀请数据是否成功导入
+    if (mockInvitationCodes && Array.isArray(mockInvitationCodes)) {
+      console.log(`[Mock] 成功加载邀请码数据: ${mockInvitationCodes.length}条`)
     }
 
     // 模拟登录API
@@ -749,6 +755,311 @@ export function setupMockApi() {
         }, 500);
       });
     });
+
+    // 邀请系统相关API mock
+    // 获取邀请码列表
+    mock.onGet('/invitation/codes').reply((config) => {
+      const token = config.headers?.Authorization
+      const userId = token === 'mock-token-admin' ? '1' : 
+                     token === 'mock-token-sales' ? '4' : '1'
+      
+      // 根据用户ID过滤邀请码
+      const userCodes = mockInvitationCodes.filter(code => code.userId === userId)
+      
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: "获取邀请码成功",
+          data: userCodes
+        }
+      ]
+    })
+    
+    // 获取邀请统计信息
+    mock.onGet('/invitation/stats').reply((config) => {
+      // 这里可以根据query参数过滤统计数据
+      const { timeRange } = config.params || {}
+      
+      // 示例：根据timeRange过滤数据
+      let filteredStats = { ...mockInvitationStats }
+      
+      if (timeRange) {
+        const startDate = timeRange === 'week' ? dayjs().subtract(7, 'day') :
+                         timeRange === 'month' ? dayjs().subtract(30, 'day') :
+                         timeRange === 'quarter' ? dayjs().subtract(90, 'day') :
+                         dayjs().subtract(365, 'day')
+        
+        const filteredInvites = mockInvitationHistory.filter(invite => 
+          dayjs(invite.registeredAt).isAfter(startDate)
+        )
+        
+        filteredStats = {
+          ...filteredStats,
+          totalInvites: filteredInvites.length,
+          recentInvites: filteredInvites.slice(0, 5)
+        }
+      }
+      
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: "获取统计数据成功",
+          data: filteredStats
+        }
+      ]
+    })
+    
+    // 获取邀请历史
+    mock.onGet('/invitation/history').reply((config) => {
+      const { page = 1, pageSize = 20 } = config.params || {}
+      
+      // 分页处理
+      const start = (page - 1) * pageSize
+      const end = start + pageSize
+      const paginatedHistory = mockInvitationHistory.slice(start, end)
+      
+      const responseData = {
+        list: paginatedHistory,
+        total: mockInvitationHistory.length,
+        page: Number(page),
+        pageSize: Number(pageSize),
+        totalPages: Math.ceil(mockInvitationHistory.length / pageSize)
+      }
+      
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: "获取邀请历史成功",
+          data: responseData
+        }
+      ]
+    })
+    
+        // 验证邀请码
+    mock.onPost('/invitation/validate').reply((config) => {
+      const { code } = JSON.parse(config.data)
+      
+      // 查找邀请码
+      const inviteCode = mockInvitationCodes.find(c => c.code === code)
+      
+      if (!inviteCode) {
+        return [
+          404,
+          {
+            code: 404,
+            success: false,
+            message: '邀请码不存在',
+            data: {
+              valid: false
+            }
+          }
+        ]
+      }
+      
+      // 检查邀请码是否有效
+      if (inviteCode.status !== 'active') {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '邀请码已停用',
+            data: {
+              valid: false
+            }
+          }
+        ]
+      }
+      
+      // 检查是否过期
+      if (inviteCode.expiresAt && dayjs(inviteCode.expiresAt).isBefore(dayjs())) {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '邀请码已过期',
+            data: {
+              valid: false
+            }
+          }
+        ]
+      }
+      
+      // 检查使用次数
+      if (inviteCode.maxUsage && inviteCode.usageCount >= inviteCode.maxUsage) {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '邀请码使用次数已达上限',
+            data: {
+              valid: false
+            }
+          }
+        ]
+      }
+      
+      // 查找邀请人信息
+      const userId = inviteCode.userId
+      const userRoleMap: Record<string, string> = {
+        '1': 'super_admin',
+        '2': 'director',
+        '3': 'leader',
+        '4': 'sales'
+      }
+      const userNameMap: Record<string, string> = {
+        '1': '系统管理员',
+        '2': '张总监',
+        '3': '李组长',
+        '4': '王销售'
+      }
+      
+      const responseData = {
+        valid: true,
+        inviterInfo: {
+          id: userId,
+          name: userNameMap[userId] || '未知用户',
+          role: userRoleMap[userId] || 'unknown'
+        },
+        targetRole: inviteCode.targetRole,
+        expiresAt: inviteCode.expiresAt,
+        maxUsage: inviteCode.maxUsage,
+        usageCount: inviteCode.usageCount
+      }
+      
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '验证成功',
+          data: responseData
+        }
+      ]
+    })
+    
+    // 重新激活邀请码
+    mock.onPut(new RegExp('/invitation/codes/.*/reactivate')).reply((config) => {
+      const codeId = config.url?.split('/')[3]
+      const inviteCode = mockInvitationCodes.find(c => c.id === codeId)
+      
+      if (!inviteCode) {
+        return [
+          404,
+          {
+            code: 404,
+            success: false,
+            message: '邀请码不存在',
+            data: null
+          }
+        ]
+      }
+      
+      inviteCode.status = 'active'
+      inviteCode.updatedAt = new Date().toISOString()
+      
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '邀请码已激活',
+          data: inviteCode
+        }
+      ]
+    })
+    
+    // 停用邀请码
+    mock.onPut(new RegExp('/invitation/codes/.*/deactivate')).reply((config) => {
+      const codeId = config.url?.split('/')[3]
+      const inviteCode = mockInvitationCodes.find(c => c.id === codeId)
+      
+      if (!inviteCode) {
+        return [
+          404,
+          {
+            code: 404,
+            success: false,
+            message: '邀请码不存在',
+            data: null
+          }
+        ]
+      }
+      
+      inviteCode.status = 'inactive'
+      inviteCode.updatedAt = new Date().toISOString()
+      
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '邀请码已停用',
+          data: inviteCode
+        }
+      ]
+    })
+    
+    // 生成新的邀请码
+    mock.onPost('/invitation/codes').reply((config) => {
+      const { targetRole } = JSON.parse(config.data)
+      const token = config.headers?.Authorization
+      const userId = token === 'mock-token-admin' ? '1' : 
+                     token === 'mock-token-sales' ? '4' : '1'
+      
+      // 生成随机邀请码函数
+      const generateRandomCode = (length: number = 8): string => {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+        let result = ''
+        for (let i = 0; i < length; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length))
+        }
+        return result
+      }
+      
+      const newCode = {
+        id: `${mockInvitationCodes.length + 1}`,
+        userId,
+        code: generateRandomCode(),
+        targetRole,
+        status: 'active' as const,
+        usageCount: 0,
+        maxUsage: 5,
+        expiresAt: dayjs().add(30, 'day').toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      
+      mockInvitationCodes.push(newCode as any)
+      
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '邀请码生成成功',
+          data: newCode
+        }
+      ]
+    })
+    
+    // 导出邀请历史
+    mock.onGet('/invitation/export').reply(() => {
+      // 模拟导出文件，实际返回一个空的Blob
+      // 对于文件下载，不需要使用标准API响应格式
+      return [
+        200,
+        new Blob(['Fake exported data'], { type: 'text/plain' })
+      ]
+    })
 
     // 更多模拟API可以根据需要添加
     console.log('[Mock] axios-mock-adapter设置成功')

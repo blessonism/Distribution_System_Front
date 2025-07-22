@@ -12,13 +12,48 @@
 
       <Card class="mt-8">
         <CardHeader>
-          <CardTitle class="text-center">用户登录</CardTitle>
+          <div class="flex items-center justify-center space-x-4 mb-4">
+            <Button 
+              :variant="isLoginMode ? 'default' : 'outline'"
+              size="sm"
+              @click="switchToLogin"
+              :disabled="loading"
+            >
+              <LogIn class="w-4 h-4 mr-1" />
+              登录
+            </Button>
+            <Button 
+              :variant="!isLoginMode ? 'default' : 'outline'"
+              size="sm"
+              @click="switchToRegister"
+              :disabled="loading"
+            >
+              <UserPlus class="w-4 h-4 mr-1" />
+              注册
+            </Button>
+          </div>
+          
+          <CardTitle class="text-center">
+            {{ isLoginMode ? '用户登录' : '用户注册' }}
+          </CardTitle>
           <CardDescription class="text-center">
-            使用您的账号密码登录系统
+            {{ isLoginMode ? '使用您的账号密码登录系统' : '创建新账号加入系统' }}
           </CardDescription>
+          
+          <!-- 邀请信息展示 -->
+          <div v-if="!isLoginMode && invitationInfo" class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="flex items-center space-x-2 text-blue-700">
+              <UserCheck class="w-4 h-4" />
+              <span class="text-sm font-medium">邀请注册</span>
+            </div>
+            <p class="text-xs text-blue-600 mt-1">
+              您正在通过 {{ invitationInfo.inviterName }} 的邀请注册为 {{ invitationInfo.targetRoleName }}
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
-          <form @submit.prevent="handleLogin" class="space-y-4">
+          <!-- 登录表单 -->
+          <form v-if="isLoginMode" @submit.prevent="handleLogin" class="space-y-4">
             <div class="space-y-2">
               <Label for="username">用户名</Label>
               <Input
@@ -48,25 +83,8 @@
                   class="absolute inset-y-0 right-0 pr-3 flex items-center"
                   @click="showPassword = !showPassword"
                 >
-                  <svg 
-                    v-if="showPassword" 
-                    class="h-4 w-4 text-gray-400" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  <svg 
-                    v-else 
-                    class="h-4 w-4 text-gray-400" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
+                  <Eye v-if="showPassword" class="h-4 w-4 text-gray-400" />
+                  <EyeOff v-else class="h-4 w-4 text-gray-400" />
                 </button>
               </div>
             </div>
@@ -79,17 +97,206 @@
               <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
               {{ loading ? '登录中...' : '登录' }}
             </Button>
-
-            <Alert v-if="error" variant="destructive">
-              <AlertCircle class="h-4 w-4" />
-              <AlertTitle>登录失败</AlertTitle>
-              <AlertDescription>{{ error }}</AlertDescription>
-            </Alert>
           </form>
+
+          <!-- 注册表单 -->
+          <form v-else @submit.prevent="handleRegister" class="space-y-4">
+            <!-- 邀请码输入 -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <Label for="invite-code">邀请码</Label>
+                <span class="text-xs text-gray-500">可选</span>
+              </div>
+              
+              <div class="relative">
+                <div class="flex space-x-2">
+                  <div class="relative flex-1">
+                    <Input
+                      id="invite-code"
+                      v-model="registerForm.inviteCode"
+                      type="text"
+                      placeholder="输入6-12位邀请码"
+                      maxlength="12"
+                      :disabled="loading || inviteCodeValidating"
+                      :class="[
+                        'font-mono tracking-wider uppercase transition-all duration-200',
+                        inviteCodeInputClass
+                      ]"
+                      @input="handleInviteCodeInput"
+                      @paste="handleInviteCodePaste"
+                      @blur="handleInviteCodeBlur"
+                      @focus="handleInviteCodeFocus"
+                    />
+                    
+                    <!-- 输入状态指示器 -->
+                    <div class="absolute inset-y-0 right-3 flex items-center">
+                      <div v-if="inviteCodeValidating" class="flex items-center space-x-1">
+                        <Loader2 class="w-4 h-4 animate-spin text-blue-500" />
+                      </div>
+                      <div v-else-if="invitationInfo?.isValid" class="flex items-center space-x-1">
+                        <UserCheck class="w-4 h-4 text-green-500" />
+                      </div>
+                      <div v-else-if="registerForm.inviteCode && inviteCodeStatus && !invitationInfo?.isValid" class="flex items-center space-x-1">
+                        <AlertCircle class="w-4 h-4 text-red-500" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    @click="validateInviteCode"
+                    :disabled="!registerForm.inviteCode?.trim() || loading || inviteCodeValidating"
+                    class="px-3 transition-all duration-200"
+                  >
+                    <Loader2 v-if="inviteCodeValidating" class="w-4 h-4 animate-spin" />
+                    <Search v-else class="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                <!-- 字符计数器 -->
+                <div v-if="registerForm.inviteCode" class="absolute -bottom-5 right-0 text-xs text-gray-400">
+                  {{ registerForm.inviteCode.length }}/12
+                </div>
+              </div>
+              
+              <!-- 邀请码状态和信息显示 -->
+              <div class="space-y-2">
+                <!-- 验证状态提示 -->
+                <div v-if="inviteCodeStatus" 
+                     class="text-xs transition-all duration-200 flex items-center space-x-1" 
+                     :class="inviteCodeStatusClass">
+                  <UserCheck v-if="invitationInfo?.isValid" class="w-3 h-3" />
+                  <AlertCircle v-else-if="registerForm.inviteCode && !invitationInfo?.isValid" class="w-3 h-3" />
+                  <span>{{ inviteCodeStatus }}</span>
+                </div>
+                
+                <!-- 邀请人信息显示 -->
+                <div v-if="invitationInfo?.isValid" 
+                     class="bg-green-50 border border-green-200 rounded-lg p-3 transition-all duration-300">
+                  <div class="flex items-start space-x-2">
+                    <UserCheck class="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div class="flex-1 space-y-1">
+                      <p class="text-sm font-medium text-green-900">
+                        邀请码验证成功
+                      </p>
+                      <p class="text-xs text-green-700">
+                        邀请人：<span class="font-medium">{{ invitationInfo.inviterName }}</span>
+                      </p>
+                      <p class="text-xs text-green-600">
+                        注册后将成为：{{ invitationInfo.targetRoleName }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- 输入提示 -->
+                <div v-if="!registerForm.inviteCode && inviteCodeFocused" 
+                     class="text-xs text-gray-500 bg-gray-50 rounded p-2 border border-gray-200">
+                  <div class="space-y-1">
+                    <p class="font-medium">邀请码格式要求：</p>
+                    <ul class="ml-2 space-y-0.5">
+                      <li>• 6-12位字符</li>
+                      <li>• 只能包含数字和大写字母</li>
+                      <li>• 不包含易混淆字符（0、O、I、1）</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 用户信息输入 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <Label for="register-username">用户名</Label>
+                <Input
+                  id="register-username"
+                  v-model="registerForm.username"
+                  type="text"
+                  placeholder="请输入用户名"
+                  required
+                  :disabled="loading"
+                />
+              </div>
+              
+              <div class="space-y-2">
+                <Label for="register-email">邮箱</Label>
+                <Input
+                  id="register-email"
+                  v-model="registerForm.email"
+                  type="email"
+                  placeholder="请输入邮箱"
+                  required
+                  :disabled="loading"
+                />
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <Label for="register-password">密码</Label>
+              <div class="relative">
+                <Input
+                  id="register-password"
+                  v-model="registerForm.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="请输入密码"
+                  required
+                  :disabled="loading"
+                />
+                <button
+                  type="button"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  @click="showPassword = !showPassword"
+                >
+                  <Eye v-if="showPassword" class="h-4 w-4 text-gray-400" />
+                  <EyeOff v-else class="h-4 w-4 text-gray-400" />
+                </button>
+              </div>
+              
+              <!-- 密码强度提示 -->
+              <div v-if="passwordStrength" class="text-xs" :class="passwordStrengthClass">
+                密码强度：{{ passwordStrength }}
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <Label for="confirm-password">确认密码</Label>
+              <Input
+                id="confirm-password"
+                v-model="registerForm.confirmPassword"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="请再次输入密码"
+                required
+                :disabled="loading"
+              />
+              
+              <!-- 密码匹配提示 -->
+              <div v-if="registerForm.password && registerForm.confirmPassword && !passwordsMatch" class="text-xs text-red-600">
+                两次输入的密码不一致
+              </div>
+            </div>
+
+            <Button 
+              type="submit" 
+              class="w-full"
+              :disabled="loading || !canRegister"
+            >
+              <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+              {{ loading ? '注册中...' : '注册' }}
+            </Button>
+          </form>
+
+          <!-- 通用错误提示 -->
+          <Alert v-if="error" variant="destructive" class="mt-4">
+            <AlertCircle class="h-4 w-4" />
+            <AlertTitle>{{ isLoginMode ? '登录失败' : '注册失败' }}</AlertTitle>
+            <AlertDescription>{{ error }}</AlertDescription>
+          </Alert>
         </CardContent>
         <CardFooter class="flex justify-center">
           <p class="text-sm text-gray-600">
-            忘记密码？请联系管理员
+            {{ isLoginMode ? '忘记密码？请联系管理员' : '已有账号？点击上方切换到登录' }}
           </p>
         </CardFooter>
       </Card>
@@ -98,29 +305,302 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
-import type { LoginRequest } from '@/types/api'
+import { useInvitationStore } from '@/store/invitation'
+import type { LoginRequest, RegisterRequest } from '@/types/api'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { AlertCircle, Loader2 } from 'lucide-vue-next'
+import { AlertCircle, Loader2, LogIn, UserPlus, UserCheck, Eye, EyeOff, Search } from 'lucide-vue-next'
 import { toast } from '@/components/ui/toast/use-toast'
+import { validateCode, getRoleDisplayName } from '@/api/invitation'
+import { validateInviteCodeComplete, formatInviteCodeInput } from '@/utils/invitation'
+import { useInvitation } from '@/composables/useInvitation'
+import { 
+  invitationErrorHandler, 
+  handleInviteCodeValidation, 
+  handleInviteRegistration 
+} from '@/utils/invitationErrorHandler'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+const invitationStore = useInvitationStore()
 
+// 使用邀请相关的 composable
+const { handlePostRegistrationInvitation } = useInvitation()
+
+// 界面状态
+const isLoginMode = ref(true)
 const loading = ref(false)
 const showPassword = ref(false)
 const error = ref('')
 
+// 邀请码验证状态
+const inviteCodeValidating = ref(false)
+const inviteCodeStatus = ref('')
+const inviteCodeFocused = ref(false)
+const inviteCodeTouched = ref(false)
+const invitationInfo = ref<{
+  inviterName: string
+  targetRoleName: string
+  isValid: boolean
+} | null>(null)
+
+// 表单数据
 const loginForm = reactive<LoginRequest>({
   username: '',
   password: ''
 })
+
+const registerForm = reactive<RegisterRequest & {
+  confirmPassword: string
+}>({
+  username: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  inviteCode: ''
+})
+
+// 计算属性
+const inviteCodeStatusClass = computed(() => {
+  if (invitationInfo.value?.isValid) {
+    return 'text-green-600'
+  } else if (inviteCodeStatus.value && !invitationInfo.value?.isValid) {
+    return 'text-red-600'
+  }
+  return 'text-gray-500'
+})
+
+const inviteCodeInputClass = computed(() => {
+  if (inviteCodeValidating.value) {
+    return 'border-blue-300 bg-blue-50'
+  } else if (invitationInfo.value?.isValid) {
+    return 'border-green-300 bg-green-50'
+  } else if (registerForm.inviteCode && inviteCodeTouched.value && !invitationInfo.value?.isValid) {
+    return 'border-red-300 bg-red-50'
+  } else if (inviteCodeFocused.value) {
+    return 'border-blue-300'
+  }
+  return ''
+})
+
+const passwordStrength = computed(() => {
+  const password = registerForm.password
+  if (!password) return ''
+  
+  let score = 0
+  if (password.length >= 8) score++
+  if (/[a-z]/.test(password)) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/\d/.test(password)) score++
+  if (/[^\w\s]/.test(password)) score++
+  
+  if (score < 2) return '弱'
+  if (score < 4) return '中等'
+  return '强'
+})
+
+const passwordStrengthClass = computed(() => {
+  const strength = passwordStrength.value
+  if (strength === '强') return 'text-green-600'
+  if (strength === '中等') return 'text-yellow-600'
+  return 'text-red-600'
+})
+
+const passwordsMatch = computed(() => {
+  return registerForm.password === registerForm.confirmPassword
+})
+
+const canRegister = computed(() => {
+  const basicRequirements = registerForm.username.trim() &&
+                           registerForm.email.trim() &&
+                           registerForm.password &&
+                           passwordsMatch.value &&
+                           passwordStrength.value !== '弱'
+  
+  // 如果有邀请码，必须验证通过
+  if (registerForm.inviteCode.trim()) {
+    return basicRequirements && invitationInfo.value?.isValid === true
+  }
+  
+  return basicRequirements
+})
+
+// 页面加载时检查URL参数
+onMounted(() => {
+  const inviteCode = route.query.invite as string
+  const targetRole = route.query.role as string
+  
+  if (inviteCode) {
+    // 自动切换到注册模式
+    isLoginMode.value = false
+    registerForm.inviteCode = inviteCode
+    
+    // 自动验证邀请码
+    if (targetRole) {
+      validateInviteCodeFromUrl(inviteCode, targetRole)
+    } else {
+      validateInviteCode()
+    }
+  }
+})
+
+// 监听邀请码输入
+watch(() => registerForm.inviteCode, (newCode) => {
+  if (!newCode) {
+    invitationInfo.value = null
+    inviteCodeStatus.value = ''
+  }
+})
+
+// 方法
+const switchToLogin = () => {
+  isLoginMode.value = true
+  error.value = ''
+}
+
+const switchToRegister = () => {
+  isLoginMode.value = false
+  error.value = ''
+}
+
+const handleInviteCodeInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const originalValue = target.value
+  
+  // 格式化输入：自动转换为大写并过滤无效字符
+  const formattedValue = formatInviteCodeInput(originalValue)
+  
+  // 如果值发生了变化，更新输入框值
+  if (formattedValue !== originalValue) {
+    registerForm.inviteCode = formattedValue
+    // 使用 nextTick 确保值更新后再设置光标位置
+    nextTick(() => {
+      target.value = formattedValue
+      // 将光标移到末尾
+      target.setSelectionRange(formattedValue.length, formattedValue.length)
+    })
+  } else {
+    registerForm.inviteCode = formattedValue
+  }
+  
+  // 标记已经被用户编辑过
+  inviteCodeTouched.value = true
+  
+  // 清空之前的验证结果
+  invitationInfo.value = null
+  inviteCodeStatus.value = ''
+  
+  // 如果输入为空，重置状态
+  if (!formattedValue) {
+    inviteCodeTouched.value = false
+    inviteCodeStatus.value = ''
+  }
+}
+
+const handleInviteCodePaste = (event: ClipboardEvent) => {
+  event.preventDefault()
+  const pasteData = event.clipboardData?.getData('text') || ''
+  const formattedData = formatInviteCodeInput(pasteData)
+  
+  registerForm.inviteCode = formattedData
+  inviteCodeTouched.value = true
+  
+  // 清空验证结果
+  invitationInfo.value = null
+  inviteCodeStatus.value = ''
+  
+  // 如果粘贴的内容长度合适，自动触发验证
+  if (formattedData.length >= 6) {
+    // 延迟一下让用户看到粘贴的内容
+    setTimeout(() => {
+      validateInviteCode()
+    }, 300)
+  }
+}
+
+const handleInviteCodeFocus = () => {
+  inviteCodeFocused.value = true
+}
+
+const handleInviteCodeBlur = () => {
+  inviteCodeFocused.value = false
+  
+  // 失去焦点时，如果有输入内容且还没验证，自动验证
+  if (registerForm.inviteCode.trim() && !inviteCodeValidating.value && !invitationInfo.value) {
+    validateInviteCode()
+  }
+}
+
+const validateInviteCode = async () => {
+  if (!registerForm.inviteCode.trim()) {
+    inviteCodeStatus.value = '请输入邀请码'
+    return
+  }
+
+  inviteCodeValidating.value = true
+  inviteCodeStatus.value = ''
+  invitationInfo.value = null
+
+  try {
+    const response = await validateCode({
+      code: registerForm.inviteCode.trim()
+    })
+
+    if (response.isValid && response.inviterInfo) {
+      invitationInfo.value = {
+        inviterName: response.inviterInfo.name,
+        targetRoleName: getRoleDisplayName(response.targetRole),
+        isValid: true
+      }
+      inviteCodeStatus.value = '邀请码验证成功'
+      
+      // 显示成功提示
+      invitationErrorHandler.showSuccess(
+        '邀请码验证成功',
+        `欢迎通过 ${response.inviterInfo.name} 的邀请注册`
+      )
+    } else {
+      inviteCodeStatus.value = '邀请码无效或已过期'
+    }
+  } catch (error) {
+    console.error('验证邀请码失败:', error)
+    const handledError = handleInviteCodeValidation(error, registerForm.inviteCode.trim())
+    inviteCodeStatus.value = handledError.message
+  } finally {
+    inviteCodeValidating.value = false
+  }
+}
+
+const validateInviteCodeFromUrl = async (inviteCode: string, targetRole: string) => {
+  inviteCodeValidating.value = true
+
+  try {
+    const response = await validateCode({ code: inviteCode })
+
+    if (response.isValid && response.inviterInfo) {
+      invitationInfo.value = {
+        inviterName: response.inviterInfo.name,
+        targetRoleName: getRoleDisplayName(response.targetRole),
+        isValid: true
+      }
+      inviteCodeStatus.value = '通过邀请链接自动填充，邀请码有效'
+    } else {
+      inviteCodeStatus.value = '邀请链接中的邀请码无效或已过期'
+    }
+  } catch (error) {
+    console.error('验证URL邀请码失败:', error)
+    inviteCodeStatus.value = '验证邀请码时发生错误'
+  } finally {
+    inviteCodeValidating.value = false
+  }
+}
 
 const handleLogin = async () => {
   if (!loginForm.username || !loginForm.password) {
@@ -132,7 +612,6 @@ const handleLogin = async () => {
   error.value = ''
 
   try {
-    // 登录并获取用户信息
     await userStore.login(loginForm)
 
     console.log('登录成功，用户信息:', userStore.userInfo)
@@ -140,22 +619,17 @@ const handleLogin = async () => {
     console.log('当前路由:', router.currentRoute.value.path)
     console.log('路由是否已加载:', userStore.routesLoaded)
 
-    // 显示登录成功提示
     toast({
       title: '登录成功',
       description: `欢迎回来，${userStore.userInfo?.nickname || userStore.userInfo?.username}`,
       variant: 'default',
     })
     
-    // 登录成功后，初始化动态路由并直接导航到dashboard
     if (!userStore.routesLoaded && userStore.token) {
       console.log('登录后手动添加动态路由')
-      // 导入所需的函数
       const { asyncRoutes, filterRoutesByRole } = await import('@/router/routes')
       
-      // 过滤并添加路由
       const accessibleRoutes = filterRoutesByRole(asyncRoutes, userStore.roles || [])
-      // 使用外部已声明的router实例，而不是在这里重新声明
       accessibleRoutes.forEach(route => {
         if (route.name && !router.hasRoute(route.name)) {
           console.log('添加路由:', route.path, route.name)
@@ -165,15 +639,12 @@ const handleLogin = async () => {
       userStore.$patch({ routesLoaded: true })
     }
     
-    // 直接导航到dashboard
     console.log('尝试直接跳转到dashboard')
     try {
-      // 确保Layout路由已加载
       if (!router.hasRoute('Layout')) {
         console.warn('Layout路由尚未加载，可能导致导航失败')
       }
       
-      // 先检查router.getRoutes()中是否有dashboard路径
       const routes = router.getRoutes()
       console.log('当前所有路由:', routes.map(r => ({ path: r.path, name: r.name })))
       
@@ -189,6 +660,166 @@ const handleLogin = async () => {
     console.error('登录失败:', err)
   } finally {
     loading.value = false
+  }
+}
+
+const handleRegister = async () => {
+  if (!canRegister.value) {
+    error.value = '请完善注册信息'
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+
+  try {
+    const registerData: RegisterRequest = {
+      username: registerForm.username,
+      email: registerForm.email,
+      password: registerForm.password
+    }
+
+    let registerResponse
+    
+    // 根据是否有邀请码选择不同的注册方法
+    if (registerForm.inviteCode.trim()) {
+      registerData.inviteCode = registerForm.inviteCode.trim()
+      console.log('使用邀请码注册:', registerData.inviteCode)
+      
+      // 注册前再次验证邀请码，确保仍然有效
+      console.log('注册前再次验证邀请码...')
+      let finalValidation
+      try {
+        finalValidation = await validateInviteCodeComplete(registerData.inviteCode)
+        
+        if (!finalValidation.isValid) {
+          const validationError = new Error(finalValidation.error || '邀请码验证失败')
+          handleInviteCodeValidation(validationError, registerData.inviteCode)
+          error.value = finalValidation.error || '邀请码验证失败，请检查邀请码是否有效'
+          return
+        }
+      } catch (validationError) {
+        handleInviteCodeValidation(validationError, registerData.inviteCode)
+        error.value = '邀请码验证失败，请重试'
+        return
+      }
+      
+      console.log('邀请码最终验证通过，邀请人:', finalValidation.inviterInfo?.name)
+      
+      // 使用邀请码注册，会自动建立邀请关系
+      registerResponse = await userStore.registerWithInvite(registerData)
+      
+      // 显示邀请成功信息
+      if (registerResponse.invitationInfo?.relationshipEstablished) {
+        toast({
+          title: '注册成功',
+          description: `欢迎加入！通过 ${registerResponse.invitationInfo.inviterName} 的邀请成功注册`,
+          variant: 'default',
+        })
+      } else {
+        toast({
+          title: '注册成功',
+          description: '账号创建成功，欢迎使用',
+          variant: 'default',
+        })
+      }
+    } else {
+      // 普通注册
+      registerResponse = await userStore.register(registerData)
+      
+      toast({
+        title: '注册成功',
+        description: '账号创建成功，欢迎使用',
+        variant: 'default',
+      })
+    }
+
+    console.log('注册成功，用户信息:', registerResponse.user)
+    console.log('邀请关系信息:', registerResponse.invitationInfo)
+
+    // 注册成功后的处理
+    await handleSuccessfulRegistration(registerResponse)
+    
+  } catch (err: any) {
+    // 使用专门的注册错误处理
+    const handledError = handleInviteRegistration(err, {
+      hasInviteCode: !!registerForm.inviteCode.trim(),
+      inviteCode: registerForm.inviteCode.trim()
+    })
+    
+    error.value = handledError.message || '注册失败，请检查填写信息'
+    console.error('注册失败:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 处理注册成功后的逻辑
+const handleSuccessfulRegistration = async (registerResponse: any) => {
+  try {
+    // 处理邀请关系建立
+    if (registerResponse.invitationInfo) {
+      const relationshipResult = await handlePostRegistrationInvitation(registerResponse)
+      
+      if (relationshipResult) {
+        if (relationshipResult.success) {
+          console.log('邀请关系处理成功:', relationshipResult.message)
+        } else {
+          console.warn('邀请关系处理失败:', relationshipResult.message)
+          
+          // 显示关系建立失败的提示
+          toast({
+            title: '提示',
+            description: relationshipResult.message,
+            variant: 'default'
+          })
+        }
+      }
+    }
+    
+    // 如果注册后已经自动登录，直接跳转到主页
+    if (registerResponse.token && userStore.token) {
+      console.log('注册后自动登录成功，准备跳转到主页')
+      
+      // 加载动态路由
+      if (!userStore.routesLoaded) {
+        console.log('注册后手动添加动态路由')
+        const { asyncRoutes, filterRoutesByRole } = await import('@/router/routes')
+        
+        const accessibleRoutes = filterRoutesByRole(asyncRoutes, userStore.roles || [])
+        accessibleRoutes.forEach(route => {
+          if (route.name && !router.hasRoute(route.name)) {
+            console.log('添加路由:', route.path, route.name)
+            router.addRoute(route)
+          }
+        })
+        userStore.$patch({ routesLoaded: true })
+      }
+      
+      // 跳转到主页
+      await router.push('/dashboard')
+      console.log('注册后成功跳转到主页')
+      
+    } else {
+      // 注册成功但未自动登录，切换到登录模式
+      isLoginMode.value = true
+      loginForm.username = registerForm.username
+      
+      // 清空注册表单
+      Object.assign(registerForm, {
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        inviteCode: ''
+      })
+      
+      invitationInfo.value = null
+      inviteCodeStatus.value = ''
+    }
+  } catch (navError) {
+    console.error('注册后导航失败:', navError)
+    error.value = '注册成功但页面跳转失败，请手动登录'
   }
 }
 </script>

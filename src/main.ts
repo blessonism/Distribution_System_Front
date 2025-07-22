@@ -4,9 +4,13 @@ import router from './router'
 import { asyncRoutes, filterRoutesByRole } from './router/routes'
 import App from './App.vue'
 import './assets/main.css'
+import './assets/css/permissions.css'
 
 // 导入Mock服务（在生产环境中会被忽略）
 import './mock'
+
+// 导入权限指令
+import { installPermissionDirectives } from '@/directives/permission'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -58,9 +62,10 @@ router.beforeEach((to, from, next) => {
   next()
 })
 
-// 注册Pinia和Router
+// 注册Pinia、Router和权限指令
 app.use(pinia)
 app.use(router)
+installPermissionDirectives(app)
 
 // 挂载应用
 app.mount('#app')
