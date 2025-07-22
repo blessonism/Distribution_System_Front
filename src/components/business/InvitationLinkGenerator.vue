@@ -16,7 +16,11 @@
         <Label class="text-sm font-medium">选择邀请角色</Label>
         <Select v-model="selectedRole" @update:model-value="handleRoleChange">
           <SelectTrigger class="w-full">
-            <SelectValue placeholder="请选择要邀请的角色" />
+            <!-- 自定义显示选中的角色 -->
+            <template v-if="selectedRole">
+              {{ getDisplayRoleLabel(selectedRole) }}
+            </template>
+            <SelectValue v-else placeholder="请选择要邀请的角色" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem 
@@ -302,11 +306,11 @@ const qrCodeError = ref(false)
 // 计算属性
 const availableRoles = computed(() => {
   const roleLabels: Record<UserRole, { label: string; description: string }> = {
-    super_admin: { label: '超管', description: '系统超级管理员' },
-    director: { label: '总监', description: '销售总监' },
-    leader: { label: '组长', description: '销售组长' },
+    super_admin: { label: '超管', description: '系统管理员' },
+    director: { label: '总监', description: '销售部门' },
+    leader: { label: '组长', description: '销售团队' },
     sales: { label: '销售', description: '销售人员' },
-    agent: { label: '代理', description: '代理' }
+    agent: { label: '代理', description: '外部代理' }
   }
 
   return props.allowedTargetRoles.map(role => ({
@@ -537,6 +541,18 @@ const downloadQRCode = () => {
       description: '二维码已保存到本地',
     })
   }
+}
+
+// 获取角色的简短显示标签
+const getDisplayRoleLabel = (role: UserRole): string => {
+  const roleLabelsMap: Record<UserRole, string> = {
+    super_admin: '超级管理员',
+    director: '总监',
+    leader: '组长',
+    sales: '销售',
+    agent: '代理'
+  }
+  return roleLabelsMap[role] || role
 }
 
 const getExpiryDisplay = (code: InvitationCode | null) => {

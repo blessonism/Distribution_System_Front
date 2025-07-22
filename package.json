@@ -37,6 +37,7 @@
     "@tanstack/vue-table": "^8.21.3",
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^22.16.4",
+    "@types/qrcode": "^1.5.5",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "autoprefixer": "^10.4.21",
