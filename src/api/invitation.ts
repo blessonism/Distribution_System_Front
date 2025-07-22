@@ -41,12 +41,12 @@ const createRetryableInvitationApi = () => {
      * 验证邀请码有效性（关键操作，使用自适应重试配置）
      * @param code - 邀请码
      */
-    validateCode: async (code: ValidateCodeRequest['code']): Promise<ValidateCodeResponse> => {
+    validateCode: async (code: string): Promise<ValidateCodeResponse> => {
       const retryMechanism = createInvitationRetryMechanism()
       const adaptiveConfig = await getAdaptiveRetryConfig()
       
       const result = await retryMechanism.execute(async () => {
-        return await http.post<ValidateCodeResponse>('/invitation/validate', { code })
+        return await http.post<ValidateCodeResponse>('/invitation/validate', code)
       }, adaptiveConfig)
 
       if (result.success) {

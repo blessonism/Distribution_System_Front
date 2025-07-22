@@ -93,11 +93,9 @@ export async function validateInviteCodeComplete(code: string): Promise<Complete
 
   try {
     // 调用API进行服务器验证
-    const response = await validateCodeAPI({
-      code: formatValidation.normalizedCode!
-    })
+    const response = await validateCodeAPI(formatValidation.normalizedCode!)
 
-    if (response.isValid && response.inviterInfo) {
+    if (response.valid && response.inviterInfo) {
       return {
         isValid: true,
         normalizedCode: formatValidation.normalizedCode,

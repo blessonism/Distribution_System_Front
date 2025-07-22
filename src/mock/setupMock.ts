@@ -843,70 +843,30 @@ export function setupMockApi() {
     
         // 验证邀请码
     mock.onPost('/invitation/validate').reply((config) => {
-      const { code } = JSON.parse(config.data)
+      let code;
+      try {
+        // 检查是否为字符串形式的参数或对象形式的参数
+        const data = JSON.parse(config.data);
+        code = typeof data === 'string' ? data : data.code;
+      } catch (e) {
+        code = config.data;
+      }
       
-      // 查找邀请码
       const inviteCode = mockInvitationCodes.find(c => c.code === code)
-      
+
       if (!inviteCode) {
-        return [
-          404,
-          {
-            code: 404,
-            success: false,
-            message: '邀请码不存在',
-            data: {
-              valid: false
-            }
-          }
-        ]
+        return [404, { code: 404, success: false, message: '邀请码不存在', data: { valid: false } }]
       }
-      
-      // 检查邀请码是否有效
       if (inviteCode.status !== 'active') {
-        return [
-          400,
-          {
-            code: 400,
-            success: false,
-            message: '邀请码已停用',
-            data: {
-              valid: false
-            }
-          }
-        ]
+        return [400, { code: 400, success: false, message: '邀请码已停用', data: { valid: false } }]
       }
-      
-      // 检查是否过期
       if (inviteCode.expiresAt && dayjs(inviteCode.expiresAt).isBefore(dayjs())) {
-        return [
-          400,
-          {
-            code: 400,
-            success: false,
-            message: '邀请码已过期',
-            data: {
-              valid: false
-            }
-          }
-        ]
+        return [400, { code: 400, success: false, message: '邀请码已过期', data: { valid: false } }]
       }
-      
-      // 检查使用次数
       if (inviteCode.maxUsage && inviteCode.usageCount >= inviteCode.maxUsage) {
-        return [
-          400,
-          {
-            code: 400,
-            success: false,
-            message: '邀请码使用次数已达上限',
-            data: {
-              valid: false
-            }
-          }
-        ]
+        return [400, { code: 400, success: false, message: '邀请码使用次数已达上限', data: { valid: false } }]
       }
-      
+
       // 查找邀请人信息
       const userId = inviteCode.userId
       const userRoleMap: Record<string, string> = {
@@ -1059,6 +1019,41 @@ export function setupMockApi() {
         200,
         new Blob(['Fake exported data'], { type: 'text/plain' })
       ]
+    })
+    
+    // 短链接生成API
+    mock.onPost('/short-link').reply((config) => {
+      try {
+        const { url } = JSON.parse(config.data)
+        // 生成随机短码
+        const shortCode = Math.random().toString(36).substring(2, 8)
+        const shortUrl = `${window.location.origin}/i/${shortCode}`
+        
+        return [
+          200,
+          {
+            code: 200,
+            success: true,
+            message: '短链接生成成功',
+            data: {
+              originalUrl: url,
+              shortUrl,
+              shortCode,
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30天后过期
+            }
+          }
+        ]
+      } catch (error) {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '生成短链接失败，参数错误',
+            data: null
+          }
+        ]
+      }
     })
 
     // 更多模拟API可以根据需要添加

@@ -273,6 +273,7 @@ import {
 import type { InvitationCode } from '@/types/invitation'
 import type { UserRole } from '@/types/api'
 import { generateInvitationLink, getRoleDisplayName } from '@/api/invitation'
+import { http } from '@/utils/request'
 
 // Props 定义
 interface Props {
@@ -449,27 +450,19 @@ const shareViaSMS = () => {
 }
 
 const generateShortLink = async () => {
-  // 这里可以集成短链接服务，如 bit.ly, tinyurl 等
-  // 暂时使用模拟实现
+  // 使用axios代替fetch，保持与项目其他API调用一致
   try {
-    const response = await fetch('/api/short-link', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: generatedLink.value
-      })
+    const response = await http.post('/short-link', {
+      url: generatedLink.value
     })
     
-    if (response.ok) {
-      const data = await response.json()
-      shortLink.value = data.shortUrl
-      toast({
-        title: '短链接生成成功',
-        description: '已生成便于分享的短链接',
-      })
-    }
+    // 从响应中获取短链接
+    shortLink.value = response.shortUrl
+    
+    toast({
+      title: '短链接生成成功',
+      description: '已生成便于分享的短链接',
+    })
   } catch (error) {
     console.error('短链接生成失败:', error)
     // 降级方案：生成一个简化的链接显示
@@ -478,7 +471,7 @@ const generateShortLink = async () => {
     shortLink.value = `${baseUrl}/i/${shortCode}`
     
     toast({
-      title: '短链接生成失败',
+      title: '短链接生成失败', 
       description: '已生成本地短链接',
       variant: 'destructive',
     })
@@ -486,13 +479,34 @@ const generateShortLink = async () => {
 }
 
 const showQRCode = async () => {
+  // 如果没有选择角色或没有链接，则不处理
+  if (!selectedRole.value || !generatedLink.value) {
+    toast({
+      title: '无法生成二维码',
+      description: '请先选择角色和邀请码',
+      variant: 'destructive',
+    })
+    return
+  }
+
   qrCodeDialogOpen.value = true
   qrCodeLoading.value = true
   qrCodeError.value = false
   
+  // 尝试立即生成短链接（如果没有）
+  if (!shortLink.value) {
+    try {
+      await generateShortLink()
+    } catch (e) {
+      // 捕获错误但不阻止二维码生成，会使用长链接作为后备
+      console.warn('生成短链接失败，将使用原始链接生成二维码')
+    }
+  }
+  
   try {
     await nextTick()
     
+    // 异步加载二维码库
     const QRCode = (await import('qrcode')).default
     const container = document.getElementById('link-qr-code-container')
     
