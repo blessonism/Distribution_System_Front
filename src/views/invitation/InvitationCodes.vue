@@ -1,24 +1,7 @@
 <template>
   <div class="space-y-6">
     <!-- 页面头部 -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">邀请码管理</h1>
-        <p class="text-muted-foreground">
-          管理您的邀请码，生成邀请链接并追踪邀请效果
-        </p>
-      </div>
-      
-      <!-- 刷新按钮 -->
-      <Button 
-        variant="outline" 
-        @click="handleRefresh"
-        :disabled="loading"
-      >
-        <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading }" />
-        刷新数据
-      </Button>
-    </div>
+  
 
     <!-- 权限检查 -->
     <div v-if="!hasInvitationPermission" class="text-center py-12">
@@ -31,6 +14,17 @@
 
     <!-- 主要内容区域 -->
     <div v-else class="space-y-6">
+      <!-- 邀请码组件 -->
+      <MyInvitationCode
+        :codes="invitationCodes"
+        :allowed-target-roles="allowedTargetRoles"
+        :loading="loading"
+        @copy-code="handleCopyCode"
+        @copy-link="handleCopyLink"
+        @share-link="handleShareLink"
+        @request-new-code="handleRequestNewCode"
+      />
+      
       <!-- 统计概览 -->
       <InvitationStatistics
         :stats="invitationStats"
@@ -42,62 +36,6 @@
         @export="handleExportStatistics"
         @view-all-history="$router.push('/invitation/history')"
       />
-
-      <!-- 邀请码展示和链接生成 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 邀请码展示区域 -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold">我的邀请码</h2>
-            <Badge variant="outline" class="text-xs">
-              {{ allowedTargetRoles.length }} 个角色可邀请
-            </Badge>
-          </div>
-          
-          <!-- 邀请码卡片列表 -->
-          <div v-if="invitationCodes.length > 0" class="space-y-4">
-            <InvitationCodeCard
-              v-for="code in invitationCodes"
-              :key="code.id"
-              :invitation-code="code"
-              :loading="codeActionLoading[code.id]"
-              @copy="handleCopyCode"
-              @copy-link="handleCopyLink"
-              @reactivate="handleReactivateCode"
-              @deactivate="handleDeactivateCode"
-              @share="handleShareCode"
-            />
-          </div>
-          
-          <!-- 无邀请码状态 -->
-          <div v-else class="text-center py-8 border-2 border-dashed border-muted rounded-lg">
-            <UserPlus class="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 class="font-medium mb-2">暂无邀请码</h3>
-            <p class="text-sm text-muted-foreground mb-4">
-              您还没有分配到任何邀请码，请联系管理员获取。
-            </p>
-          </div>
-        </div>
-
-        <!-- 邀请链接生成器 -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold">邀请链接生成</h2>
-            <Badge variant="secondary" class="text-xs">
-              快速分享
-            </Badge>
-          </div>
-          
-          <InvitationLinkGenerator
-            :codes="invitationCodes"
-            :allowed-target-roles="allowedTargetRoles"
-            :loading="loading"
-            @copy-link="handleCopyLink"
-            @share-link="handleShareLink"
-            @request-new-code="handleRequestNewCode"
-          />
-        </div>
-      </div>
 
       <!-- 快速操作区域 -->
       <Card>
@@ -199,10 +137,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast/use-toast'
-import InvitationCodeCard from '@/components/business/InvitationCodeCard.vue'
-import InvitationLinkGenerator from '@/components/business/InvitationLinkGenerator.vue'
 import InvitationStatistics from '@/components/business/InvitationStatistics.vue'
-import {
+import MyInvitationCode from '@/components/business/MyInvitationCode.vue'
+import { 
   RefreshCw,
   Shield,
   UserPlus,
@@ -462,6 +399,8 @@ const handleExportAllData = () => {
     description: '正在准备导出所有邀请数据',
   })
 }
+
+// 移除了handleGenerateNewCode函数
 </script>
 
 <style scoped>

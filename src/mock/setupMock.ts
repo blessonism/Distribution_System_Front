@@ -860,12 +860,6 @@ export function setupMockApi() {
       if (inviteCode.status !== 'active') {
         return [400, { code: 400, success: false, message: '邀请码已停用', data: { valid: false } }]
       }
-      if (inviteCode.expiresAt && dayjs(inviteCode.expiresAt).isBefore(dayjs())) {
-        return [400, { code: 400, success: false, message: '邀请码已过期', data: { valid: false } }]
-      }
-      if (inviteCode.maxUsage && inviteCode.usageCount >= inviteCode.maxUsage) {
-        return [400, { code: 400, success: false, message: '邀请码使用次数已达上限', data: { valid: false } }]
-      }
 
       // 查找邀请人信息
       const userId = inviteCode.userId
@@ -890,8 +884,6 @@ export function setupMockApi() {
           role: userRoleMap[userId] || 'unknown'
         },
         targetRole: inviteCode.targetRole,
-        expiresAt: inviteCode.expiresAt,
-        maxUsage: inviteCode.maxUsage,
         usageCount: inviteCode.usageCount
       }
       

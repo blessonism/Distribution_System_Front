@@ -27,8 +27,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'director',
     status: 'active',
     usageCount: 2,
-    maxUsage: 5,
-    expiresAt: dayjs().add(30, 'day').toISOString(),
     createdAt: dayjs().subtract(15, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   },
@@ -39,8 +37,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'leader',
     status: 'active',
     usageCount: 3,
-    maxUsage: 5,
-    expiresAt: dayjs().add(15, 'day').toISOString(),
     createdAt: dayjs().subtract(20, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   },
@@ -51,8 +47,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'sales',
     status: 'active',
     usageCount: 1,
-    maxUsage: 5,
-    expiresAt: dayjs().add(30, 'day').toISOString(),
     createdAt: dayjs().subtract(10, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   },
@@ -63,8 +57,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'agent',
     status: 'active',
     usageCount: 5,
-    maxUsage: 10,
-    expiresAt: dayjs().add(60, 'day').toISOString(),
     createdAt: dayjs().subtract(5, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   },
@@ -77,8 +69,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'leader',
     status: 'active',
     usageCount: 1,
-    maxUsage: 3,
-    expiresAt: dayjs().add(20, 'day').toISOString(),
     createdAt: dayjs().subtract(12, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   },
@@ -89,8 +79,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'sales',
     status: 'active',
     usageCount: 2,
-    maxUsage: 5,
-    expiresAt: dayjs().add(25, 'day').toISOString(),
     createdAt: dayjs().subtract(8, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   },
@@ -101,7 +89,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'agent',
     status: 'inactive',
     usageCount: 3,
-    maxUsage: 3,
     createdAt: dayjs().subtract(30, 'day').toISOString(),
     updatedAt: dayjs().subtract(1, 'day').toISOString()
   },
@@ -114,8 +101,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'sales',
     status: 'active',
     usageCount: 1,
-    maxUsage: 2,
-    expiresAt: dayjs().add(15, 'day').toISOString(),
     createdAt: dayjs().subtract(15, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   },
@@ -126,8 +111,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'agent',
     status: 'active',
     usageCount: 4,
-    maxUsage: 10,
-    expiresAt: dayjs().add(40, 'day').toISOString(),
     createdAt: dayjs().subtract(10, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   },
@@ -140,8 +123,6 @@ export const mockInvitationCodes: InvitationCode[] = [
     targetRole: 'agent',
     status: 'active',
     usageCount: 2,
-    maxUsage: 5,
-    expiresAt: dayjs().add(20, 'day').toISOString(),
     createdAt: dayjs().subtract(7, 'day').toISOString(),
     updatedAt: dayjs().toISOString()
   }

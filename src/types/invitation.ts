@@ -7,9 +7,7 @@ export interface InvitationCode {
   code: string                // 邀请码
   targetRole: UserRole        // 目标角色
   status: 'active' | 'inactive' // 状态
-  usageCount: number          // 使用次数
-  maxUsage?: number           // 最大使用次数（null为无限制）
-  expiresAt?: string          // 过期时间（null为永不过期）
+  usageCount: number          // 使用次数（仅统计用途）
   createdAt: string
   updatedAt: string
 }
