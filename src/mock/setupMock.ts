@@ -6,6 +6,15 @@ import type { Lead, LeadStatus } from '@/types/lead'
 import allPersonnel from './personnelData';
 import dayjs from 'dayjs';
 import { mockInvitationCodes, mockInvitationHistory, mockInvitationStats } from './invitationData'
+import { 
+  mockPromotionTasks, 
+  mockAuditStatsData, 
+  generateMockAuditHistory,
+  filterTasksByPermission,
+  filterTasksByParams,
+  getMockTaskDetail,
+  updateTaskStatus
+} from './promotionData'
 
 interface TrendData {
   labels: string[];
@@ -1046,6 +1055,394 @@ export function setupMockApi() {
           }
         ]
       }
+    })
+
+    // 推广审核系统相关API mock
+    // 获取审核任务列表
+    mock.onGet('/promotion/audit/list').reply((config) => {
+      const token = config.headers?.Authorization
+      const userRole = token === 'mock-token-admin' ? 'super_admin' : 
+                       token === 'mock-token-sales' ? 'leader' : 'super_admin'
+      const userId = token === 'mock-token-admin' ? '1' : 
+                     token === 'mock-token-sales' ? '4' : '1'
+
+      const { 
+        page = 1, 
+        pageSize = 20, 
+        keyword = '', 
+        status = '', 
+        platform = '', 
+        contentType = '', 
+        auditorId = '',
+        startDate = '',
+        endDate = '' 
+      } = config.params || {}
+
+      console.log('[Mock API] 推广审核列表请求:', config.params)
+
+      // 根据用户权限过滤任务
+      let filteredTasks = filterTasksByPermission(mockPromotionTasks, userRole, userId)
+
+      // 根据筛选条件过滤
+      const filterParams = {
+        keyword,
+        status: status || undefined,
+        platform: platform || undefined,
+        contentType: contentType || undefined,
+        auditorId: auditorId || undefined,
+        dateRange: startDate && endDate ? { startDate, endDate } : undefined
+      }
+
+      filteredTasks = filterTasksByParams(filteredTasks, filterParams)
+
+      // 分页处理
+      const total = filteredTasks.length
+      const start = (Number(page) - 1) * Number(pageSize)
+      const end = start + Number(pageSize)
+      const paginatedTasks = filteredTasks.slice(start, end)
+
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '获取审核列表成功',
+          data: {
+            list: paginatedTasks,
+            total,
+            page: Number(page),
+            pageSize: Number(pageSize),
+            totalPages: Math.ceil(total / Number(pageSize))
+          }
+        }
+      ]
+    })
+
+    // 获取任务详情
+    mock.onGet(/\/promotion\/audit\/task\/(.+)/).reply((config) => {
+      const taskId = config.url?.match(/\/promotion\/audit\/task\/(.+)/)?.[1]
+      
+      if (!taskId) {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '任务ID不能为空',
+            data: null
+          }
+        ]
+      }
+
+      const task = getMockTaskDetail(taskId)
+      
+      if (!task) {
+        return [
+          404,
+          {
+            code: 404,
+            success: false,
+            message: '任务不存在',
+            data: null
+          }
+        ]
+      }
+
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '获取任务详情成功',
+          data: task
+        }
+      ]
+    })
+
+    // 执行审核操作
+    mock.onPost('/promotion/audit/execute').reply((config) => {
+      const token = config.headers?.Authorization
+      const userId = token === 'mock-token-admin' ? '1' : 
+                     token === 'mock-token-sales' ? '4' : '1'
+      const userName = token === 'mock-token-admin' ? '系统管理员' : 
+                       token === 'mock-token-sales' ? '销售组长' : '系统管理员'
+
+      try {
+        const { taskId, action, comment, rewardAmount } = JSON.parse(config.data)
+
+        // 参数验证
+        if (!taskId || !action) {
+          return [
+            400,
+            {
+              code: 400,
+              success: false,
+              message: '参数不完整',
+              data: null
+            }
+          ]
+        }
+
+        if (!['approve', 'reject'].includes(action)) {
+          return [
+            400,
+            {
+              code: 400,
+              success: false,
+              message: '审核动作无效',
+              data: null
+            }
+          ]
+        }
+
+        // 拒绝时必须填写意见
+        if (action === 'reject' && (!comment || comment.trim().length === 0)) {
+          return [
+            400,
+            {
+              code: 400,
+              success: false,
+              message: '拒绝时必须填写审核意见',
+              data: null
+            }
+          ]
+        }
+
+        // 更新任务状态
+        const updatedTask = updateTaskStatus(taskId, action, userId, userName, comment, rewardAmount)
+
+        if (!updatedTask) {
+          return [
+            404,
+            {
+              code: 404,
+              success: false,
+              message: '任务不存在',
+              data: null
+            }
+          ]
+        }
+
+        return [
+          200,
+          {
+            code: 200,
+            success: true,
+            message: `审核${action === 'approve' ? '通过' : '拒绝'}成功`,
+            data: updatedTask
+          }
+        ]
+      } catch (error) {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '请求数据格式错误',
+            data: null
+          }
+        ]
+      }
+    })
+
+    // 获取审核历史记录
+    mock.onGet(/\/promotion\/audit\/history\/(.+)/).reply((config) => {
+      const taskId = config.url?.match(/\/promotion\/audit\/history\/(.+)/)?.[1]
+      
+      if (!taskId) {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '任务ID不能为空',
+            data: null
+          }
+        ]
+      }
+
+      const history = generateMockAuditHistory(taskId)
+
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '获取审核历史成功',
+          data: history
+        }
+      ]
+    })
+
+    // 获取审核统计数据
+    mock.onGet('/promotion/audit/stats').reply((config) => {
+      const { startDate, endDate } = config.params || {}
+      
+      // 根据时间范围调整统计数据（简化处理）
+      let stats = { ...mockAuditStatsData }
+      
+      if (startDate && endDate) {
+        const days = dayjs(endDate).diff(dayjs(startDate), 'day')
+        const factor = Math.min(Math.max(days / 30, 0.1), 2) // 调整因子
+        
+        stats = {
+          ...stats,
+          todayAudited: Math.floor(stats.todayAudited * factor),
+          todayApproved: Math.floor(stats.todayApproved * factor),
+          todayRejected: Math.floor(stats.todayRejected * factor),
+          rewardAmountToday: Math.floor(stats.rewardAmountToday * factor)
+        }
+        
+        // 重新计算通过率
+        if (stats.todayAudited > 0) {
+          stats.approvalRate = Math.round((stats.todayApproved / stats.todayAudited) * 100) / 100
+        }
+      }
+
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '获取统计数据成功',
+          data: stats
+        }
+      ]
+    })
+
+    // 获取个人审核统计
+    mock.onGet('/promotion/audit/my-stats').reply(() => {
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '获取个人统计成功',
+          data: {
+            pendingCount: Math.floor(Math.random() * 30) + 10,
+            todayAudited: Math.floor(Math.random() * 20) + 5,
+            thisWeekAudited: Math.floor(Math.random() * 100) + 30
+          }
+        }
+      ]
+    })
+
+    // 检查审核权限
+    mock.onGet(/\/promotion\/audit\/check-permission\/(.+)/).reply((config) => {
+      const taskId = config.url?.match(/\/promotion\/audit\/check-permission\/(.+)/)?.[1]
+      const token = config.headers?.Authorization
+      const userRole = token === 'mock-token-admin' ? 'super_admin' : 
+                       token === 'mock-token-sales' ? 'leader' : 'super_admin'
+
+      if (!taskId) {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '任务ID不能为空',
+            data: null
+          }
+        ]
+      }
+
+      const task = getMockTaskDetail(taskId)
+      
+      if (!task) {
+        return [
+          404,
+          {
+            code: 404,
+            success: false,
+            message: '任务不存在',
+            data: null
+          }
+        ]
+      }
+
+      // 检查权限和状态
+      const canAudit = ['super_admin', 'director', 'leader'].includes(userRole) &&
+                       task.status === 'PENDING_MANUAL_AUDIT'
+
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '权限检查完成',
+          data: {
+            canAudit,
+            reason: canAudit ? undefined : '无审核权限或任务状态不允许审核',
+            taskStatus: task.status
+          }
+        }
+      ]
+    })
+
+    // 批量审核操作 (V2功能)
+    mock.onPost('/promotion/audit/batch').reply((config) => {
+      const token = config.headers?.Authorization
+      const userRole = token === 'mock-token-admin' ? 'super_admin' : 
+                       token === 'mock-token-sales' ? 'leader' : 'super_admin'
+
+      // 检查批量审核权限
+      if (!['super_admin', 'director'].includes(userRole)) {
+        return [
+          403,
+          {
+            code: 403,
+            success: false,
+            message: '没有批量审核权限',
+            data: null
+          }
+        ]
+      }
+
+      return [
+        200,
+        {
+          code: 200,
+          success: true,
+          message: '批量审核成功',
+          data: []
+        }
+      ]
+    })
+
+    // 导出审核数据
+    mock.onGet('/promotion/audit/export').reply((config) => {
+      const token = config.headers?.Authorization
+      const userRole = token === 'mock-token-admin' ? 'super_admin' : 
+                       token === 'mock-token-sales' ? 'leader' : 'super_admin'
+
+      // 检查导出权限
+      if (!['super_admin', 'director'].includes(userRole)) {
+        return [
+          403,
+          {
+            code: 403,
+            success: false,
+            message: '没有导出权限',
+            data: null
+          }
+        ]
+      }
+
+      // 模拟生成Excel文件内容
+      const csvContent = 'Task ID,Agent Name,Platform,Status,Submitted At\n' +
+        mockPromotionTasks.slice(0, 10).map(task => 
+          `${task.id},${task.agentName},${task.platform},${task.status},${task.submittedAt}`
+        ).join('\n')
+
+      // 返回文件数据
+      return [
+        200,
+        new Blob([csvContent], { type: 'text/csv;charset=utf-8' }),
+        {
+          'Content-Disposition': 'attachment; filename="promotion_audit_export.csv"',
+          'Content-Type': 'text/csv;charset=utf-8'
+        }
+      ]
     })
 
     // 更多模拟API可以根据需要添加

@@ -4,6 +4,7 @@
  */
 import type { UserRole } from '@/types/api'
 import type { InvitationCode } from '@/types/invitation'
+import type { AuditDataScope } from '@/types/promotion'
 
 /**
  * 权限验证结果接口
@@ -88,7 +89,18 @@ export const OPERATION_PERMISSIONS: Record<string, UserRole[]> = {
   'validate_invitation_code': ['super_admin', 'director', 'leader', 'sales', 'agent'], // 所有人都可以验证
   'use_invitation_code': ['super_admin', 'director', 'leader', 'sales', 'agent'], // 所有人都可以使用
   'view_all_invitations': ['super_admin'], // 只有超级管理员可以查看所有邀请
-  'manage_user_invitations': ['super_admin'] // 只有超级管理员可以管理用户邀请权限
+  'manage_user_invitations': ['super_admin'], // 只有超级管理员可以管理用户邀请权限
+  
+  // 推广审核权限
+  'view_promotion_audit_list': ['super_admin', 'director', 'leader'],
+  'view_promotion_task_detail': ['super_admin', 'director', 'leader'],
+  'approve_promotion_task': ['super_admin', 'director', 'leader'],
+  'reject_promotion_task': ['super_admin', 'director', 'leader'],
+  'view_promotion_audit_stats': ['super_admin', 'director', 'leader'],
+  'export_promotion_audit_data': ['super_admin', 'director'],
+  'batch_audit_promotion': ['super_admin', 'director'], // V2功能
+  'modify_audit_result': ['super_admin'], // 修改审核结果
+  'view_all_auditor_data': ['super_admin'] // 查看所有审核员数据
 }
 
 /**
@@ -466,6 +478,89 @@ export const PermissionCheck = {
    */
   canViewStats: (userRole: UserRole): PermissionCheckResult => {
     return InvitationPermissionController.checkOperationPermission(userRole, 'view_invitation_stats')
+  },
+
+  // 推广审核权限检查函数
+  /**
+   * 检查是否可以访问推广审核列表
+   */
+  canAccessPromotionAudit: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'view_promotion_audit_list')
+  },
+
+  /**
+   * 检查是否可以查看推广任务详情
+   */
+  canViewPromotionTaskDetail: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'view_promotion_task_detail')
+  },
+
+  /**
+   * 检查是否可以审核通过推广任务
+   */
+  canApprovePromotionTask: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'approve_promotion_task')
+  },
+
+  /**
+   * 检查是否可以拒绝推广任务
+   */
+  canRejectPromotionTask: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'reject_promotion_task')
+  },
+
+  /**
+   * 检查是否可以查看推广审核统计
+   */
+  canViewPromotionAuditStats: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'view_promotion_audit_stats')
+  },
+
+  /**
+   * 检查是否可以导出推广审核数据
+   */
+  canExportPromotionAuditData: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'export_promotion_audit_data')
+  },
+
+  /**
+   * 检查是否可以批量审核推广任务
+   */
+  canBatchAuditPromotion: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'batch_audit_promotion')
+  },
+
+  /**
+   * 获取推广审核数据范围权限
+   */
+  getPromotionAuditDataScope: (userRole: UserRole, userId: string): AuditDataScope => {
+    switch (userRole) {
+      case 'super_admin':
+        return {
+          canViewAll: true
+        }
+      case 'director':
+        return {
+          canViewAll: false,
+          // 销售总监可以查看其管辖范围内的数据
+          // 具体的销售ID列表需要从API获取
+          allowedSalesIds: [] // 此处应该从用户管理系统获取实际的下属销售ID
+        }
+      case 'leader':
+        return {
+          canViewAll: false,
+          // 销售组长只能查看其管辖销售发展的代理数据
+          // 具体的代理ID和销售ID列表需要从API获取
+          allowedAgentIds: [], // 此处应该从用户管理系统获取实际的下属代理ID
+          allowedSalesIds: []  // 此处应该从用户管理系统获取实际的下属销售ID
+        }
+      default:
+        return {
+          canViewAll: false,
+          allowedAgentIds: [],
+          allowedSalesIds: []
+        }
+    }
   }
 }
 
