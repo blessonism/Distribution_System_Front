@@ -23,7 +23,6 @@
               <SelectItem value="week">本周</SelectItem>
               <SelectItem value="month">本月</SelectItem>
               <SelectItem value="quarter">本季度</SelectItem>
-              <SelectItem value="year">本年</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -171,7 +170,7 @@
           <CardContent>
             <div v-if="trendData.length > 0" class="space-y-4">
               <!-- 简化版趋势图 -->
-              <div class="h-32 flex items-end space-x-1">
+              <div class="h-32 flex items-end space-x-0.5">
                 <div 
                   v-for="(item, index) in trendData" 
                   :key="index"
@@ -185,15 +184,25 @@
                 </div>
               </div>
               
-              <!-- X轴标签 -->
-              <div class="flex justify-between text-xs text-muted-foreground">
-                <span v-for="(item, index) in trendData" :key="index">
-                  {{ item.shortLabel }}
-                </span>
+              <!-- X轴标签 - 调整为选择性显示 -->
+              <div class="flex justify-between text-xs text-muted-foreground mx-0.5 overflow-hidden">
+                <template v-for="(item, index) in trendData" :key="index">
+                  <span 
+                    v-if="shouldShowLabel(item, index)" 
+                    class="text-center font-mono truncate"
+                    :style="{ width: `${100 / getLabelDivisor()}%` }"
+                  >
+                    {{ formatAxisLabel(item.shortLabel) }}
+                  </span>
+                  <span 
+                    v-else 
+                    class="flex-1"
+                  ></span>
+                </template>
               </div>
               
-              <!-- 统计信息 -->
-              <div class="grid grid-cols-2 gap-4 pt-4 border-t">
+              <!-- 统计信息 - 扩展为更多有用信息 -->
+              <div class="grid grid-cols-3 gap-4 pt-4 border-t">
                 <div class="text-center">
                   <p class="text-lg font-semibold">{{ trendTotal }}</p>
                   <p class="text-xs text-muted-foreground">总计</p>
@@ -201,6 +210,30 @@
                 <div class="text-center">
                   <p class="text-lg font-semibold">{{ trendAverage }}</p>
                   <p class="text-xs text-muted-foreground">日均</p>
+                </div>
+                <div class="text-center">
+                  <p class="text-lg font-semibold">{{ trendMaxDay?.value || 0 }}</p>
+                  <p class="text-xs text-muted-foreground">单日最高</p>
+                </div>
+              </div>
+              
+              <!-- 趋势分析 -->
+              <div class="pt-4 border-t">
+                <div class="flex justify-between items-center">
+                  <h4 class="text-sm font-medium">趋势分析</h4>
+                  <Badge :variant="trendDirection.variant">{{ trendDirection.label }}</Badge>
+                </div>
+                <p class="text-sm text-muted-foreground mt-2">
+                  {{ trendAnalysis }}
+                </p>
+              </div>
+              
+              <!-- 高效时段 -->
+              <div class="pt-4 border-t">
+                <h4 class="text-sm font-medium mb-2">邀请高效时段</h4>
+                <div class="flex items-center space-x-2">
+                  <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span class="text-sm">{{ peakTimeSlot }}</span>
                 </div>
               </div>
             </div>
@@ -433,14 +466,30 @@ const trendData = computed(() => {
   const days = getTrendDays()
   const data = []
   
+  // 生成每日数据
   for (let i = 0; i < days; i++) {
     const date = new Date()
     date.setDate(date.getDate() - (days - 1 - i))
     
+    // 对于季度视图，只在月份第一天显示月份标签，其他日期不显示标签
+    let shortLabel = ''
+    if (selectedTimeRange.value === 'quarter') {
+      // 如果是月份第一天或者是数组中的第一个元素，则显示月份
+      if (date.getDate() === 1 || i === 0) {
+        shortLabel = date.toLocaleDateString('zh-CN', { month: 'short' })
+      } else {
+        shortLabel = '' // 其他日期不显示标签
+      }
+    } else {
+      // 周视图和月视图保持原样，显示日期
+      shortLabel = date.getDate().toString()
+    }
+    
     data.push({
       label: date.toLocaleDateString('zh-CN'),
-      shortLabel: date.getDate().toString(),
-      value: Math.floor(Math.random() * 10) + 1
+      shortLabel: shortLabel,
+      value: Math.floor(Math.random() * 10) + 1,
+      isMonthStart: date.getDate() === 1 // 标记是否为月份第一天
     })
   }
   
@@ -452,7 +501,6 @@ const trendPeriod = computed(() => {
     case 'week': return '7天'
     case 'month': return '30天'
     case 'quarter': return '90天'
-    case 'year': return '365天'
     default: return '30天'
   }
 })
@@ -471,6 +519,102 @@ const trendAverage = computed(() => {
   return days > 0 ? Math.round(total / days) : 0
 })
 
+// 定义趋势数据项的类型
+interface TrendDataItem {
+  label: string;
+  shortLabel: string;
+  value: number;
+  isMonthStart?: boolean;
+}
+
+// 定义最大值数据项的类型
+interface MaxDayItem {
+  value: number;
+  date: string;
+}
+
+// 计算最大单日邀请数和对应日期
+const trendMaxDay = computed<MaxDayItem>(() => {
+  if (trendData.value.length === 0) return { value: 0, date: '' }
+  
+  const maxItem = trendData.value.reduce<MaxDayItem>((max, item: TrendDataItem) => 
+    item.value > max.value ? { value: item.value, date: item.label } : max, 
+    { value: 0, date: '' }
+  )
+  
+  return maxItem
+})
+
+// 计算趋势方向
+const trendDirection = computed(() => {
+  if (trendData.value.length < 3) return { label: '数据不足', variant: 'secondary' as const }
+  
+  const firstHalf = trendData.value.slice(0, Math.floor(trendData.value.length / 2))
+  const secondHalf = trendData.value.slice(Math.floor(trendData.value.length / 2))
+  
+  const firstHalfAvg = firstHalf.reduce((sum, item) => sum + item.value, 0) / firstHalf.length
+  const secondHalfAvg = secondHalf.reduce((sum, item) => sum + item.value, 0) / secondHalf.length
+  
+  const diff = secondHalfAvg - firstHalfAvg
+  const percentage = firstHalfAvg > 0 ? (diff / firstHalfAvg) * 100 : 0
+  
+  if (percentage > 15) {
+    return { label: '显著上升', variant: 'default' as const }
+  } else if (percentage > 5) {
+    return { label: '小幅上升', variant: 'default' as const }
+  } else if (percentage < -15) {
+    return { label: '显著下降', variant: 'destructive' as const }
+  } else if (percentage < -5) {
+    return { label: '小幅下降', variant: 'destructive' as const }
+  } else {
+    return { label: '基本稳定', variant: 'secondary' as const }
+  }
+})
+
+// 趋势分析文本
+const trendAnalysis = computed(() => {
+  if (trendData.value.length < 3) return '数据收集中，暂无足够数据进行趋势分析。'
+  
+  const direction = trendDirection.value.label
+  const maxDay = trendMaxDay.value
+  
+  // 季度视图使用月份描述
+  if (selectedTimeRange.value === 'quarter') {
+    if (direction === '显著上升') {
+      return `邀请数量呈${direction}趋势，近期表现良好。${maxDay.date}月份达到最高，平均每天${maxDay.value}人，建议保持当前策略。`
+    } else if (direction === '小幅上升') {
+      return `邀请数量呈${direction}趋势，整体发展稳健。${maxDay.date}月份表现最佳，平均每天${maxDay.value}人。`
+    } else if (direction === '基本稳定') {
+      return `邀请数量${direction}，波动不大。${maxDay.date}月份表现最好，平均每天${maxDay.value}人，可考虑适当调整策略提升效果。`
+    } else if (direction === '小幅下降') {
+      return `邀请数量呈${direction}趋势，需关注原因。建议参考${maxDay.date}月份(平均每天${maxDay.value}人)的成功经验。`
+    } else {
+      return `邀请数量呈${direction}趋势，建议及时调整策略。分析${maxDay.date}月份(平均每天${maxDay.value}人)的成功因素并复制。`
+    }
+  } else {
+    // 周视图和月视图保持原样，使用日期描述
+    if (direction === '显著上升') {
+      return `邀请数量呈${direction}趋势，近期表现良好。${maxDay.date}达到单日最高${maxDay.value}人，建议保持当前策略。`
+    } else if (direction === '小幅上升') {
+      return `邀请数量呈${direction}趋势，整体发展稳健。${maxDay.date}表现最佳，达到${maxDay.value}人。`
+    } else if (direction === '基本稳定') {
+      return `邀请数量${direction}，波动不大。单日最高为${maxDay.date}的${maxDay.value}人，可考虑适当调整策略提升效果。`
+    } else if (direction === '小幅下降') {
+      return `邀请数量呈${direction}趋势，需关注原因。建议参考${maxDay.date}(${maxDay.value}人)的成功经验。`
+    } else {
+      return `邀请数量呈${direction}趋势，建议及时调整策略。分析${maxDay.date}(${maxDay.value}人)的成功因素并复制。`
+    }
+  }
+})
+
+// 模拟高效时段数据
+const peakTimeSlot = computed(() => {
+  // 这里可以根据实际数据分析得出，目前使用模拟数据
+  const timeSlots = ['9:00-12:00', '14:00-17:00', '19:00-22:00']
+  const randomIndex = Math.floor(Math.random() * timeSlots.length)
+  return timeSlots[randomIndex]
+})
+
 // 监听器
 watch(selectedTimeRange, (newRange) => {
   emit('timeRangeChange', newRange)
@@ -482,7 +626,6 @@ const getTrendDays = () => {
     case 'week': return 7
     case 'month': return 30
     case 'quarter': return 90
-    case 'year': return 365
     default: return 30
   }
 }
@@ -527,6 +670,53 @@ const handleExportConfirm = () => {
     title: '导出已开始',
     description: '正在生成统计报告，请稍候...',
   })
+}
+
+// 格式化X轴标签，确保宽度一致
+const formatAxisLabel = (label: string): string => {
+  // 如果是季度视图，直接返回月份标签
+  if (selectedTimeRange.value === 'quarter') {
+    return label
+  }
+  
+  // 对于日期标签，确保个位数和十位数宽度一致
+  const num = parseInt(label, 10)
+  if (!isNaN(num)) {
+    // 使用固定宽度显示数字 (等宽字体已在CSS中设置)
+    return num < 10 ? `0${num}` : `${num}`
+  }
+  
+  return label
+}
+
+// 判断是否应该显示标签
+const shouldShowLabel = (item: TrendDataItem, index: number): boolean => {
+  if (!item.shortLabel) return false
+  
+  if (selectedTimeRange.value === 'quarter') {
+    // 季度视图：只显示月份标签
+    return item.isMonthStart || index === 0
+  } else if (selectedTimeRange.value === 'month') {
+    // 月视图：每5天显示一个标签
+    return index % 5 === 0 || index === trendData.value.length - 1
+  } else {
+    // 周视图：全部显示
+    return true
+  }
+}
+
+// 获取标签除数，用于计算标签宽度
+const getLabelDivisor = (): number => {
+  if (selectedTimeRange.value === 'quarter') {
+    // 季度视图：约4个月
+    return 4
+  } else if (selectedTimeRange.value === 'month') {
+    // 月视图：约6个标签
+    return 6
+  } else {
+    // 周视图：7个标签
+    return 7
+  }
 }
 </script>
 
