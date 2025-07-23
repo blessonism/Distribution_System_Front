@@ -135,7 +135,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import Textarea from '@/components/ui/textarea/Textarea.vue'
 import { toast } from '@/components/ui/toast/use-toast'
 import InvitationStatistics from '@/components/business/InvitationStatistics.vue'
 import MyInvitationCode from '@/components/business/MyInvitationCode.vue'
@@ -152,14 +152,28 @@ import {
 import { useInvitationStore } from '@/store/invitation'
 import { useUserStore } from '@/store/user'
 import { useInvitationPermissions } from '@/composables/usePermission'
-import type { InvitationCode, InvitationStats, InvitationRecord } from '@/types/invitation'
+import type { InvitationCode, InvitationStats, InvitationRecord, InvitationState } from '@/types/invitation'
 import type { UserRole } from '@/types/api'
 import { generateInvitationLink, getRoleDisplayName } from '@/api/invitation'
+import { Store } from 'pinia'
 
 // 路由和状态管理
 const router = useRouter()
 const invitationStore = useInvitationStore()
 const userStore = useUserStore()
+
+// 扩展store类型，添加缺失的方法
+interface ExtendedInvitationStore extends Store<'invitation', InvitationState> {
+  codes: InvitationCode[];
+  history: InvitationRecord[];
+  stats: InvitationStats | null;
+  fetchInvitationCodes: () => Promise<InvitationCode[]>;
+  fetchInvitationHistory: (params?: any) => Promise<any>;
+  fetchInvitationStats: (params?: any) => Promise<InvitationStats>;
+}
+
+// 使用类型断言
+const store = invitationStore as unknown as ExtendedInvitationStore;
 
 // 权限管理
 const permissions = useInvitationPermissions()
@@ -174,17 +188,22 @@ const currentTimeRange = ref('month')
 // 计算属性
 const hasInvitationPermission = computed(() => permissions.value.canAccessInvitation)
 
-const invitationCodes = computed(() => invitationStore.invitationCodes)
+// 使用正确的类型访问store中的属性
+const invitationCodes = computed<InvitationCode[]>(() => {
+  return store.codes || []
+})
 
-const invitationStats = computed(() => invitationStore.invitationStats)
+const invitationStats = computed<InvitationStats | null>(() => {
+  return store.stats
+})
 
-const recentInvites = computed(() => {
+const recentInvites = computed<InvitationRecord[]>(() => {
   // 获取最近的5条邀请记录
-  return invitationStore.invitationHistory.slice(0, 5)
+  return (store.history || []).slice(0, 5)
 })
 
 const activeCodesCount = computed(() => {
-  return invitationCodes.value.filter(code => code.status === 'active').length
+  return invitationCodes.value.filter((code: InvitationCode) => code.status === 'active').length
 })
 
 const totalCodesCount = computed(() => invitationCodes.value.length)
@@ -206,9 +225,9 @@ const loadPageData = async () => {
   try {
     // 并行加载所有必要的数据
     await Promise.all([
-      invitationStore.fetchInvitationCodes(),
-      invitationStore.fetchInvitationStats({ timeRange: currentTimeRange.value }),
-      invitationStore.fetchInvitationHistory({ page: 1, pageSize: 5 })
+      store.fetchInvitationCodes(),
+      store.fetchInvitationStats({ timeRange: currentTimeRange.value }),
+      store.fetchInvitationHistory({ page: 1, pageSize: 5 })
     ])
   } catch (error) {
     console.error('加载页面数据失败:', error)
@@ -248,7 +267,7 @@ const handleReactivateCode = async (codeId: string) => {
   codeActionLoading[codeId] = true
   try {
     // 这里调用API重新激活邀请码
-    // await invitationStore.reactivateCode(codeId)
+    // await store.reactivateCode(codeId)
     
     toast({
       title: '激活成功',
@@ -256,8 +275,8 @@ const handleReactivateCode = async (codeId: string) => {
     })
     
     // 重新加载邀请码数据
-    await invitationStore.fetchInvitationCodes()
-  } catch (error) {
+    await store.fetchInvitationCodes()
+  } catch (error: any) {
     console.error('激活邀请码失败:', error)
     toast({
       title: '激活失败',
@@ -273,7 +292,7 @@ const handleDeactivateCode = async (codeId: string) => {
   codeActionLoading[codeId] = true
   try {
     // 这里调用API停用邀请码
-    // await invitationStore.deactivateCode(codeId)
+    // await store.deactivateCode(codeId)
     
     toast({
       title: '停用成功',
@@ -281,8 +300,8 @@ const handleDeactivateCode = async (codeId: string) => {
     })
     
     // 重新加载邀请码数据
-    await invitationStore.fetchInvitationCodes()
-  } catch (error) {
+    await store.fetchInvitationCodes()
+  } catch (error: any) {
     console.error('停用邀请码失败:', error)
     toast({
       title: '停用失败',
@@ -318,7 +337,7 @@ const handleRequestNewCode = (targetRole: UserRole) => {
 const handleTimeRangeChange = async (timeRange: string) => {
   currentTimeRange.value = timeRange
   try {
-    await invitationStore.fetchInvitationStats({ timeRange })
+    await store.fetchInvitationStats({ timeRange })
   } catch (error) {
     console.error('更新统计数据失败:', error)
   }
@@ -358,7 +377,7 @@ const handleBulkShare = () => {
     ''
   ]
 
-  invitationCodes.value.forEach(code => {
+  invitationCodes.value.forEach((code: InvitationCode) => {
     if (code.status === 'active') {
       const roleName = getRoleDisplayName(code.targetRole)
       const link = generateInvitationLink(code.code, code.targetRole)

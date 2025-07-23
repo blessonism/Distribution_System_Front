@@ -202,43 +202,37 @@
     </CardFooter>
 
     <!-- 二维码弹窗 -->
-    <Dialog v-model:open="qrCodeDialogOpen">
+    <Dialog v-model:open="qrCodeDialogOpen" @update:open="val => !val && handleDialogClose()">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>邀请链接二维码</DialogTitle>
+          <DialogTitle>邀请二维码</DialogTitle>
           <DialogDescription>
-            扫描二维码快速访问邀请链接
+            扫描二维码或分享给其他人快速注册
           </DialogDescription>
         </DialogHeader>
         
         <div class="flex flex-col items-center space-y-4 py-4">
           <!-- 二维码 -->
           <div 
-            id="link-qr-code-container" 
+            ref="qrCodeContainer"
             class="w-48 h-48 border-2 border-dashed border-muted-foreground/25 rounded-lg flex items-center justify-center bg-muted/25"
           >
-            <div v-if="qrCodeLoading" class="flex flex-col items-center space-y-2">
-              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span class="text-sm text-muted-foreground">生成中...</span>
-            </div>
-            <div v-else-if="qrCodeError" class="text-center text-sm text-muted-foreground">
-              <AlertCircle class="w-8 h-8 mx-auto mb-2" />
-              <p>二维码生成失败</p>
-            </div>
+            <!-- 强制使用DOM操作显示二维码，不依赖Vue的响应式系统 -->
+            <!-- 此处内容将由JavaScript动态添加 -->
           </div>
           
           <!-- 链接信息 -->
           <div class="text-center space-y-1 max-w-full">
-            <p class="font-medium">{{ getRoleDisplayName(selectedRole!) }}</p>
+            <p class="font-medium">{{ getDisplayRoleLabel(selectedRole!) }}</p>
             <p class="text-xs text-muted-foreground break-all px-2">{{ shortLink || generatedLink }}</p>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" @click="qrCodeDialogOpen = false">
+          <Button variant="outline" @click="handleDialogClose()">
             关闭
           </Button>
-          <Button @click="downloadQRCode" :disabled="qrCodeLoading || qrCodeError">
+          <Button @click="downloadQRCode" :disabled="qrCodeLoading || qrCodeError || !qrCodeImageUrl">
             <Download class="w-4 h-4 mr-1" />
             下载
           </Button>
@@ -249,7 +243,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -273,11 +267,16 @@ import {
 import type { InvitationCode } from '@/types/invitation'
 import type { UserRole } from '@/types/api'
 import { generateInvitationLink, getRoleDisplayName } from '@/api/invitation'
-import { http } from '@/utils/request'
+
+// 扩展InvitationCode类型，添加缺失的属性
+interface ExtendedInvitationCode extends InvitationCode {
+  expiresAt?: string;
+  maxUsage?: number;
+}
 
 // Props 定义
 interface Props {
-  codes: InvitationCode[]
+  codes: ExtendedInvitationCode[]
   allowedTargetRoles: UserRole[]
   loading?: boolean
 }
@@ -303,6 +302,126 @@ const shortLink = ref('')
 const qrCodeDialogOpen = ref(false)
 const qrCodeLoading = ref(false)
 const qrCodeError = ref(false)
+const qrCodeContainer = ref<HTMLElement | null>(null)
+const qrCodeImageUrl = ref<string | null>(null) // 存储预渲染的二维码图像URL
+
+// 取消标记和清理函数
+let qrCodeGenerationAborted = false
+let qrCodeCleanupTimeout: number | null = null
+
+// 在组件卸载前清理
+onBeforeUnmount(() => {
+  qrCodeGenerationAborted = true
+  
+  // 清理定时器
+  if (qrCodeCleanupTimeout) {
+    clearTimeout(qrCodeCleanupTimeout)
+  }
+  
+  // 清理图像URL
+  if (qrCodeImageUrl.value) {
+    URL.revokeObjectURL(qrCodeImageUrl.value)
+    qrCodeImageUrl.value = null
+  }
+})
+
+// 监听对话框关闭事件
+const handleDialogClose = () => {
+  qrCodeDialogOpen.value = false
+}
+
+// 监听对话框打开状态
+watch(qrCodeDialogOpen, async (isOpen) => {
+  if (isOpen) {
+    // 对话框打开时，强制初始化二维码显示
+    await nextTick()
+    initializeQRCodeDisplay()
+  } else {
+    // 对话框关闭时
+    qrCodeGenerationAborted = true
+    
+    // 清理DOM
+    if (qrCodeCleanupTimeout) {
+      clearTimeout(qrCodeCleanupTimeout)
+    }
+  }
+})
+
+// 强制初始化二维码显示
+const initializeQRCodeDisplay = () => {
+  if (!qrCodeContainer.value || !qrCodeImageUrl.value) return
+  
+  try {
+    // 清空容器
+    qrCodeContainer.value.innerHTML = ''
+    
+    // 根据当前状态显示不同内容
+    if (qrCodeLoading.value) {
+      // 显示加载动画
+      const loadingDiv = document.createElement('div')
+      loadingDiv.className = 'flex flex-col items-center space-y-2'
+      
+      const spinner = document.createElement('div')
+      spinner.className = 'animate-spin rounded-full h-8 w-8 border-b-2 border-primary'
+      
+      const text = document.createElement('span')
+      text.className = 'text-sm text-muted-foreground'
+      text.textContent = '生成中...'
+      
+      loadingDiv.appendChild(spinner)
+      loadingDiv.appendChild(text)
+      qrCodeContainer.value.appendChild(loadingDiv)
+    } else if (qrCodeError.value) {
+      // 显示错误信息
+      const errorDiv = document.createElement('div')
+      errorDiv.className = 'text-center text-sm text-muted-foreground'
+      
+      const errorIcon = document.createElement('div')
+      errorIcon.className = 'w-8 h-8 mx-auto mb-2'
+      errorIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
+      
+      const errorText = document.createElement('p')
+      errorText.textContent = '二维码生成失败'
+      
+      errorDiv.appendChild(errorIcon)
+      errorDiv.appendChild(errorText)
+      qrCodeContainer.value.appendChild(errorDiv)
+    } else if (qrCodeImageUrl.value) {
+      // 显示二维码图像
+      const img = document.createElement('img')
+      img.src = qrCodeImageUrl.value
+      img.alt = '邀请二维码'
+      img.className = 'w-full h-full object-contain'
+      qrCodeContainer.value.appendChild(img)
+      
+      console.log('二维码图像已强制显示到DOM')
+    } else {
+      // 显示未能显示二维码的信息
+      const emptyDiv = document.createElement('div')
+      emptyDiv.className = 'text-center text-sm text-muted-foreground'
+      
+      const emptyIcon = document.createElement('div')
+      emptyIcon.className = 'w-8 h-8 mx-auto mb-2'
+      emptyIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
+      
+      const emptyText = document.createElement('p')
+      emptyText.textContent = '未能显示二维码'
+      
+      emptyDiv.appendChild(emptyIcon)
+      emptyDiv.appendChild(emptyText)
+      qrCodeContainer.value.appendChild(emptyDiv)
+    }
+  } catch (error) {
+    console.error('初始化二维码显示失败:', error)
+  }
+}
+
+// 监听二维码准备状态
+watch(qrCodeDialogOpen, async (isOpen) => {
+  if (isOpen && !qrCodeLoading.value) {
+    await prepareQRCode()
+  }
+})
 
 // 计算属性
 const availableRoles = computed(() => {
@@ -450,19 +569,27 @@ const shareViaSMS = () => {
 }
 
 const generateShortLink = async () => {
-  // 使用axios代替fetch，保持与项目其他API调用一致
+  // 这里可以集成短链接服务，如 bit.ly, tinyurl 等
+  // 暂时使用模拟实现
   try {
-    const response = await http.post('/short-link', {
-      url: generatedLink.value
+    const response = await fetch('/api/short-link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: generatedLink.value
+      })
     })
     
-    // 从响应中获取短链接
-    shortLink.value = response.shortUrl
-    
-    toast({
-      title: '短链接生成成功',
-      description: '已生成便于分享的短链接',
-    })
+    if (response.ok) {
+      const data = await response.json()
+      shortLink.value = data.shortUrl
+      toast({
+        title: '短链接生成成功',
+        description: '已生成便于分享的短链接',
+      })
+    }
   } catch (error) {
     console.error('短链接生成失败:', error)
     // 降级方案：生成一个简化的链接显示
@@ -471,15 +598,97 @@ const generateShortLink = async () => {
     shortLink.value = `${baseUrl}/i/${shortCode}`
     
     toast({
-      title: '短链接生成失败', 
+      title: '短链接生成失败',
       description: '已生成本地短链接',
       variant: 'destructive',
     })
   }
 }
 
+// 预先生成二维码图像
+const prepareQRCode = async (): Promise<boolean> => {
+  qrCodeLoading.value = true
+  qrCodeError.value = false
+  
+  try {
+    // 检查链接是否有效
+    const linkToEncode = shortLink.value || generatedLink.value
+    if (!linkToEncode) {
+      console.error('没有可用的链接来生成二维码')
+      qrCodeError.value = true
+      qrCodeLoading.value = false
+      return false
+    }
+    
+    console.log('开始生成二维码，链接:', linkToEncode)
+    
+    // 异步加载二维码库
+    const QRCodeModule = await import('qrcode')
+    const QRCode = QRCodeModule.default
+    
+    // 创建离屏canvas
+    const canvas = document.createElement('canvas')
+    
+    // 生成二维码
+    await QRCode.toCanvas(canvas, linkToEncode, {
+      width: 200,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    })
+    
+    console.log('二维码已生成到canvas')
+    
+    // 直接使用canvas的dataURL，避免使用Blob URL
+    const dataUrl = canvas.toDataURL('image/png')
+    console.log('二维码已转换为dataURL')
+    
+    // 更新状态
+    qrCodeImageUrl.value = dataUrl
+    
+    // 强制DOM更新
+    await nextTick()
+    
+    // 直接将二维码显示到容器中
+    if (qrCodeContainer.value) {
+      // 清空容器
+      qrCodeContainer.value.innerHTML = ''
+      
+      // 创建图像元素
+      const img = document.createElement('img')
+      img.src = dataUrl
+      img.alt = '邀请二维码'
+      img.className = 'w-full h-full object-contain'
+      
+      // 添加到容器
+      qrCodeContainer.value.appendChild(img)
+      console.log('二维码已直接添加到DOM')
+    }
+    
+    // 确保状态更新
+    qrCodeLoading.value = false
+    console.log('加载状态已设置为false')
+    
+    return true
+  } catch (error) {
+    console.error('生成二维码失败:', error)
+    qrCodeError.value = true
+    qrCodeLoading.value = false
+    
+    // 显示错误提示
+    toast({
+      title: '二维码生成失败',
+      description: error instanceof Error ? error.message : '未知错误',
+      variant: 'destructive',
+    })
+    
+    return false
+  }
+}
+
 const showQRCode = async () => {
-  // 如果没有选择角色或没有链接，则不处理
   if (!selectedRole.value || !generatedLink.value) {
     toast({
       title: '无法生成二维码',
@@ -489,70 +698,55 @@ const showQRCode = async () => {
     return
   }
 
-  qrCodeDialogOpen.value = true
-  qrCodeLoading.value = true
+  // 重置状态
+  qrCodeImageUrl.value = null
   qrCodeError.value = false
+  qrCodeGenerationAborted = false
+  qrCodeLoading.value = true
   
-  // 尝试立即生成短链接（如果没有）
-  if (!shortLink.value) {
-    try {
-      await generateShortLink()
-    } catch (e) {
-      // 捕获错误但不阻止二维码生成，会使用长链接作为后备
-      console.warn('生成短链接失败，将使用原始链接生成二维码')
-    }
-  }
+  console.log('开始准备二维码')
   
-  try {
+  const success = await prepareQRCode()
+  console.log('二维码准备结果:', success, '加载状态:', qrCodeLoading.value)
+  
+  if (success) {
+    // 成功生成二维码后打开对话框
+    qrCodeDialogOpen.value = true
+    
+    // 等待对话框DOM更新后强制初始化二维码显示
     await nextTick()
-    
-    // 异步加载二维码库
-    const QRCode = (await import('qrcode')).default
-    const container = document.getElementById('link-qr-code-container')
-    
-    if (container) {
-      container.innerHTML = ''
-      
-      const canvas = document.createElement('canvas')
-      const linkToEncode = shortLink.value || generatedLink.value
-      
-      await QRCode.toCanvas(canvas, linkToEncode, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      })
-      
-      container.appendChild(canvas)
-      qrCodeLoading.value = false
-    }
-  } catch (error) {
-    console.error('生成二维码失败:', error)
-    qrCodeError.value = true
-    qrCodeLoading.value = false
-    
+    console.log('对话框已打开，开始强制初始化二维码显示')
+    initializeQRCodeDisplay()
+    console.log('二维码显示初始化完成')
+  } else {
     toast({
       title: '二维码生成失败',
-      description: '请稍后重试或直接分享链接',
+      description: '请稍后重试',
       variant: 'destructive',
     })
   }
 }
 
 const downloadQRCode = () => {
-  const canvas = document.querySelector('#link-qr-code-container canvas') as HTMLCanvasElement
-  if (canvas) {
+  if (!qrCodeImageUrl.value) return
+  
+  try {
     const link = document.createElement('a')
     const roleName = getRoleDisplayName(selectedRole.value!)
     link.download = `invitation-link-${selectedRole.value}-qr.png`
-    link.href = canvas.toDataURL()
+    link.href = qrCodeImageUrl.value
     link.click()
     
     toast({
       title: '下载成功',
       description: '二维码已保存到本地',
+    })
+  } catch (error) {
+    console.error('下载二维码失败:', error)
+    toast({
+      title: '下载失败',
+      description: '无法保存二维码，请稍后重试',
+      variant: 'destructive',
     })
   }
 }
@@ -569,7 +763,7 @@ const getDisplayRoleLabel = (role: UserRole): string => {
   return roleLabelsMap[role] || role
 }
 
-const getExpiryDisplay = (code: InvitationCode | null) => {
+const getExpiryDisplay = (code: ExtendedInvitationCode | null) => {
   if (!code) return '-'
   if (!code.expiresAt) return '永久有效'
   
@@ -591,7 +785,7 @@ const getExpiryDisplay = (code: InvitationCode | null) => {
   }
 }
 
-const getUsageDisplay = (code: InvitationCode | null) => {
+const getUsageDisplay = (code: ExtendedInvitationCode | null) => {
   if (!code) return '-'
   
   if (!code.maxUsage) {
