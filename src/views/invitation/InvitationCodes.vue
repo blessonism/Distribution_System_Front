@@ -35,6 +35,7 @@
         @time-range-change="handleTimeRangeChange"
         @export="handleExportStatistics"
         @view-all-history="$router.push('/invitation/history')"
+        class="invitation-statistics"
       />
 
       <!-- 快速操作区域 -->
