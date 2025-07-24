@@ -32,12 +32,13 @@ onMounted(() => {
       return
     }
     
+    // 移除根路径重定向逻辑，由路由守卫统一处理
     // 如果当前在根路径且已登录，则重定向到dashboard
-    if (currentPath === '/' && token) {
-      console.log('[App] 已登录用户访问根路径，重定向到dashboard')
-      router.replace('/dashboard')
-      return
-    }
+    // if (currentPath === '/' && token) {
+    //   console.log('[App] 已登录用户访问根路径，重定向到dashboard')
+    //   router.replace('/dashboard')
+    //   return
+    // }
     
     if (redirectPath) {
       console.log('[App] 检测到重定向路径:', redirectPath)

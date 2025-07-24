@@ -20,25 +20,57 @@ interface UserState {
 }
 
 export const useUserStore = defineStore('user', {
-  state: (): UserState => ({
-    token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
-    userInfo: null,
-    roles: [],
-    permissions: [],
-    routesLoaded: false,
-    invitePermissions: {
-      canInvite: false,
-      allowedTargetRoles: [],
-      maxCodes: 0
+  state: (): UserState => {
+    // 从localStorage恢复角色信息和用户信息
+    let roles: string[] = []
+    let userInfo: User | null = null
+
+    if (typeof window !== 'undefined') {
+      // 恢复角色信息
+      const storedRoles = localStorage.getItem('userRoles')
+      if (storedRoles) {
+        try {
+          roles = JSON.parse(storedRoles)
+        } catch (error) {
+          console.error('[用户Store] 解析存储的角色信息失败:', error)
+        }
+      }
+
+      // 恢复用户信息
+      const storedUserInfo = localStorage.getItem('userInfo')
+      if (storedUserInfo) {
+        try {
+          userInfo = JSON.parse(storedUserInfo)
+        } catch (error) {
+          console.error('[用户Store] 解析存储的用户信息失败:', error)
+        }
+      }
     }
-  }),
+
+    console.log('[用户Store] 初始化状态，恢复的角色:', roles)
+    console.log('[用户Store] 初始化状态，恢复的用户信息:', userInfo)
+
+    return {
+      token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
+      userInfo,
+      roles,
+      permissions: [],
+      routesLoaded: false,
+      invitePermissions: {
+        canInvite: false,
+        allowedTargetRoles: [],
+        maxCodes: 0
+      }
+    }
+  },
 
   getters: {
     isLoggedIn: (state) => !!state.token,
     userRole: (state) => state.userInfo?.role || null,
     hasPermission: (state) => (role: string) => {
-      if (!state.userInfo?.role) return false
-      return role === state.userInfo.role || state.userInfo.role === 'super_admin'
+      // 使用state.roles数组而不是userInfo.role
+      if (!state.roles || state.roles.length === 0) return false
+      return state.roles.includes(role) || state.roles.includes('super_admin')
     },
     
     // 新增邀请相关getters
@@ -98,6 +130,7 @@ export const useUserStore = defineStore('user', {
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', responseData.token)
           localStorage.setItem('userRoles', JSON.stringify(this.roles))
+          localStorage.setItem('userInfo', JSON.stringify(this.userInfo))
         }
         
         return responseData
@@ -110,19 +143,29 @@ export const useUserStore = defineStore('user', {
 
     async getUserInfo() {
       try {
+        console.log('[用户Store] 开始获取用户信息，当前角色:', this.roles)
+
         // 使用新的 authApi
         const profileData = await authApi.getUserProfile()
-        
+
+        console.log('[用户Store] API返回的用户信息:', profileData.user)
+
         this.userInfo = profileData.user
         this.roles = profileData.user.role ? [profileData.user.role] : []
         this.permissions = profileData.permissions
-        
+
+        // 更新localStorage中的角色信息和用户信息
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('userRoles', JSON.stringify(this.roles))
+          localStorage.setItem('userInfo', JSON.stringify(this.userInfo))
+        }
+
         // 更新邀请权限
         this.updateInvitePermissions()
-        
-        console.log('获取用户信息成功，用户角色:', this.roles)
-        console.log('邀请权限:', this.invitePermissions)
-        
+
+        console.log('[用户Store] 获取用户信息成功，更新后的角色:', this.roles)
+        console.log('[用户Store] 邀请权限:', this.invitePermissions)
+
         return profileData
       } catch (error: any) {
         console.error('[用户Store] 获取用户信息失败:', error)
@@ -154,6 +197,7 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('token')
         localStorage.removeItem('routesLoaded')
         localStorage.removeItem('userRoles')
+        localStorage.removeItem('userInfo')
         localStorage.removeItem('invitation-store') // 清除邀请数据缓存
         
         // 重置路由

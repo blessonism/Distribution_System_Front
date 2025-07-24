@@ -310,12 +310,44 @@ const expandedMenus = ref<string[]>([])
 
 // 获取有权限的菜单路由
 const menuRoutes = computed(() => {
-  console.log('计算菜单路由，当前用户角色:', userStore.roles)
+  console.log('[Menu] 计算菜单路由，当前用户角色:', userStore.roles)
+  console.log('[Menu] asyncRoutes总数:', asyncRoutes.length)
+  console.log('[Menu] asyncRoutes详情:', asyncRoutes.map(r => ({
+    path: r.path,
+    name: r.name,
+    title: r.meta?.title,
+    group: r.meta?.group,
+    roles: r.meta?.roles,
+    hidden: r.meta?.hidden
+  })))
+
   const accessibleRoutes = asyncRoutes.filter(route => {
-    if (!route.meta?.roles) return true
-    return route.meta.roles.some(role => userStore.hasPermission(role))
+    // 跳过隐藏的路由
+    if (route.meta?.hidden) {
+      console.log('[Menu] 跳过隐藏路由:', route.path)
+      return false
+    }
+
+    if (!route.meta?.roles) {
+      console.log('[Menu] 无角色限制的路由:', route.path)
+      return true
+    }
+
+    const hasAccess = route.meta.roles.some(role => {
+      const permission = userStore.hasPermission(role)
+      console.log('[Menu] 权限检查:', route.path, role, permission)
+      return permission
+    })
+
+    console.log('[Menu] 路由访问结果:', route.path, hasAccess)
+    return hasAccess
   })
-  console.log('可访问的菜单路由:', accessibleRoutes.map(r => r.path))
+  console.log('[Menu] 可访问的菜单路由:', accessibleRoutes.map(r => ({
+    path: r.path,
+    name: r.name,
+    title: r.meta?.title,
+    group: r.meta?.group
+  })))
   return accessibleRoutes
 })
 

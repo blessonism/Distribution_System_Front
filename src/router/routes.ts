@@ -43,17 +43,14 @@ export const constantRoutes: AppRouteRecordRaw[] = [
       hidden: true,
     },
   },
-  // 根路径 - 动态重定向
+  // 根路径 - 由路由守卫处理重定向逻辑
   {
     path: '/',
     name: 'Root',
-    redirect: () => {
-      // 检查是否有token，决定重定向到dashboard还是login
-      const token = localStorage.getItem('token')
-      return token ? '/dashboard' : '/login'
-    },
+    component: () => import('@/views/Redirect.vue'), // 简单的重定向占位组件
     meta: {
       hidden: true,
+      requiresAuth: true, // 标记需要认证，让路由守卫处理
     },
   },
   // 通配符路由，捕获所有未定义的路由，必须放在最后
@@ -68,18 +65,7 @@ export const constantRoutes: AppRouteRecordRaw[] = [
 
 // 动态路由（需要权限）
 export const asyncRoutes: AppRouteRecordRaw[] = [
-  {
-    path: '/',
-    name: 'Layout',
-    component: () => import('@/layouts/MainLayout.vue'),
-    redirect: '/dashboard',
-    meta: {
-      title: '首页',
-      requiresAuth: true,
-      group: 'main' // 添加group标识
-    },
-    children: []
-  },
+  // 移除冲突的根路径Layout路由，避免与constantRoutes中的根路径冲突
   // 个人设置路由
   {
     path: '/profile',
