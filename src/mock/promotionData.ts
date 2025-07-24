@@ -4,7 +4,11 @@ import type {
   PromotionPlatform,
   PromotionContentType,
   AuditHistory,
-  AuditStats
+  AuditStats,
+  TaskSubmissionRequest,
+  AgentTaskFilterParams,
+  AgentTaskStats,
+  URLRecognitionResult
 } from '@/types/promotion'
 import dayjs from 'dayjs'
 
@@ -347,4 +351,174 @@ export const updateTaskStatus = (
   }
 
   return mockPromotionTasks[taskIndex]
+}
+
+// ==================== 代理任务提交相关Mock函数 ====================
+
+/**
+ * 模拟代理提交任务
+ * @param request - 任务提交请求
+ * @param agentId - 当前代理ID（从用户状态获取）
+ */
+export const mockSubmitTask = (request: TaskSubmissionRequest, agentId: string = 'A001'): PromotionTask => {
+  const agent = mockAgents.find(a => a.id === agentId) || mockAgents[0]
+  const taskId = generateTaskId(mockPromotionTasks.length + 1)
+  const now = dayjs().format('YYYY-MM-DD HH:mm:ss')
+
+  const newTask: PromotionTask = {
+    id: taskId,
+    agentId: agent.id,
+    agentName: agent.name,
+    agentLevel: agent.level,
+    platform: request.platform,
+    contentType: request.contentType,
+    contentUrl: request.contentUrl,
+    contentDescription: request.contentDescription,
+    status: 'PENDING',
+    submittedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    // 新增字段
+    submissionSource: 'agent',
+    autoDetectedPlatform: request.autoDetectedPlatform,
+    manualPlatformOverride: request.autoDetectedPlatform !== request.platform
+  }
+
+  // 添加到Mock数据中
+  mockPromotionTasks.unshift(newTask)
+
+  return newTask
+}
+
+/**
+ * 模拟获取代理任务列表
+ * @param params - 筛选参数
+ * @param agentId - 当前代理ID
+ */
+export const mockGetAgentTaskList = (
+  params: AgentTaskFilterParams,
+  agentId: string = 'A001'
+): { list: PromotionTask[]; total: number; page: number; pageSize: number } => {
+  // 筛选出当前代理的任务
+  let filteredTasks = mockPromotionTasks.filter(task => task.agentId === agentId)
+
+  // 应用筛选条件
+  if (params.keyword) {
+    const keyword = params.keyword.toLowerCase()
+    filteredTasks = filteredTasks.filter(task =>
+      task.contentDescription?.toLowerCase().includes(keyword) ||
+      task.contentUrl.toLowerCase().includes(keyword)
+    )
+  }
+
+  if (params.status && params.status !== 'all') {
+    filteredTasks = filteredTasks.filter(task => task.status === params.status)
+  }
+
+  if (params.platform && params.platform !== 'all') {
+    filteredTasks = filteredTasks.filter(task => task.platform === params.platform)
+  }
+
+  if (params.contentType && params.contentType !== 'all') {
+    filteredTasks = filteredTasks.filter(task => task.contentType === params.contentType)
+  }
+
+  if (params.dateRange) {
+    const { startDate, endDate } = params.dateRange
+    filteredTasks = filteredTasks.filter(task => {
+      const taskDate = dayjs(task.submittedAt).format('YYYY-MM-DD')
+      return taskDate >= startDate && taskDate <= endDate
+    })
+  }
+
+  // 分页处理
+  const page = params.page || 1
+  const pageSize = params.pageSize || 20
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedTasks = filteredTasks.slice(startIndex, endIndex)
+
+  return {
+    list: paginatedTasks,
+    total: filteredTasks.length,
+    page,
+    pageSize
+  }
+}
+
+/**
+ * 模拟获取代理任务统计
+ * @param agentId - 当前代理ID
+ */
+export const mockGetAgentTaskStats = (agentId: string = 'A001'): AgentTaskStats => {
+  const agentTasks = mockPromotionTasks.filter(task => task.agentId === agentId)
+
+  const totalSubmitted = agentTasks.length
+  const pendingAudit = agentTasks.filter(task => task.status === 'PENDING').length
+  const approved = agentTasks.filter(task => task.status === 'APPROVED').length
+  const rejected = agentTasks.filter(task => task.status === 'REJECTED').length
+
+  const totalReward = agentTasks
+    .filter(task => task.status === 'APPROVED' && task.rewardAmount)
+    .reduce((sum, task) => sum + (task.rewardAmount || 0), 0)
+
+  // 本月数据
+  const thisMonth = dayjs().format('YYYY-MM')
+  const thisMonthTasks = agentTasks.filter(task =>
+    dayjs(task.submittedAt).format('YYYY-MM') === thisMonth
+  )
+  const thisMonthSubmitted = thisMonthTasks.length
+  const thisMonthApproved = thisMonthTasks.filter(task => task.status === 'APPROVED').length
+
+  return {
+    totalSubmitted,
+    pendingAudit,
+    approved,
+    rejected,
+    totalReward,
+    thisMonthSubmitted,
+    thisMonthApproved
+  }
+}
+
+/**
+ * 模拟URL平台识别
+ * @param url - 要识别的URL
+ */
+export const mockRecognizePlatform = (url: string): URLRecognitionResult => {
+  const urlLower = url.toLowerCase()
+
+  // 抖音识别
+  if (urlLower.includes('douyin.com') || urlLower.includes('dy.com')) {
+    return {
+      platform: 'douyin',
+      confidence: 0.95,
+      suggestions: ['douyin']
+    }
+  }
+
+  // 快手识别
+  if (urlLower.includes('kuaishou.com') || urlLower.includes('ks.com')) {
+    return {
+      platform: 'kuaishou',
+      confidence: 0.95,
+      suggestions: ['kuaishou']
+    }
+  }
+
+  // 小红书识别
+  if (urlLower.includes('xiaohongshu.com') || urlLower.includes('xhs.com')) {
+    return {
+      platform: 'xiaohongshu',
+      confidence: 0.95,
+      suggestions: ['xiaohongshu']
+    }
+  }
+
+  // 无法识别
+  return {
+    platform: null,
+    confidence: 0,
+    suggestions: []
+  }
 }

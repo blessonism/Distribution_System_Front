@@ -6,14 +6,18 @@ import type { Lead, LeadStatus } from '@/types/lead'
 import allPersonnel from './personnelData';
 import dayjs from 'dayjs';
 import { mockInvitationCodes, mockInvitationHistory, mockInvitationStats } from './invitationData'
-import { 
-  mockPromotionTasks, 
-  mockAuditStatsData, 
+import {
+  mockPromotionTasks,
+  mockAuditStatsData,
   generateMockAuditHistory,
   filterTasksByPermission,
   filterTasksByParams,
   getMockTaskDetail,
-  updateTaskStatus
+  updateTaskStatus,
+  mockSubmitTask,
+  mockGetAgentTaskList,
+  mockGetAgentTaskStats,
+  mockRecognizePlatform
 } from './promotionData'
 
 interface TrendData {
@@ -1443,6 +1447,140 @@ export function setupMockApi() {
           'Content-Type': 'text/csv;charset=utf-8'
         }
       ]
+    })
+
+    // ==================== 代理任务提交相关API mock ====================
+
+    // 代理提交推广任务
+    mock.onPost('/promotion/task/submit').reply((config) => {
+      const token = config.headers?.Authorization
+      const agentId = token === 'mock-token-agent' ? 'A001' : 'A001' // 默认代理ID
+
+      try {
+        const request = JSON.parse(config.data)
+        const newTask = mockSubmitTask(request, agentId)
+
+        return [
+          200,
+          {
+            code: 200,
+            success: true,
+            message: '任务提交成功',
+            data: newTask
+          }
+        ]
+      } catch (error) {
+        return [
+          400,
+          {
+            code: 400,
+            success: false,
+            message: '任务提交失败',
+            error: error instanceof Error ? error.message : '未知错误'
+          }
+        ]
+      }
+    })
+
+    // 获取代理任务列表
+    mock.onGet('/promotion/task/agent-list').reply((config) => {
+      const token = config.headers?.Authorization
+      const agentId = token === 'mock-token-agent' ? 'A001' : 'A001' // 默认代理ID
+
+      try {
+        const params = config.params || {}
+        const result = mockGetAgentTaskList(params, agentId)
+
+        return [
+          200,
+          {
+            code: 200,
+            success: true,
+            message: '获取任务列表成功',
+            data: result
+          }
+        ]
+      } catch (error) {
+        return [
+          500,
+          {
+            code: 500,
+            success: false,
+            message: '获取任务列表失败',
+            error: error instanceof Error ? error.message : '未知错误'
+          }
+        ]
+      }
+    })
+
+    // 获取代理任务统计
+    mock.onGet('/promotion/task/agent-stats').reply((config) => {
+      const token = config.headers?.Authorization
+      const agentId = token === 'mock-token-agent' ? 'A001' : 'A001' // 默认代理ID
+
+      try {
+        const stats = mockGetAgentTaskStats(agentId)
+
+        return [
+          200,
+          {
+            code: 200,
+            success: true,
+            message: '获取统计数据成功',
+            data: stats
+          }
+        ]
+      } catch (error) {
+        return [
+          500,
+          {
+            code: 500,
+            success: false,
+            message: '获取统计数据失败',
+            error: error instanceof Error ? error.message : '未知错误'
+          }
+        ]
+      }
+    })
+
+    // URL平台识别
+    mock.onPost('/promotion/task/recognize-platform').reply((config) => {
+      try {
+        const { url } = JSON.parse(config.data)
+
+        if (!url) {
+          return [
+            400,
+            {
+              code: 400,
+              success: false,
+              message: 'URL不能为空'
+            }
+          ]
+        }
+
+        const result = mockRecognizePlatform(url)
+
+        return [
+          200,
+          {
+            code: 200,
+            success: true,
+            message: '平台识别成功',
+            data: result
+          }
+        ]
+      } catch (error) {
+        return [
+          500,
+          {
+            code: 500,
+            success: false,
+            message: '平台识别失败',
+            error: error instanceof Error ? error.message : '未知错误'
+          }
+        ]
+      }
     })
 
     // 更多模拟API可以根据需要添加

@@ -33,6 +33,11 @@ export interface PromotionTask {
   isSecondAudit?: boolean             // 是否二次审核
   createdAt: string                   // 创建时间
   updatedAt: string                   // 更新时间
+
+  // 新增字段（可选，保持兼容性）
+  submissionSource?: 'agent' | 'admin'  // 提交来源
+  autoDetectedPlatform?: PromotionPlatform  // 自动识别的平台
+  manualPlatformOverride?: boolean      // 是否手动覆盖平台选择
 }
 
 // 审核操作请求
@@ -134,4 +139,89 @@ export const getPlatformDisplay = (platform: PromotionPlatform) => {
 export const getContentTypeDisplay = (contentType: PromotionContentType) => {
   const option = CONTENT_TYPES.find(opt => opt.value === contentType)
   return option ? option.label : contentType
+}
+
+// ==================== 代理任务提交相关类型定义 ====================
+
+// 任务提交请求接口
+export interface TaskSubmissionRequest {
+  platform: PromotionPlatform          // 推广平台
+  contentType: PromotionContentType    // 内容类型
+  contentUrl: string                   // 推广内容链接
+  contentDescription: string           // 内容描述
+  autoDetectedPlatform?: PromotionPlatform  // 自动识别的平台
+}
+
+// 代理任务筛选参数
+export interface AgentTaskFilterParams {
+  keyword?: string                     // 关键词搜索
+  status?: PromotionStatus | 'all'    // 状态筛选
+  platform?: PromotionPlatform | 'all' // 平台筛选
+  contentType?: PromotionContentType | 'all' // 内容类型筛选
+  dateRange?: {                       // 时间范围
+    startDate: string
+    endDate: string
+  }
+  page?: number                       // 页码
+  pageSize?: number                   // 页面大小
+}
+
+// 代理任务统计数据
+export interface AgentTaskStats {
+  totalSubmitted: number              // 总提交数
+  pendingAudit: number               // 待审核数
+  approved: number                   // 已通过数
+  rejected: number                   // 已拒绝数
+  totalReward: number                // 总奖励金额
+  thisMonthSubmitted: number         // 本月提交数
+  thisMonthApproved: number          // 本月通过数
+}
+
+// 平台识别规则接口
+export interface PlatformRecognitionRule {
+  platform: PromotionPlatform
+  patterns: RegExp[]
+  displayName: string
+  icon: string
+}
+
+// 平台URL识别规则配置
+export const PLATFORM_RECOGNITION_RULES: PlatformRecognitionRule[] = [
+  {
+    platform: 'douyin',
+    patterns: [
+      /douyin\.com/i,
+      /dy\.com/i,
+      /iesdouyin\.com/i
+    ],
+    displayName: '抖音',
+    icon: 'douyin-icon'
+  },
+  {
+    platform: 'kuaishou',
+    patterns: [
+      /kuaishou\.com/i,
+      /ks\.com/i,
+      /kwai\.com/i
+    ],
+    displayName: '快手',
+    icon: 'kuaishou-icon'
+  },
+  {
+    platform: 'xiaohongshu',
+    patterns: [
+      /xiaohongshu\.com/i,
+      /xhs\.com/i,
+      /redbook\.com/i
+    ],
+    displayName: '小红书',
+    icon: 'xiaohongshu-icon'
+  }
+]
+
+// URL识别结果接口
+export interface URLRecognitionResult {
+  platform: PromotionPlatform | null
+  confidence: number
+  suggestions: PromotionPlatform[]
 }

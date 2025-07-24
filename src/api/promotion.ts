@@ -5,7 +5,11 @@ import type {
   AuditHistory,
   AuditStats,
   AuditFilterParams,
-  BatchAuditRequest
+  BatchAuditRequest,
+  TaskSubmissionRequest,
+  AgentTaskFilterParams,
+  AgentTaskStats,
+  URLRecognitionResult
 } from '@/types/promotion'
 import type { PaginatedResponse } from '@/types/api'
 
@@ -155,6 +159,67 @@ export const promotionAuditApi = {
       return response
     } catch (error) {
       console.error('[推广审核API] 检查审核权限失败:', error)
+      throw error
+    }
+  },
+
+  // ==================== 代理任务提交相关API ====================
+
+  /**
+   * 代理提交推广任务
+   * @param request - 任务提交请求数据
+   */
+  submitTask: async (request: TaskSubmissionRequest): Promise<PromotionTask> => {
+    try {
+      const response = await http.post<PromotionTask>('/promotion/task/submit', request)
+      console.log('[推广任务API] 提交任务成功:', response.id)
+      return response
+    } catch (error) {
+      console.error('[推广任务API] 提交任务失败:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 获取代理的任务列表
+   * @param params - 筛选和分页参数
+   */
+  getAgentTaskList: async (params: AgentTaskFilterParams): Promise<PaginatedResponse<PromotionTask>> => {
+    try {
+      const response = await http.get<PaginatedResponse<PromotionTask>>('/promotion/task/agent-list', { params })
+      console.log('[推广任务API] 获取代理任务列表成功:', response.list.length, '条')
+      return response
+    } catch (error) {
+      console.error('[推广任务API] 获取代理任务列表失败:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 获取代理任务统计
+   */
+  getAgentTaskStats: async (): Promise<AgentTaskStats> => {
+    try {
+      const response = await http.get<AgentTaskStats>('/promotion/task/agent-stats')
+      console.log('[推广任务API] 获取代理统计成功:', response)
+      return response
+    } catch (error) {
+      console.error('[推广任务API] 获取代理统计失败:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 识别URL对应的平台
+   * @param url - 要识别的URL
+   */
+  recognizePlatform: async (url: string): Promise<URLRecognitionResult> => {
+    try {
+      const response = await http.post<URLRecognitionResult>('/promotion/task/recognize-platform', { url })
+      console.log('[推广任务API] 平台识别成功:', response.platform)
+      return response
+    } catch (error) {
+      console.error('[推广任务API] 平台识别失败:', error)
       throw error
     }
   }
@@ -343,4 +408,21 @@ export const checkAuditOperationPermission = (
   }
 
   return permissions[operation]?.includes(userRole) || false
+}
+
+/**
+ * 统一的推广任务API导出
+ * 包含审核相关和代理任务相关的所有API方法
+ */
+export const promotionTaskApi = {
+  // 继承所有审核相关API
+  ...promotionAuditApi,
+
+  // 为了保持向后兼容，也可以通过别名访问代理任务API
+  agent: {
+    submitTask: promotionAuditApi.submitTask,
+    getTaskList: promotionAuditApi.getAgentTaskList,
+    getStats: promotionAuditApi.getAgentTaskStats,
+    recognizePlatform: promotionAuditApi.recognizePlatform
+  }
 }

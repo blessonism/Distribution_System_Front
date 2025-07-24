@@ -7,10 +7,14 @@ import type {
   AuditFilterParams,
   PromotionStatus,
   PromotionPlatform,
-  PromotionContentType
+  PromotionContentType,
+  TaskSubmissionRequest,
+  AgentTaskFilterParams,
+  AgentTaskStats,
+  URLRecognitionResult
 } from '@/types/promotion'
 import type { PaginatedResponse } from '@/types/api'
-import { promotionAuditApi, handlePromotionAuditError } from '@/api/promotion'
+import { promotionTaskApi, handlePromotionAuditError } from '@/api/promotion'
 import { PermissionCheck } from '@/utils/permissionControl'
 import { useUserStore } from '@/store/user'
 
@@ -79,6 +83,46 @@ interface PromotionState {
     canViewStats: boolean
     dataScope: any
   }
+
+  // ==================== 代理任务相关状态 ====================
+
+  // 代理任务列表
+  agentTaskList: PromotionTask[]
+  agentTaskLoading: boolean
+  agentTaskError: string | null
+
+  // 代理任务筛选条件
+  agentTaskFilters: AgentTaskFilterParams
+
+  // 代理任务分页信息
+  agentTaskPagination: {
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+  }
+
+  // 代理任务统计数据
+  agentTaskStats: AgentTaskStats | null
+  agentStatsLoading: boolean
+
+  // 任务提交相关状态
+  submissionForm: TaskSubmissionRequest
+  submissionLoading: boolean
+  submissionError: string | null
+
+  // URL识别相关状态
+  urlRecognition: {
+    recognizing: boolean
+    result: URLRecognitionResult | null
+  }
+
+  // 代理任务UI状态
+  agentUI: {
+    taskDetailSidebarOpen: boolean
+    sidebarTaskId: string | null
+    submissionFormOpen: boolean
+  }
 }
 
 export const usePromotionStore = defineStore('promotion', {
@@ -138,6 +182,51 @@ export const usePromotionStore = defineStore('promotion', {
       canBatchAudit: false,
       canViewStats: false,
       dataScope: null
+    },
+
+    // ==================== 代理任务相关初始状态 ====================
+
+    agentTaskList: [],
+    agentTaskLoading: false,
+    agentTaskError: null,
+
+    agentTaskFilters: {
+      keyword: '',
+      status: 'all',
+      platform: 'all',
+      contentType: 'all',
+      page: 1,
+      pageSize: 20
+    },
+
+    agentTaskPagination: {
+      page: 1,
+      pageSize: 20,
+      total: 0,
+      totalPages: 0
+    },
+
+    agentTaskStats: null,
+    agentStatsLoading: false,
+
+    submissionForm: {
+      platform: 'douyin',
+      contentType: 'video',
+      contentUrl: '',
+      contentDescription: ''
+    },
+    submissionLoading: false,
+    submissionError: null,
+
+    urlRecognition: {
+      recognizing: false,
+      result: null
+    },
+
+    agentUI: {
+      taskDetailSidebarOpen: false,
+      sidebarTaskId: null,
+      submissionFormOpen: false
     }
   }),
 
@@ -225,6 +314,101 @@ export const usePromotionStore = defineStore('promotion', {
       })
       
       return stats
+    },
+
+    // ==================== 代理任务相关计算属性 ====================
+
+    // 根据筛选条件过滤代理任务
+    filteredAgentTasks: (state) => {
+      let tasks = state.agentTaskList
+
+      if (state.agentTaskFilters.status !== 'all') {
+        tasks = tasks.filter(task => task.status === state.agentTaskFilters.status)
+      }
+
+      if (state.agentTaskFilters.platform !== 'all') {
+        tasks = tasks.filter(task => task.platform === state.agentTaskFilters.platform)
+      }
+
+      if (state.agentTaskFilters.contentType !== 'all') {
+        tasks = tasks.filter(task => task.contentType === state.agentTaskFilters.contentType)
+      }
+
+      if (state.agentTaskFilters.keyword) {
+        const keyword = state.agentTaskFilters.keyword.toLowerCase()
+        tasks = tasks.filter(task =>
+          task.contentDescription?.toLowerCase().includes(keyword) ||
+          task.contentUrl.toLowerCase().includes(keyword)
+        )
+      }
+
+      return tasks
+    },
+
+    // 代理任务统计计算
+    agentTaskStatsComputed: (state) => {
+      const tasks = state.agentTaskList
+      const pending = tasks.filter(task => task.status === 'PENDING').length
+      const approved = tasks.filter(task => task.status === 'APPROVED').length
+      const rejected = tasks.filter(task => task.status === 'REJECTED').length
+      const totalReward = tasks
+        .filter(task => task.status === 'APPROVED' && task.rewardAmount)
+        .reduce((sum, task) => sum + (task.rewardAmount || 0), 0)
+
+      return {
+        totalSubmitted: tasks.length,
+        pendingAudit: pending,
+        approved,
+        rejected,
+        totalReward,
+        approvalRate: tasks.length > 0 ? Math.round((approved / tasks.length) * 100) : 0
+      }
+    },
+
+    // 代理任务按平台分组统计
+    agentPlatformStats: (state) => {
+      const stats: Record<PromotionPlatform, number> = {
+        douyin: 0,
+        kuaishou: 0,
+        xiaohongshu: 0
+      }
+
+      state.agentTaskList.forEach(task => {
+        stats[task.platform]++
+      })
+
+      return stats
+    },
+
+    // 代理任务按状态分组统计
+    agentStatusStats: (state) => {
+      const stats: Record<PromotionStatus, number> = {
+        PENDING_MACHINE_AUDIT: 0,
+        PENDING_MANUAL_AUDIT: 0,
+        APPROVED: 0,
+        REJECTED: 0
+      }
+
+      state.agentTaskList.forEach(task => {
+        stats[task.status]++
+      })
+
+      return stats
+    },
+
+    // 是否有代理任务数据
+    hasAgentTasks: (state) => state.agentTaskList.length > 0,
+
+    // 当前选中的代理任务详情
+    currentAgentTask: (state) => {
+      if (!state.agentUI.sidebarTaskId) return null
+      return state.agentTaskList.find(task => task.id === state.agentUI.sidebarTaskId) || null
+    },
+
+    // 提交表单是否有效
+    isSubmissionFormValid: (state) => {
+      const form = state.submissionForm
+      return !!(form.platform && form.contentType && form.contentUrl && form.contentDescription)
     }
   },
 
@@ -261,7 +445,7 @@ export const usePromotionStore = defineStore('promotion', {
           this.filters = { ...this.filters, ...params }
         }
         
-        const response = await promotionAuditApi.getAuditList(this.filters)
+        const response = await promotionTaskApi.getAuditList(this.filters)
         
         this.auditList = response.list
         this.pagination = {
@@ -352,7 +536,7 @@ export const usePromotionStore = defineStore('promotion', {
       this.taskDetailLoading = true
       
       try {
-        const task = await promotionAuditApi.getTaskDetail(taskId)
+        const task = await promotionTaskApi.getTaskDetail(taskId)
         this.currentTask = task
         
         // 同时更新列表中的对应任务
@@ -381,7 +565,7 @@ export const usePromotionStore = defineStore('promotion', {
       this.operations.auditing[taskId] = true
       
       try {
-        const updatedTask = await promotionAuditApi.auditTask(request)
+        const updatedTask = await promotionTaskApi.auditTask(request)
         
         // 更新当前任务详情
         if (this.currentTask?.id === taskId) {
@@ -425,7 +609,7 @@ export const usePromotionStore = defineStore('promotion', {
       this.historyLoading[taskId] = true
       
       try {
-        const history = await promotionAuditApi.getAuditHistory(taskId)
+        const history = await promotionTaskApi.getAuditHistory(taskId)
         this.auditHistory[taskId] = history
         
         console.log('[推广审核Store] 加载审核历史成功:', taskId, history.length, '条记录')
@@ -447,7 +631,7 @@ export const usePromotionStore = defineStore('promotion', {
       this.statsLoading = true
       
       try {
-        const stats = await promotionAuditApi.getAuditStats(dateRange)
+        const stats = await promotionTaskApi.getAuditStats(dateRange)
         this.auditStats = stats
         
         console.log('[推广审核Store] 加载统计数据成功:', stats)
@@ -467,7 +651,7 @@ export const usePromotionStore = defineStore('promotion', {
      */
     async loadMyStats() {
       try {
-        const stats = await promotionAuditApi.getMyAuditStats()
+        const stats = await promotionTaskApi.getMyAuditStats()
         this.myStats = stats
         
         console.log('[推广审核Store] 加载个人统计成功:', stats)
@@ -512,7 +696,7 @@ export const usePromotionStore = defineStore('promotion', {
           includeSummary: exportOptions?.includeSummary || false
         }
         
-        const result = await promotionAuditApi.exportAuditData(exportParams)
+        const result = await promotionTaskApi.exportAuditData(exportParams)
         
         // 如果返回的是blob，直接下载
         if (result instanceof Blob) {
@@ -658,6 +842,251 @@ export const usePromotionStore = defineStore('promotion', {
         sidebarTaskId: null
       }
       this.resetFilters()
+    },
+
+    // ==================== 代理任务相关操作 ====================
+
+    /**
+     * 提交推广任务
+     */
+    async submitTask(request: TaskSubmissionRequest) {
+      this.submissionLoading = true
+      this.submissionError = null
+
+      try {
+        const newTask = await promotionTaskApi.submitTask(request)
+
+        // 将新任务添加到列表开头
+        this.agentTaskList.unshift(newTask)
+
+        // 更新分页信息
+        this.agentTaskPagination.total += 1
+
+        // 重置提交表单
+        this.submissionForm = {
+          platform: 'douyin',
+          contentType: 'video',
+          contentUrl: '',
+          contentDescription: ''
+        }
+
+        // 清除URL识别结果
+        this.urlRecognition.result = null
+
+        console.log('[推广任务Store] 提交任务成功:', newTask.id)
+        return newTask
+
+      } catch (error: any) {
+        const errorMessage = handlePromotionAuditError(error)
+        this.submissionError = errorMessage
+        console.error('[推广任务Store] 提交任务失败:', error)
+        throw new Error(errorMessage)
+      } finally {
+        this.submissionLoading = false
+      }
+    },
+
+    /**
+     * 加载代理任务列表
+     */
+    async loadAgentTaskList(params?: Partial<AgentTaskFilterParams>) {
+      this.agentTaskLoading = true
+      this.agentTaskError = null
+
+      try {
+        // 更新筛选条件
+        if (params) {
+          this.agentTaskFilters = { ...this.agentTaskFilters, ...params }
+        }
+
+        const response = await promotionTaskApi.getAgentTaskList(this.agentTaskFilters)
+
+        this.agentTaskList = response.list
+        this.agentTaskPagination = {
+          page: response.page,
+          pageSize: response.pageSize,
+          total: response.total,
+          totalPages: Math.ceil(response.total / response.pageSize)
+        }
+
+        console.log('[推广任务Store] 加载代理任务列表成功:', response.list.length, '条')
+
+      } catch (error: any) {
+        const errorMessage = handlePromotionAuditError(error)
+        this.agentTaskError = errorMessage
+        console.error('[推广任务Store] 加载代理任务列表失败:', error)
+        throw new Error(errorMessage)
+      } finally {
+        this.agentTaskLoading = false
+      }
+    },
+
+    /**
+     * 刷新代理任务列表
+     */
+    async refreshAgentTaskList() {
+      return this.loadAgentTaskList()
+    },
+
+    /**
+     * 更新代理任务筛选条件
+     */
+    updateAgentTaskFilters(newFilters: Partial<AgentTaskFilterParams>) {
+      this.agentTaskFilters = { ...this.agentTaskFilters, ...newFilters }
+
+      // 如果是筛选条件变化，重置到第一页
+      if (newFilters.keyword !== undefined ||
+          newFilters.status !== undefined ||
+          newFilters.platform !== undefined ||
+          newFilters.contentType !== undefined) {
+        this.agentTaskFilters.page = 1
+      }
+
+      // 自动加载新数据
+      return this.loadAgentTaskList()
+    },
+
+    /**
+     * 重置代理任务筛选条件
+     */
+    resetAgentTaskFilters() {
+      this.agentTaskFilters = {
+        keyword: '',
+        status: 'all',
+        platform: 'all',
+        contentType: 'all',
+        page: 1,
+        pageSize: 20
+      }
+      return this.loadAgentTaskList()
+    },
+
+    /**
+     * 代理任务分页操作
+     */
+    async changeAgentTaskPage(page: number) {
+      this.agentTaskFilters.page = page
+      return this.loadAgentTaskList()
+    },
+
+    /**
+     * 改变代理任务页面大小
+     */
+    async changeAgentTaskPageSize(pageSize: number) {
+      this.agentTaskFilters.pageSize = pageSize
+      this.agentTaskFilters.page = 1 // 重置到第一页
+      return this.loadAgentTaskList()
+    },
+
+    /**
+     * 加载代理任务统计
+     */
+    async loadAgentTaskStats() {
+      this.agentStatsLoading = true
+
+      try {
+        const stats = await promotionTaskApi.getAgentTaskStats()
+        this.agentTaskStats = stats
+
+        console.log('[推广任务Store] 加载代理统计成功:', stats)
+        return stats
+
+      } catch (error: any) {
+        const errorMessage = handlePromotionAuditError(error)
+        console.error('[推广任务Store] 加载代理统计失败:', error)
+        throw new Error(errorMessage)
+      } finally {
+        this.agentStatsLoading = false
+      }
+    },
+
+    /**
+     * URL平台识别
+     */
+    async recognizePlatform(url: string) {
+      this.urlRecognition.recognizing = true
+
+      try {
+        const result = await promotionTaskApi.recognizePlatform(url)
+        this.urlRecognition.result = result
+
+        // 如果识别成功，自动更新提交表单的平台
+        if (result.platform) {
+          this.submissionForm.platform = result.platform
+        }
+
+        console.log('[推广任务Store] 平台识别成功:', result.platform)
+        return result
+
+      } catch (error: any) {
+        const errorMessage = handlePromotionAuditError(error)
+        console.error('[推广任务Store] 平台识别失败:', error)
+        throw new Error(errorMessage)
+      } finally {
+        this.urlRecognition.recognizing = false
+      }
+    },
+
+    /**
+     * 更新提交表单
+     */
+    updateSubmissionForm(updates: Partial<TaskSubmissionRequest>) {
+      this.submissionForm = { ...this.submissionForm, ...updates }
+      this.submissionError = null
+    },
+
+    /**
+     * 重置提交表单
+     */
+    resetSubmissionForm() {
+      this.submissionForm = {
+        platform: 'douyin',
+        contentType: 'video',
+        contentUrl: '',
+        contentDescription: ''
+      }
+      this.submissionError = null
+      this.urlRecognition.result = null
+    },
+
+    /**
+     * 代理任务UI状态管理
+     */
+    openAgentTaskDetailSidebar(taskId: string) {
+      this.agentUI.taskDetailSidebarOpen = true
+      this.agentUI.sidebarTaskId = taskId
+    },
+
+    closeAgentTaskDetailSidebar() {
+      this.agentUI.taskDetailSidebarOpen = false
+      this.agentUI.sidebarTaskId = null
+    },
+
+    openSubmissionForm() {
+      this.agentUI.submissionFormOpen = true
+    },
+
+    closeSubmissionForm() {
+      this.agentUI.submissionFormOpen = false
+      this.resetSubmissionForm()
+    },
+
+    /**
+     * 重置代理任务相关状态
+     */
+    resetAgentTaskState() {
+      this.agentTaskList = []
+      this.agentTaskLoading = false
+      this.agentTaskError = null
+      this.agentTaskStats = null
+      this.agentStatsLoading = false
+      this.resetSubmissionForm()
+      this.agentUI = {
+        taskDetailSidebarOpen: false,
+        sidebarTaskId: null,
+        submissionFormOpen: false
+      }
+      this.resetAgentTaskFilters()
     }
   }
 })

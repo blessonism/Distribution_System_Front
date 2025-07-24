@@ -295,15 +295,16 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     path: '/promotion',
     name: 'Promotion',
     component: () => import('@/layouts/MainLayout.vue'),
-    redirect: '/promotion/audit',
+    redirect: '/promotion/audit', // 默认重定向到审核页面
     meta: {
       title: '推广管理',
       icon: 'megaphone',
-      roles: ['super_admin', 'director', 'leader'],
+      roles: ['super_admin', 'director', 'leader', 'agent'],
       requiresAuth: true,
       group: 'business'
     },
     children: [
+      // 管理员路由
       {
         path: '/promotion/audit',
         name: 'PromotionAudit',
@@ -312,8 +313,64 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
           title: '推广审核',
           roles: ['super_admin', 'director', 'leader'],
           requiresAuth: true,
+          breadcrumb: [
+            { title: '推广管理', parent: '/promotion' },
+            { title: '推广审核' }
+          ]
         },
       },
+
+      // 任务提交路由（代理和管理员都可访问）
+      {
+        path: '/promotion/submit',
+        name: 'PromotionTaskSubmit',
+        component: () => import('@/views/promotion/TaskSubmit.vue'),
+        meta: {
+          title: '提交任务',
+          roles: ['super_admin', 'director', 'leader', 'agent'],
+          requiresAuth: true,
+          keepAlive: false, // 不缓存，确保每次都是新的表单
+          breadcrumb: [
+            { title: '推广管理', parent: '/promotion' },
+            { title: '提交任务' }
+          ]
+        },
+      },
+      {
+        path: '/promotion/my-tasks',
+        name: 'PromotionMyTasks',
+        component: () => import('@/views/promotion/TaskList.vue'),
+        meta: {
+          title: '我的任务',
+          roles: ['super_admin', 'director', 'leader', 'agent'],
+          requiresAuth: true,
+          keepAlive: true, // 缓存列表页面，保持筛选状态
+          saveScrollPosition: true, // 保存滚动位置
+          breadcrumb: [
+            { title: '推广管理', parent: '/promotion' },
+            { title: '我的任务' }
+          ]
+        },
+      },
+
+      // 通用路由（所有角色都可访问）
+      {
+        path: '/promotion/task/:id',
+        name: 'PromotionTaskDetail',
+        component: () => import('@/views/promotion/TaskDetail.vue'),
+        meta: {
+          title: '任务详情',
+          roles: ['super_admin', 'director', 'leader', 'agent'],
+          requiresAuth: true,
+          hidden: true, // 不在菜单中显示
+          breadcrumb: [
+            { title: '推广管理', parent: '/promotion' },
+            { title: '任务详情' }
+          ]
+        },
+      },
+
+
     ],
   },
   {
@@ -365,19 +422,29 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
 
 // 根据角色过滤路由
 export function filterRoutesByRole(
-  routes: AppRouteRecordRaw[], 
+  routes: AppRouteRecordRaw[],
   userRoles: string[]
 ): AppRouteRecordRaw[] {
   return routes.filter(route => {
+    // 如果路由没有角色限制，允许访问
     if (!route.meta?.roles) return true
+    // 检查用户角色是否匹配路由要求的角色
     return route.meta.roles.some(role => userRoles.includes(role))
   }).map(route => {
     if (route.children) {
+      // 递归过滤子路由
+      const filteredChildren = filterRoutesByRole(route.children, userRoles)
       return {
         ...route,
-        children: filterRoutesByRole(route.children, userRoles),
+        children: filteredChildren,
       }
     }
     return route
+  }).filter(route => {
+    // 如果父路由有子路由，确保至少有一个子路由可访问
+    if (route.children && route.children.length === 0) {
+      return false
+    }
+    return true
   })
 }

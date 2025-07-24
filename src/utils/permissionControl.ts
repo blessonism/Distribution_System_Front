@@ -100,7 +100,13 @@ export const OPERATION_PERMISSIONS: Record<string, UserRole[]> = {
   'export_promotion_audit_data': ['super_admin', 'director'],
   'batch_audit_promotion': ['super_admin', 'director'], // V2功能
   'modify_audit_result': ['super_admin'], // 修改审核结果
-  'view_all_auditor_data': ['super_admin'] // 查看所有审核员数据
+  'view_all_auditor_data': ['super_admin'], // 查看所有审核员数据
+
+  // 代理任务提交权限
+  'submit_promotion_task': ['agent', 'super_admin'], // 代理提交任务权限
+  'view_own_promotion_tasks': ['agent', 'super_admin'], // 查看自己的任务权限
+  'view_own_task_stats': ['agent', 'super_admin'], // 查看自己的任务统计权限
+  'test_agent_submission': ['super_admin'] // 管理员测试代理功能权限
 }
 
 /**
