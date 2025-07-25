@@ -382,7 +382,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { PlusIcon, RefreshCwIcon, ExternalLinkIcon, FilterIcon, ChevronDownIcon } from 'lucide-vue-next'
+import { PlusIcon, RefreshCwIcon, FilterIcon, ChevronDownIcon } from 'lucide-vue-next'
 import { toast } from '@/components/ui/toast'
 
 const router = useRouter()
@@ -499,12 +499,40 @@ const tableColumns = computed(() => [
     header: '平台',
     cell: ({ row }: { row: any }) => {
       const task = row.original || row
-      const platformNames = {
-        douyin: '抖音',
-        kuaishou: '快手',
-        xiaohongshu: '小红书'
+      const platformConfig = {
+        douyin: {
+          name: '抖音',
+          class: 'text-xs text-white font-medium px-2 py-1 bg-black rounded'
+        },
+        kuaishou: {
+          name: '快手',
+          class: 'text-xs text-yellow-600 dark:text-yellow-400 font-medium px-2 py-1 bg-yellow-50 dark:bg-yellow-900/20 rounded'
+        },
+        xiaohongshu: {
+          name: '小红书',
+          class: 'text-xs text-pink-600 dark:text-pink-400 font-medium px-2 py-1 bg-pink-50 dark:bg-pink-900/20 rounded'
+        }
       }
-      return platformNames[task.platform] || task.platform
+
+      const config = platformConfig[task.platform]
+      if (config) {
+        return h('div', {
+          class: 'whitespace-nowrap'
+        }, [
+          h('span', {
+            class: config.class
+          }, config.name)
+        ])
+      } else {
+        // 未知平台使用默认样式
+        return h('div', {
+          class: 'whitespace-nowrap'
+        }, [
+          h('span', {
+            class: 'text-xs text-gray-600 dark:text-gray-400 font-medium px-2 py-1 bg-gray-50 dark:bg-gray-900/20 rounded'
+          }, task.platform)
+        ])
+      }
     }
   },
   {
@@ -516,9 +544,18 @@ const tableColumns = computed(() => [
       const typeNames = {
         video: '视频',
         image: '图片',
-        article: '文章'
+        article: '文章',
+        live_person: '真人出镜',
+        live_stream: '直播',
+        short_video: '短视频',
+        post: '帖子',
+        story: '动态',
+        normal: '普通内容'
       }
-      return typeNames[task.contentType] || task.contentType
+      const typeName = typeNames[task.contentType] || task.contentType
+      return h('div', {
+        class: 'whitespace-nowrap'
+      }, typeName)
     }
   },
   {
@@ -528,7 +565,10 @@ const tableColumns = computed(() => [
     cell: ({ row }: { row: any }) => {
       const task = row.original || row
       const description = task.contentDescription || ''
-      return description.length > 50 ? description.substring(0, 50) + '...' : description
+      return h('div', {
+        class: 'max-w-xs truncate',
+        title: description
+      }, description)
     }
   },
   {
@@ -539,8 +579,8 @@ const tableColumns = computed(() => [
       const task = row.original || row
       const statusConfig = {
         PENDING: { label: '待审核', variant: 'secondary' as const },
-        PENDING_MACHINE_AUDIT: { label: '机器审核中', variant: 'secondary' as const },
-        PENDING_MANUAL_AUDIT: { label: '人工审核中', variant: 'secondary' as const },
+        PENDING_MACHINE_AUDIT: { label: '审核中', variant: 'secondary' as const },
+        PENDING_MANUAL_AUDIT: { label: '审核中', variant: 'secondary' as const },
         APPROVED: { label: '已通过', variant: 'default' as const },
         REJECTED: { label: '已拒绝', variant: 'destructive' as const }
       }
@@ -563,7 +603,23 @@ const tableColumns = computed(() => [
     header: '奖励金额',
     cell: ({ row }: { row: any }) => {
       const task = row.original || row
-      return task.rewardAmount ? `¥${task.rewardAmount}` : '-'
+      const amount = task.rewardAmount ? `¥${task.rewardAmount}` : '-'
+
+      if (task.rewardAmount) {
+        return h('div', {
+          class: 'whitespace-nowrap',
+          title: amount
+        }, [
+          h('span', {
+            class: 'text-xs text-green-600 dark:text-green-400 font-medium px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded'
+          }, amount)
+        ])
+      } else {
+        return h('div', {
+          class: 'whitespace-nowrap text-gray-400',
+          title: amount
+        }, amount)
+      }
     }
   },
   {
@@ -581,20 +637,6 @@ const tableColumns = computed(() => [
           onClick: () => handleViewDetail(task),
           class: 'mr-1'
         }, () => '详情')
-      )
-
-      // 查看原链接按钮
-      actions.push(
-        h(Button, {
-          variant: 'ghost',
-          size: 'sm',
-          onClick: (e: Event) => {
-            e.stopPropagation()
-            window.open(task.contentUrl, '_blank')
-          },
-          title: '查看原链接',
-          class: 'mr-1'
-        }, () => h(ExternalLinkIcon, { class: 'w-4 h-4' }))
       )
 
       // 根据任务状态显示不同操作
@@ -623,15 +665,6 @@ const tableColumns = computed(() => [
             })
           ]))
         )
-      } else if (task.status === 'APPROVED') {
-        // 已通过状态：显示奖励信息
-        if (task.rewardAmount) {
-          actions.push(
-            h('span', {
-              class: 'text-xs text-green-600 dark:text-green-400 font-medium px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded'
-            }, `¥${task.rewardAmount}`)
-          )
-        }
       } else if (task.status === 'REJECTED') {
         // 已拒绝状态：显示拒绝原因按钮
         actions.push(
@@ -1046,5 +1079,46 @@ const handleViewRejectReason = (task: PromotionTask) => {
 <style scoped>
 .task-list-page {
   @apply min-h-screen bg-gray-50 dark:bg-gray-950;
+}
+
+/* 表格优化样式 */
+:deep(.data-table) {
+  @apply overflow-x-auto;
+}
+
+:deep(.data-table table) {
+  @apply min-w-full;
+}
+
+/* 内容描述列样式 */
+:deep(.data-table td:nth-child(4)) {
+  @apply max-w-xs;
+}
+
+/* 平台列样式 */
+:deep(.data-table td:nth-child(2)) {
+  @apply whitespace-nowrap;
+}
+
+/* 状态列样式 */
+:deep(.data-table td:nth-child(5)) {
+  @apply whitespace-nowrap;
+}
+
+/* 奖励金额列样式 */
+:deep(.data-table td:nth-child(7)) {
+  @apply whitespace-nowrap;
+}
+
+/* 操作列样式 */
+:deep(.data-table td:last-child) {
+  @apply whitespace-nowrap;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  :deep(.data-table td:nth-child(4)) {
+    @apply max-w-32;
+  }
 }
 </style>
