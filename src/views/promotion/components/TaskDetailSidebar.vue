@@ -14,6 +14,9 @@
             </p>
           </div>
         </DialogTitle>
+        <DialogDescription>
+          查看推广任务的详细信息、审核历史和操作记录
+        </DialogDescription>
       </DialogHeader>
 
       <!-- 对话框内容区 -->
@@ -128,6 +131,25 @@
                       ¥{{ task.rewardAmount.toFixed(2) }}
                     </span>
                   </div>
+                  
+                  <!-- 二次审核申请按钮 -->
+                  <div v-if="shouldShowSecondAuditButton" class="pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      :disabled="!canApplySecondAudit"
+                      @click="openSecondAuditForm"
+                      class="w-full flex items-center justify-center gap-2"
+                      :class="{ 'opacity-50 cursor-not-allowed': !canApplySecondAudit }"
+                    >
+                      <StarIcon class="w-4 h-4" />
+                      申请二次审核
+                      <Badge variant="secondary" class="ml-1">+¥4</Badge>
+                    </Button>
+                    <p class="text-xs text-muted-foreground mt-1 text-center">
+                      {{ secondAuditButtonHint }}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -216,7 +238,12 @@
             <!-- 审核历史 -->
             <div class="space-y-3">
               <div class="flex items-center justify-between">
-                <Label class="text-sm font-medium">审核历史</Label>
+                <Label class="text-sm font-medium">
+                  审核历史
+                  <span class="text-xs text-muted-foreground ml-1">
+                    ({{ history.length }}条记录)
+                  </span>
+                </Label>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -319,6 +346,9 @@
     <DialogContent class="max-w-4xl">
       <DialogHeader>
         <DialogTitle>内容预览</DialogTitle>
+        <DialogDescription>
+          查看推广内容的预览图片
+        </DialogDescription>
       </DialogHeader>
       <div class="flex justify-center">
         <img
@@ -330,6 +360,15 @@
       </div>
     </DialogContent>
   </Dialog>
+
+  <!-- 二次审核申请表单 -->
+  <SecondAuditRequestForm
+    v-if="task"
+    :task-id="task.id"
+    v-model:open="secondAuditFormOpen"
+    @success="handleSecondAuditSuccess"
+    @cancel="handleSecondAuditCancel"
+  />
 </template>
 
 <script setup lang="ts">
@@ -338,7 +377,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { toast } from '@/components/ui/toast/use-toast'
 import {
   AlertCircle,
@@ -348,8 +387,10 @@ import {
   ExternalLink,
   Expand,
   RotateCcw,
-  FileText
+  FileText,
+  StarIcon
 } from 'lucide-vue-next'
+import SecondAuditRequestForm from '@/components/promotion/SecondAuditRequestForm.vue'
 import type { PromotionTask } from '@/types/promotion'
 import { 
   getStatusDisplay, 
@@ -391,6 +432,9 @@ const { loadHistory, getTaskHistory, isHistoryLoading } = usePromotionAuditHisto
 const imagePreviewOpen = ref(false)
 const previewImageUrl = ref<string | null>(null)
 
+// 二次审核相关状态
+const secondAuditFormOpen = ref(false)
+
 // 历史记录相关
 const history = computed(() => {
   return props.taskId ? getTaskHistory(props.taskId).value : []
@@ -400,13 +444,54 @@ const historyLoading = computed(() => {
   return props.taskId ? isHistoryLoading(props.taskId).value : false
 })
 
+// 判断是否应该显示二次审核按钮
+const shouldShowSecondAuditButton = computed(() => {
+  if (!props.task) return false
+
+  // 只有已通过的任务才显示二次审核按钮
+  if (props.task.status !== 'APPROVED') return false
+
+  // 如果已经有二次审核标识，则不显示按钮
+  if (props.task.isSecondAudit) return false
+
+  return true
+})
+
+// 判断是否可以申请二次审核（按钮是否可点击）
+const canApplySecondAudit = computed(() => {
+  if (!shouldShowSecondAuditButton.value) return false
+
+  // 检查曝光量是否达到300+
+  const viewCount = props.task?.viewCount || 0
+  return viewCount >= 300
+})
+
+// 二次审核按钮提示文字
+const secondAuditButtonHint = computed(() => {
+  if (!props.task) return ''
+
+  const viewCount = props.task.viewCount || 0
+
+  if (viewCount >= 300) {
+    return '曝光量已达到300+，可申请额外4元奖励'
+  } else {
+    return `当前曝光量${viewCount}，需达到300+才能申请二次审核`
+  }
+})
+
 // 监听任务ID变化，加载审核历史
 watch(
   () => props.taskId,
-  (newTaskId) => {
+  async (newTaskId) => {
     if (newTaskId && props.open) {
-      loadHistory(newTaskId)
-      console.log('[TaskDetailSidebar] 加载审核历史:', newTaskId)
+      console.log('[TaskDetailSidebar] 开始加载审核历史:', newTaskId)
+      try {
+        const historyData = await loadHistory(newTaskId)
+        console.log('[TaskDetailSidebar] 审核历史加载完成:', historyData?.length || 0, '条记录')
+        console.log('[TaskDetailSidebar] 历史数据详情:', historyData)
+      } catch (error) {
+        console.error('[TaskDetailSidebar] 审核历史加载失败:', error)
+      }
     }
   },
   { immediate: true }
@@ -415,9 +500,16 @@ watch(
 // 监听侧栏打开状态
 watch(
   () => props.open,
-  (isOpen) => {
+  async (isOpen) => {
+    console.log('[TaskDetailSidebar] 侧栏状态变化:', isOpen, '任务ID:', props.taskId)
     if (isOpen && props.taskId) {
-      loadHistory(props.taskId)
+      console.log('[TaskDetailSidebar] 侧栏打开，加载审核历史:', props.taskId)
+      try {
+        const historyData = await loadHistory(props.taskId)
+        console.log('[TaskDetailSidebar] 侧栏打开时历史加载完成:', historyData?.length || 0, '条记录')
+      } catch (error) {
+        console.error('[TaskDetailSidebar] 侧栏打开时历史加载失败:', error)
+      }
     }
   }
 )
@@ -535,6 +627,39 @@ const getStatusVariant = (status: string) => {
     default:
       return 'secondary'
   }
+}
+
+// 二次审核相关方法
+const openSecondAuditForm = () => {
+  // 检查是否可以申请
+  if (!canApplySecondAudit.value) {
+    toast({
+      title: '无法申请',
+      description: secondAuditButtonHint.value,
+      variant: 'destructive'
+    })
+    return
+  }
+
+  secondAuditFormOpen.value = true
+}
+
+const handleSecondAuditSuccess = (request: any) => {
+  console.log('[TaskDetailSidebar] 二次审核申请成功:', request)
+  toast({
+    title: '申请成功',
+    description: '二次审核申请已提交，我们将在1-2个工作日内完成审核',
+    variant: 'default'
+  })
+
+  // 刷新任务详情
+  if (props.taskId) {
+    emit('refresh', props.taskId)
+  }
+}
+
+const handleSecondAuditCancel = () => {
+  console.log('[TaskDetailSidebar] 二次审核申请已取消')
 }
 </script>
 

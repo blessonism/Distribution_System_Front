@@ -11,7 +11,7 @@ import type {
   PromotionContentType,
   TaskSubmissionRequest 
 } from '@/types/promotion'
-import { toast } from '@/components/ui/toast'
+import { toast } from '@/components/ui/toast/use-toast'
 
 /**
  * 表单验证规则接口

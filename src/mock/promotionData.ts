@@ -10,6 +10,7 @@ import type {
   AgentTaskStats,
   URLRecognitionResult
 } from '@/types/promotion'
+import type { PaginatedResponse } from '@/types/api'
 import dayjs from 'dayjs'
 
 /**
@@ -93,6 +94,30 @@ const mockAuditComments = [
 ]
 
 /**
+ * 生成曝光量数据
+ * 确保有足够的任务达到300+门槛以便测试二次审核功能
+ */
+const generateViewCount = (status: PromotionStatus, index: number): number => {
+  // 只有已通过的任务才有曝光量
+  if (status !== 'APPROVED') {
+    return 0
+  }
+
+  // 确保前30%的已通过任务曝光量达到300+
+  if (index % 10 < 3) {
+    return Math.floor(Math.random() * 5000) + 300 // 300-5300
+  }
+
+  // 其余任务随机曝光量，部分达到门槛
+  if (Math.random() > 0.7) {
+    return Math.floor(Math.random() * 2000) + 300 // 300-2300
+  }
+
+  // 大部分任务曝光量不足300
+  return Math.floor(Math.random() * 299) + 1 // 1-299
+}
+
+/**
  * 生成模拟推广任务数据
  */
 export const generateMockPromotionTasks = (count: number = 100): PromotionTask[] => {
@@ -135,7 +160,7 @@ export const generateMockPromotionTasks = (count: number = 100): PromotionTask[]
         ? mockAuditComments[i % mockAuditComments.length]
         : undefined,
       rewardAmount: status === 'APPROVED' ? (contentType === 'live_person' ? 5 : 1) : undefined,
-      viewCount: Math.floor(Math.random() * 10000) + 100,
+      viewCount: generateViewCount(status, i),
       isSecondAudit: Math.random() > 0.8, // 20% 概率为二次审核
       createdAt: submittedAt,
       updatedAt: auditedAt || submittedAt
@@ -153,8 +178,15 @@ export const generateMockPromotionTasks = (count: number = 100): PromotionTask[]
 export const generateMockAuditHistory = (taskId: string): AuditHistory[] => {
   const history: AuditHistory[] = []
   const task = mockPromotionTasks.find(t => t.id === taskId)
-  
-  if (!task) return history
+
+  console.log('[Mock] 生成审核历史，taskId:', taskId, '找到任务:', !!task)
+
+  if (!task) {
+    console.log('[Mock] 未找到任务，返回空历史')
+    return history
+  }
+
+  console.log('[Mock] 任务状态:', task.status, '审核员:', task.auditorName)
 
   // 生成初始提交记录（系统自动记录）
   history.push({
@@ -172,14 +204,21 @@ export const generateMockAuditHistory = (taskId: string): AuditHistory[] => {
   // 如果任务已审核，生成审核记录
   if (task.status === 'APPROVED' || task.status === 'REJECTED') {
     const action = task.status === 'APPROVED' ? 'approve' : 'reject'
+
+    // 确保有审核员信息，如果没有则使用默认值
+    const auditorId = task.auditorId || mockAuditors[0].id
+    const auditorName = task.auditorName || mockAuditors[0].name
+    const auditComment = task.auditComment || (action === 'approve' ? '审核通过' : '审核不通过')
+    const auditedAt = task.auditedAt || dayjs(task.submittedAt).add(1, 'hour').toISOString()
+
     history.push({
       id: `H${taskId}_002`,
       taskId,
-      auditorId: task.auditorId!,
-      auditorName: task.auditorName!,
+      auditorId,
+      auditorName,
       action,
-      comment: task.auditComment,
-      auditedAt: task.auditedAt!,
+      comment: auditComment,
+      auditedAt,
       previousStatus: 'PENDING_MANUAL_AUDIT',
       newStatus: task.status
     })
@@ -187,6 +226,10 @@ export const generateMockAuditHistory = (taskId: string): AuditHistory[] => {
 
   // 20% 概率生成二次审核记录
   if (task.isSecondAudit && task.status === 'APPROVED') {
+    const secondAuditTime = task.auditedAt
+      ? dayjs(task.auditedAt).add(Math.floor(Math.random() * 7), 'day').toISOString()
+      : dayjs(task.submittedAt).add(2, 'day').toISOString()
+
     history.push({
       id: `H${taskId}_003`,
       taskId,
@@ -194,13 +237,116 @@ export const generateMockAuditHistory = (taskId: string): AuditHistory[] => {
       auditorName: mockAuditors[0].name,
       action: 'approve',
       comment: '二次审核通过，追加奖励',
-      auditedAt: dayjs(task.auditedAt).add(Math.floor(Math.random() * 7), 'day').toISOString(),
+      auditedAt: secondAuditTime,
       previousStatus: 'APPROVED',
       newStatus: 'APPROVED'
     })
   }
 
+  console.log('[Mock] 生成审核历史完成，共', history.length, '条记录')
   return history
+}
+
+/**
+ * 生成模拟代理任务列表数据
+ */
+export const generateMockAgentTaskList = (params: any): PaginatedResponse<PromotionTask> => {
+  console.log('[Mock] 生成代理任务列表，参数:', params)
+
+  // 过滤任务数据（模拟当前用户的任务）
+  let filteredTasks = [...mockPromotionTasks]
+
+  // 根据筛选条件过滤
+  if (params.status && params.status !== 'all') {
+    filteredTasks = filteredTasks.filter(task => task.status === params.status)
+  }
+
+  if (params.platform && params.platform !== 'all') {
+    filteredTasks = filteredTasks.filter(task => task.platform === params.platform)
+  }
+
+  if (params.contentType && params.contentType !== 'all') {
+    filteredTasks = filteredTasks.filter(task => task.contentType === params.contentType)
+  }
+
+  if (params.keyword) {
+    const keyword = params.keyword.toLowerCase()
+    filteredTasks = filteredTasks.filter(task =>
+      task.contentUrl.toLowerCase().includes(keyword) ||
+      task.contentDescription.toLowerCase().includes(keyword) ||
+      task.id.toLowerCase().includes(keyword)
+    )
+  }
+
+  // 分页处理
+  const page = params.page || 1
+  const pageSize = params.pageSize || 20
+  const total = filteredTasks.length
+  const totalPages = Math.ceil(total / pageSize)
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const list = filteredTasks.slice(startIndex, endIndex)
+
+  console.log('[Mock] 代理任务列表生成完成，总数:', total, '当前页:', page, '页面大小:', pageSize, '返回:', list.length, '条')
+
+  return {
+    list,
+    page,
+    pageSize,
+    total,
+    totalPages
+  }
+}
+
+/**
+ * 生成模拟代理任务统计数据
+ */
+export const generateMockAgentTaskStats = (): AgentTaskStats => {
+  console.log('[Mock] 生成代理任务统计')
+
+  // 基于现有任务数据计算统计
+  const tasks = mockPromotionTasks
+
+  const pending = tasks.filter(task => task.status === 'PENDING_MANUAL_AUDIT' || task.status === 'PENDING_MACHINE_AUDIT').length
+  const approved = tasks.filter(task => task.status === 'APPROVED').length
+  const rejected = tasks.filter(task => task.status === 'REJECTED').length
+  const total = tasks.length
+
+  // 计算总奖励
+  const totalReward = tasks
+    .filter(task => task.status === 'APPROVED' && task.rewardAmount)
+    .reduce((sum, task) => sum + (task.rewardAmount || 0), 0)
+
+  // 计算平台分布
+  const platformStats = {
+    douyin: tasks.filter(task => task.platform === 'douyin').length,
+    kuaishou: tasks.filter(task => task.platform === 'kuaishou').length,
+    xiaohongshu: tasks.filter(task => task.platform === 'xiaohongshu').length
+  }
+
+  // 计算内容类型分布
+  const contentTypeStats = {
+    video: tasks.filter(task => task.contentType === 'video').length,
+    live_person: tasks.filter(task => task.contentType === 'live_person').length,
+    live_goods: tasks.filter(task => task.contentType === 'live_goods').length
+  }
+
+  const stats = {
+    total,
+    pending,
+    approved,
+    rejected,
+    totalReward,
+    platformStats,
+    contentTypeStats,
+    // 添加一些额外的统计信息
+    averageReward: approved > 0 ? totalReward / approved : 0,
+    approvalRate: total > 0 ? (approved / total) * 100 : 0,
+    rejectionRate: total > 0 ? (rejected / total) * 100 : 0
+  }
+
+  console.log('[Mock] 代理任务统计生成完成:', stats)
+  return stats
 }
 
 /**

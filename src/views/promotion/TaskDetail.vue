@@ -249,7 +249,7 @@ import type { PromotionTask } from '@/types/promotion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-vue-next'
-import { toast } from '@/components/ui/toast'
+import { toast } from '@/components/ui/toast/use-toast'
 
 const route = useRoute()
 const router = useRouter()

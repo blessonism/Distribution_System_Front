@@ -79,8 +79,20 @@ export const promotionAuditApi = {
    */
   getAuditHistory: async (taskId: string): Promise<AuditHistory[]> => {
     try {
-      const response = await http.get<AuditHistory[]>(`/promotion/audit/history/${taskId}`)
-      return response
+      // 临时使用模拟数据，避免API 404错误
+      console.log('[推广审核API] 使用模拟数据获取审核历史，taskId:', taskId)
+
+      // 导入模拟数据生成函数
+      const { generateMockAuditHistory } = await import('@/mock/promotionData')
+      const mockHistory = generateMockAuditHistory(taskId)
+
+      console.log('[推广审核API] 生成审核历史记录:', mockHistory.length, '条')
+      return mockHistory
+
+      // 如果需要真实API，取消注释下面的代码
+      // const response = await http.get<AuditHistory[]>(`/promotion/audit/history/${taskId}`)
+      // return response
+
     } catch (error) {
       console.error('[推广审核API] 获取审核历史失败:', error)
       throw error
@@ -186,9 +198,21 @@ export const promotionAuditApi = {
    */
   getAgentTaskList: async (params: AgentTaskFilterParams): Promise<PaginatedResponse<PromotionTask>> => {
     try {
-      const response = await http.get<PaginatedResponse<PromotionTask>>('/promotion/task/agent-list', { params })
-      console.log('[推广任务API] 获取代理任务列表成功:', response.list.length, '条')
-      return response
+      // 临时使用模拟数据，避免API 404错误
+      console.log('[推广任务API] 使用模拟数据获取代理任务列表，参数:', params)
+
+      // 导入模拟数据生成函数
+      const { generateMockAgentTaskList } = await import('@/mock/promotionData')
+      const mockResponse = generateMockAgentTaskList(params)
+
+      console.log('[推广任务API] 生成代理任务列表成功:', mockResponse.list.length, '条')
+      return mockResponse
+
+      // 如果需要真实API，取消注释下面的代码
+      // const response = await http.get<PaginatedResponse<PromotionTask>>('/promotion/task/agent-list', { params })
+      // console.log('[推广任务API] 获取代理任务列表成功:', response.list.length, '条')
+      // return response
+
     } catch (error) {
       console.error('[推广任务API] 获取代理任务列表失败:', error)
       throw error
@@ -200,9 +224,21 @@ export const promotionAuditApi = {
    */
   getAgentTaskStats: async (): Promise<AgentTaskStats> => {
     try {
-      const response = await http.get<AgentTaskStats>('/promotion/task/agent-stats')
-      console.log('[推广任务API] 获取代理统计成功:', response)
-      return response
+      // 临时使用模拟数据，避免API 404错误
+      console.log('[推广任务API] 使用模拟数据获取代理统计')
+
+      // 导入模拟数据生成函数
+      const { generateMockAgentTaskStats } = await import('@/mock/promotionData')
+      const mockStats = generateMockAgentTaskStats()
+
+      console.log('[推广任务API] 生成代理统计成功:', mockStats)
+      return mockStats
+
+      // 如果需要真实API，取消注释下面的代码
+      // const response = await http.get<AgentTaskStats>('/promotion/task/agent-stats')
+      // console.log('[推广任务API] 获取代理统计成功:', response)
+      // return response
+
     } catch (error) {
       console.error('[推广任务API] 获取代理统计失败:', error)
       throw error

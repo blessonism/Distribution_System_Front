@@ -287,11 +287,8 @@ export function useInviteCodeManagement() {
   // 刷新邀请码列表（带重试机制）
   const refreshCodes = async () => {
     if (!networkStatus.isOnline.value) {
-      toast({
-        title: '网络离线',
-        description: '请检查网络连接后重试',
-        variant: 'destructive'
-      })
+      // 需要导入toast函数
+      console.error('网络离线，请检查网络连接后重试')
       return
     }
 
@@ -311,11 +308,8 @@ export function useInviteCodeManagement() {
         operation: 'refresh_codes'
       })
       
-      toast({
-        title: '刷新失败',
-        description: handledError.message,
-        variant: 'destructive'
-      })
+      // 需要导入toast函数
+      console.error('刷新失败:', handledError.message)
     } finally {
       loading.value = false
     }

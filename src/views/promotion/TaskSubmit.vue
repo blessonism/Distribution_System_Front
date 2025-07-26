@@ -57,6 +57,14 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- 左侧：表单区域 -->
         <div class="lg:col-span-2">
+          <!-- 提交限制检查 -->
+          <SubmissionLimitGuard
+            ref="submissionGuardRef"
+            :auto-check="true"
+            @limit-updated="handleLimitUpdated"
+            @can-submit-changed="handleCanSubmitChanged"
+          />
+
           <div class="bg-white dark:bg-gray-900 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <!-- 组件加载状态 -->
             <div v-if="!isComponentMounted" class="flex justify-center items-center py-12">
@@ -72,6 +80,7 @@
             <!-- 表单组件 -->
             <TaskSubmitForm
               v-else
+              :can-submit="canSubmitBasedOnLimit"
               @submit-success="handleSubmitSuccess"
               @submit-error="handleSubmitError"
             />
@@ -228,6 +237,7 @@ import { useRouter } from 'vue-router'
 import { usePromotionStore } from '@/store/promotion'
 import { useUserStore } from '@/store/user'
 import TaskSubmitForm from './components/TaskSubmitForm.vue'
+import SubmissionLimitGuard from '@/components/promotion/SubmissionLimitGuard.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { 
@@ -236,7 +246,8 @@ import {
   ChevronDownIcon, 
   CheckCircleIcon 
 } from 'lucide-vue-next'
-import { toast } from '@/components/ui/toast'
+import { toast } from '@/components/ui/toast/use-toast'
+import type { SubmissionLimitCheck } from '@/types/reward'
 
 const router = useRouter()
 const promotionStore = usePromotionStore()
@@ -245,6 +256,11 @@ const userStore = useUserStore()
 // 响应式状态
 const showSuccessDialog = ref(false)
 const submittedTaskId = ref('')
+
+// 提交限制相关状态
+const submissionGuardRef = ref<InstanceType<typeof SubmissionLimitGuard> | null>(null)
+const canSubmitBasedOnLimit = ref(false)
+const currentSubmissionLimit = ref<SubmissionLimitCheck | null>(null)
 
 // 权限检查 - 统一用户状态访问，添加空值检查
 const canSubmitTask = computed(() => {
@@ -337,13 +353,48 @@ onBeforeUnmount(() => {
   }
 })
 
+// 处理提交限制更新
+const handleLimitUpdated = (limitCheck: SubmissionLimitCheck) => {
+  if (!isComponentMounted.value) return
+  
+  try {
+    currentSubmissionLimit.value = limitCheck
+    console.log('[TaskSubmit] 提交限制已更新:', limitCheck)
+  } catch (error) {
+    console.error('[TaskSubmit] 处理限制更新失败:', error)
+  }
+}
+
+// 处理提交能力变更
+const handleCanSubmitChanged = (canSubmit: boolean) => {
+  if (!isComponentMounted.value) return
+  
+  try {
+    canSubmitBasedOnLimit.value = canSubmit
+    console.log('[TaskSubmit] 提交能力已更新:', canSubmit)
+  } catch (error) {
+    console.error('[TaskSubmit] 处理提交能力变更失败:', error)
+  }
+}
+
 // 处理提交成功
-const handleSubmitSuccess = (taskId: string) => {
+const handleSubmitSuccess = async (taskId: string) => {
   if (!isComponentMounted.value) return
 
   try {
     submittedTaskId.value = taskId
     showSuccessDialog.value = true
+
+    // 记录任务提交到限制系统
+    if (submissionGuardRef.value) {
+      try {
+        await submissionGuardRef.value.recordSubmission()
+        console.log('[TaskSubmit] 任务提交已记录到限制系统')
+      } catch (error) {
+        console.error('[TaskSubmit] 记录任务提交失败:', error)
+        // 不影响主流程，只记录错误
+      }
+    }
 
     // 刷新统计数据（如果组件仍然挂载）
     if (isComponentMounted.value) {

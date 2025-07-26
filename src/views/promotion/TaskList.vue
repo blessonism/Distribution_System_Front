@@ -351,6 +351,7 @@
     <TaskDetailSidebar
       v-model:open="showDetailSidebar"
       :task="currentTask"
+      :task-id="currentTask?.id"
       :loading="taskDetailLoading"
       @close="handleCloseSidebar"
     />
@@ -374,7 +375,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { PlusIcon, RefreshCwIcon, FilterIcon, ChevronDownIcon } from 'lucide-vue-next'
-import { toast } from '@/components/ui/toast'
+import { toast } from '@/components/ui/toast/use-toast'
 
 const router = useRouter()
 const promotionStore = usePromotionStore()

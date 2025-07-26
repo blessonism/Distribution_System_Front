@@ -12,6 +12,9 @@ import './mock'
 // 导入权限指令
 import { installPermissionDirectives } from '@/directives/permission'
 
+// 导入诊断工具
+import { diagnosePromotionRoutes, fixPromotionRoutes } from '@/utils/promotionRouteDiagnostics'
+
 const app = createApp(App)
 const pinia = createPinia()
 
@@ -66,6 +69,18 @@ router.beforeEach((to, from, next) => {
 app.use(pinia)
 app.use(router)
 installPermissionDirectives(app)
+
+// 在开发环境下将诊断工具挂载到全局
+if (import.meta.env.DEV) {
+  // 将诊断函数挂载到全局对象，方便在控制台调用
+  ;(window as any).diagnosePromotionRoutes = diagnosePromotionRoutes
+  ;(window as any).fixPromotionRoutes = fixPromotionRoutes
+
+  console.log('🔧 开发模式：推广路由诊断工具已加载')
+  console.log('💡 在控制台输入以下命令进行诊断：')
+  console.log('   diagnosePromotionRoutes() - 诊断推广路由问题')
+  console.log('   fixPromotionRoutes() - 尝试自动修复')
+}
 
 // 挂载应用
 app.mount('#app')

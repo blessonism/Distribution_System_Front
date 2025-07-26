@@ -370,6 +370,23 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         },
       },
 
+      // 奖励结算页面（代理和管理员都可访问）
+      {
+        path: '/promotion/rewards',
+        name: 'PromotionRewards',
+        component: () => import('@/views/promotion/RewardSettlements.vue'),
+        meta: {
+          title: '奖励结算',
+          roles: ['super_admin', 'director', 'leader', 'agent'],
+          requiresAuth: true,
+          keepAlive: true, // 缓存页面，保持筛选状态
+          saveScrollPosition: true, // 保存滚动位置
+          breadcrumb: [
+            { title: '推广管理', parent: '/promotion' },
+            { title: '奖励结算' }
+          ]
+        },
+      },
 
     ],
   },

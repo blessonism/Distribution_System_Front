@@ -30,3 +30,13 @@ coverage
 *.tsbuildinfo
 .vscode
 project-log.md
+
+# Shrimp Task Manager data
+.shrimp/
+
+
+.augment/
+.promptx/
+.vibedev/
+/docs/
+/issues/
