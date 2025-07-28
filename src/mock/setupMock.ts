@@ -19,6 +19,17 @@ import {
   mockGetAgentTaskStats,
   mockRecognizePlatform
 } from './promotionData'
+import {
+  generateMockLeads,
+  generateMockAuditRecords,
+  generateMockDuplicateCheck,
+  generateMockSourceDetection,
+  generateMockReferralCodeValidation,
+  generateMockAuditStatistics,
+  generateMockBatchAuditResult,
+  mockSalespersons,
+  mockSources
+} from './leadData'
 
 interface TrendData {
   labels: string[];
@@ -188,47 +199,8 @@ export function setupMockApi() {
       ]
     })
 
-    // 模拟客资API
-    const leads: Lead[] = []
-    const totalLeads = 73 // 增加数据总量
-    const leadStatus: LeadStatus[] = ['PENDING', 'FOLLOWING', 'CONVERTED', 'INVALID']
-    // 丰富来源渠道
-    const sources = ['搜索引擎', '客户推荐', '广告投放', '社交媒体-小红书', '线下活动', '合作渠道', '官网咨询']
-    // 增加销售人员
-    const salespersons = [
-      { id: 'S001', name: '张三' },
-      { id: 'S002', name: '李四' },
-      { id: 'S003', name: '王五' },
-      { id: 'S004', name: '赵六' },
-      { id: 'S005', name: '孙月' },
-      { id: 'S006', name: '周鹏' },
-      { id: 'S007', name: '吴佳琪' }
-    ]
-    // 预设一批更真实的客户姓名
-    const customerNames = [
-      '王伟', '李娜', '张敏', '刘洋', '陈静', '杨磊', '黄英', '吴刚', '赵丽', '周强',
-      '徐丹', '孙杰', '马琳', '胡斌', '郭婷', '林鹏', '高远', '郑洁', '何峰', '梁爽',
-      '宋妍', '谢超', '唐思', '韩雪', '曹阳', '邓宇', '傅海', '袁媛', '彭涛', '董雷',
-      '范文', '程程', '蒋欣', '丁浩', '沈悦', '曾兰', '萧然', '田甜', '金鑫', '石磊'
-    ]
-
-    // 生成模拟数据
-    for (let i = 1; i <= totalLeads; i++) {
-      const salesperson = salespersons[i % salespersons.length]
-      const customerName = customerNames[i % customerNames.length] + (Math.random() > 0.5 ? '先生' : '女士')
-      
-      leads.push({
-        id: `LID_${String(i).padStart(4, '0')}`,
-        name: customerName,
-        phone: `1${[3, 5, 8][i % 3]}${String(Math.floor(Math.random() * 100000000)).padStart(9, '0')}`,
-        status: leadStatus[i % leadStatus.length],
-        source: sources[i % sources.length],
-        salespersonId: salesperson.id,
-        salespersonName: salesperson.name,
-        // 扩大时间范围到最近90天
-        createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString()
-      })
-    }
+    // 模拟客资API - 使用新的Mock数据生成器
+    const leads: Lead[] = generateMockLeads(100) // 生成100条Mock客资数据
 
     // 模拟获取客资列表
     mock.onGet('/leads/all').reply((config) => {
@@ -319,12 +291,12 @@ export function setupMockApi() {
     // 模拟创建客资
     mock.onPost('/leads/create').reply((config) => {
       const leadData = JSON.parse(config.data)
-      
+
       // 获取销售人员信息
-      const salesperson = salespersons.find(s => s.id === leadData.salespersonId) || salespersons[0]
-      
+      const salesperson = mockSalespersons.find(s => s.id === leadData.salespersonId) || mockSalespersons[0]
+
       // 创建新客资
-      const newLead = {
+      const newLead: Lead = {
         id: `LID_${String(leads.length + 1).padStart(4, '0')}`,
         name: leadData.name,
         phone: leadData.phone,
@@ -332,12 +304,23 @@ export function setupMockApi() {
         source: leadData.source || '搜索引擎',
         salespersonId: salesperson.id,
         salespersonName: salesperson.name,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        auditStatus: 'PENDING_AUDIT', // 新增必需字段
+        wechatId: leadData.wechatId,
+        notes: leadData.notes,
+        sourceDetail: leadData.sourceDetail,
+        referralCode: leadData.referralCode,
+        utmSource: leadData.utmSource,
+        utmMedium: leadData.utmMedium,
+        utmCampaign: leadData.utmCampaign,
+        referrer: leadData.referrer,
+        updatedAt: new Date().toISOString(),
+        version: 1
       }
-      
+
       // 添加到数据列表
       leads.unshift(newLead)
-      
+
       return [
         200,
         {
@@ -352,13 +335,13 @@ export function setupMockApi() {
     mock.onPut(/\/leads\/([^/]+)$/).reply((config) => {
       const leadId = config.url?.match(/\/leads\/([^/]+)$/)?.[1]
       const leadData = JSON.parse(config.data)
-      
+
       if (leadId) {
         const leadIndex = leads.findIndex(lead => lead.id === leadId)
         if (leadIndex !== -1) {
           // 获取销售人员信息
-          const salesperson = salespersons.find(s => s.id === leadData.salespersonId)
-          
+          const salesperson = mockSalespersons.find(s => s.id === leadData.salespersonId)
+
           // 更新客资信息
           leads[leadIndex] = {
             ...leads[leadIndex],
@@ -367,9 +350,13 @@ export function setupMockApi() {
             status: leadData.status || leads[leadIndex].status,
             source: leadData.source || leads[leadIndex].source,
             salespersonId: salesperson?.id || leads[leadIndex].salespersonId,
-            salespersonName: salesperson?.name || leads[leadIndex].salespersonName
+            salespersonName: salesperson?.name || leads[leadIndex].salespersonName,
+            wechatId: leadData.wechatId !== undefined ? leadData.wechatId : leads[leadIndex].wechatId,
+            notes: leadData.notes !== undefined ? leadData.notes : leads[leadIndex].notes,
+            updatedAt: new Date().toISOString(),
+            version: (leads[leadIndex].version || 1) + 1
           }
-          
+
           return [
             200,
             {
@@ -380,7 +367,7 @@ export function setupMockApi() {
           ]
         }
       }
-      
+
       return [
         404,
         {
@@ -1583,9 +1570,346 @@ export function setupMockApi() {
       }
     })
 
+    // ==================== 客资扩展API Mock ====================
+
+    // 获取单个客资详情
+    mock.onGet(/\/leads\/([^/]+)$/).reply((config) => {
+      const leadId = config.url?.match(/\/leads\/([^/]+)$/)?.[1]
+
+      if (leadId) {
+        const lead = leads.find(l => l.id === leadId)
+        if (lead) {
+          return [200, { code: 0, message: '成功', data: lead }]
+        }
+      }
+
+      return [404, { code: 404, message: '客资不存在', data: null }]
+    })
+
+    // 重复性检查API
+    mock.onPost('/leads/check-duplicate').reply((config) => {
+      const { phone, name, wechatId } = JSON.parse(config.data)
+      const result = generateMockDuplicateCheck(phone)
+
+      return [200, { code: 0, message: '检查完成', data: result }]
+    })
+
+    // 来源检测API
+    mock.onPost('/leads/detect-source').reply((config) => {
+      const { referrer, utmParams, userAgent, referralCode } = JSON.parse(config.data)
+      const result = generateMockSourceDetection(utmParams)
+
+      return [200, { code: 0, message: '检测完成', data: result }]
+    })
+
+    // 来源验证API
+    mock.onPost('/leads/validate-source').reply((config) => {
+      const { source, sourceDetail, utmParams } = JSON.parse(config.data)
+
+      const result = {
+        isValid: Math.random() > 0.2, // 80% 概率有效
+        source: source,
+        issues: Math.random() > 0.7 ? ['来源信息不完整'] : [],
+        suggestions: ['建议完善UTM参数'],
+        validatedAt: new Date().toISOString()
+      }
+
+      return [200, { code: 0, message: '验证完成', data: result }]
+    })
+
+    // 推荐码验证API
+    mock.onGet(/\/leads\/validate-referral-code\/(.+)/).reply((config) => {
+      const code = decodeURIComponent(config.url?.split('/').pop() || '')
+      const result = generateMockReferralCodeValidation(code)
+
+      return [200, { code: 0, message: '验证完成', data: result }]
+    })
+
+    // 来源建议API
+    mock.onGet('/leads/source-suggestions').reply((config) => {
+      const { keyword } = config.params || {}
+
+      let suggestions = [...mockSources]
+      if (keyword) {
+        suggestions = suggestions.filter(s => s.toLowerCase().includes(keyword.toLowerCase()))
+      }
+
+      const result = {
+        suggestions: suggestions.slice(0, 10),
+        popular: mockSources.slice(0, 5),
+        recent: mockSources.slice(5, 10)
+      }
+
+      return [200, { code: 0, message: '成功', data: result }]
+    })
+
+    // 客资统计API
+    mock.onGet('/leads/statistics').reply((config) => {
+      const { dateFrom, dateTo, salespersonId, source, auditStatus } = config.params || {}
+
+      // 根据筛选条件过滤数据
+      let filteredLeads = [...leads]
+      if (salespersonId) {
+        filteredLeads = filteredLeads.filter(l => l.salespersonId === salespersonId)
+      }
+      if (source) {
+        filteredLeads = filteredLeads.filter(l => l.source === source)
+      }
+      if (auditStatus) {
+        filteredLeads = filteredLeads.filter(l => l.auditStatus === auditStatus)
+      }
+
+      const result = {
+        totalCount: filteredLeads.length,
+        pendingCount: filteredLeads.filter(l => l.auditStatus === 'PENDING_AUDIT').length,
+        approvedCount: filteredLeads.filter(l => l.auditStatus === 'APPROVED').length,
+        rejectedCount: filteredLeads.filter(l => l.auditStatus === 'REJECTED').length,
+        conversionRate: 0.65 + Math.random() * 0.2, // 65%-85%
+        sourceBreakdown: mockSources.slice(0, 5).map(source => ({
+          source,
+          count: Math.floor(Math.random() * 20) + 5,
+          percentage: Math.random() * 0.3 + 0.1
+        })),
+        auditStatusBreakdown: [
+          { status: 'PENDING_AUDIT', count: 25, percentage: 0.25 },
+          { status: 'APPROVED', count: 60, percentage: 0.60 },
+          { status: 'REJECTED', count: 15, percentage: 0.15 }
+        ],
+        dailyTrend: Array.from({ length: 7 }, (_, i) => ({
+          date: new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          count: Math.floor(Math.random() * 20) + 5,
+          approved: Math.floor(Math.random() * 15) + 3,
+          rejected: Math.floor(Math.random() * 5) + 1
+        }))
+      }
+
+      return [200, { code: 0, message: '成功', data: result }]
+    })
+
+    // ==================== 客资审核API Mock ====================
+
+    // 获取待审核客资列表
+    mock.onGet('/leads/audit/pending').reply((config) => {
+      const { page = 1, pageSize = 10, salespersonId, keyword } = config.params || {}
+
+      let pendingLeads = leads.filter(l => l.auditStatus === 'PENDING_AUDIT')
+
+      // 基于权限过滤（简化处理）
+      if (salespersonId) {
+        pendingLeads = pendingLeads.filter(l => l.salespersonId === salespersonId)
+      }
+
+      // 关键词搜索
+      if (keyword) {
+        pendingLeads = pendingLeads.filter(l =>
+          l.name.includes(keyword) || l.phone.includes(keyword)
+        )
+      }
+
+      // 分页
+      const start = (page - 1) * pageSize
+      const end = start + pageSize
+      const paginatedLeads = pendingLeads.slice(start, end)
+
+      return [200, {
+        code: 0,
+        message: '成功',
+        data: {
+          list: paginatedLeads,
+          total: pendingLeads.length,
+          page: Number(page),
+          pageSize: Number(pageSize)
+        }
+      }]
+    })
+
+    // 获取所有可审核客资列表
+    mock.onGet('/leads/audit/all').reply((config) => {
+      const { page = 1, pageSize = 10, auditStatus, salespersonId } = config.params || {}
+
+      let auditableLeads = [...leads]
+
+      // 审核状态筛选
+      if (auditStatus) {
+        auditableLeads = auditableLeads.filter(l => l.auditStatus === auditStatus)
+      }
+
+      // 基于权限过滤
+      if (salespersonId) {
+        auditableLeads = auditableLeads.filter(l => l.salespersonId === salespersonId)
+      }
+
+      // 分页
+      const start = (page - 1) * pageSize
+      const end = start + pageSize
+      const paginatedLeads = auditableLeads.slice(start, end)
+
+      return [200, {
+        code: 0,
+        message: '成功',
+        data: {
+          list: paginatedLeads,
+          total: auditableLeads.length,
+          page: Number(page),
+          pageSize: Number(pageSize)
+        }
+      }]
+    })
+
+    // 审核单个客资
+    mock.onPut(/\/leads\/([^/]+)\/audit/).reply((config) => {
+      const leadId = config.url?.match(/\/leads\/([^/]+)\/audit/)?.[1]
+      const { decision, context } = JSON.parse(config.data)
+
+      if (leadId) {
+        const leadIndex = leads.findIndex(l => l.id === leadId)
+        if (leadIndex !== -1) {
+          const lead = leads[leadIndex]
+
+          // 更新审核状态
+          lead.auditStatus = decision.action === 'APPROVE' ? 'APPROVED' : 'REJECTED'
+          lead.auditedAt = new Date().toISOString()
+          lead.auditedBy = context?.auditorId || 'MOCK_AUDITOR'
+          lead.auditedByName = '审核员'
+          lead.auditComment = decision.comment
+          lead.rejectReason = decision.rejectReason
+          lead.updatedAt = new Date().toISOString()
+          lead.version = (lead.version || 1) + 1
+
+          return [200, { code: 0, message: '审核成功', data: lead }]
+        }
+      }
+
+      return [404, { code: 404, message: '客资不存在', data: null }]
+    })
+
+    // 批量审核客资
+    mock.onPost('/leads/audit/batch').reply((config) => {
+      const { leadIds, decision } = JSON.parse(config.data)
+      const result = generateMockBatchAuditResult(leadIds)
+
+      // 更新成功的客资状态
+      result.successLeadIds.forEach(leadId => {
+        const leadIndex = leads.findIndex(l => l.id === leadId)
+        if (leadIndex !== -1) {
+          leads[leadIndex].auditStatus = decision.action === 'APPROVE' ? 'APPROVED' : 'REJECTED'
+          leads[leadIndex].auditedAt = new Date().toISOString()
+          leads[leadIndex].auditComment = decision.comment
+        }
+      })
+
+      return [200, { code: 0, message: '批量审核完成', data: result }]
+    })
+
+    // 获取审核记录
+    mock.onGet(/\/leads\/([^/]+)\/audit-records/).reply((config) => {
+      const leadId = config.url?.match(/\/leads\/([^/]+)\/audit-records/)?.[1]
+
+      if (leadId) {
+        const records = generateMockAuditRecords(leadId, 2)
+        return [200, { code: 0, message: '成功', data: records }]
+      }
+
+      return [404, { code: 404, message: '客资不存在', data: null }]
+    })
+
+    // 获取审核记录列表
+    mock.onGet('/leads/audit/records').reply((config) => {
+      const { page = 1, pageSize = 10, leadId, auditorId } = config.params || {}
+
+      // 生成模拟审核记录
+      const allRecords = leads.slice(0, 20).flatMap(lead =>
+        generateMockAuditRecords(lead.id, Math.floor(Math.random() * 3) + 1)
+      )
+
+      let filteredRecords = [...allRecords]
+
+      if (leadId) {
+        filteredRecords = filteredRecords.filter(r => r.leadId === leadId)
+      }
+
+      if (auditorId) {
+        filteredRecords = filteredRecords.filter(r => r.auditorId === auditorId)
+      }
+
+      // 分页
+      const start = (page - 1) * pageSize
+      const end = start + pageSize
+      const paginatedRecords = filteredRecords.slice(start, end)
+
+      return [200, {
+        code: 0,
+        message: '成功',
+        data: {
+          list: paginatedRecords,
+          total: filteredRecords.length,
+          page: Number(page),
+          pageSize: Number(pageSize)
+        }
+      }]
+    })
+
+    // 获取审核统计
+    mock.onGet('/leads/audit/statistics').reply((config) => {
+      const stats = generateMockAuditStatistics()
+      return [200, { code: 0, message: '成功', data: stats }]
+    })
+
+    // 检查审核权限
+    mock.onPost('/leads/audit/check-permission').reply((config) => {
+      const { userId, leadIds } = JSON.parse(config.data)
+
+      const result = {
+        canAudit: true,
+        canBatchAudit: Math.random() > 0.3, // 70% 概率可以批量审核
+        canViewAll: Math.random() > 0.5, // 50% 概率可以查看所有
+        allowedLeadIds: leadIds || leads.slice(0, 10).map(l => l.id),
+        allowedSalesIds: mockSalespersons.map(s => s.id),
+        reason: undefined
+      }
+
+      return [200, { code: 0, message: '权限检查完成', data: result }]
+    })
+
+    // 获取审核范围
+    mock.onGet('/leads/audit/scope').reply((config) => {
+      const { userId, userRole } = config.params || {}
+
+      const result = {
+        canAuditAll: ['super_admin', 'director'].includes(userRole),
+        allowedLeadIds: userRole === 'sales' ? leads.filter(l => l.salespersonId === userId).map(l => l.id) : undefined,
+        allowedSalesIds: userRole === 'leader' ? mockSalespersons.slice(0, 3).map(s => s.id) : undefined,
+        teamIds: userRole === 'leader' ? ['TEAM_001'] : undefined,
+        restrictions: userRole === 'sales' ? ['只能审核自己的客资'] : []
+      }
+
+      return [200, { code: 0, message: '成功', data: result }]
+    })
+
+    // 获取审核工作台
+    mock.onGet(/\/leads\/audit\/workbench\/(.+)/).reply((config) => {
+      const auditorId = config.url?.split('/').pop()
+
+      const result = {
+        pendingCount: Math.floor(Math.random() * 20) + 5,
+        todayAudited: Math.floor(Math.random() * 15) + 3,
+        weeklyAudited: Math.floor(Math.random() * 50) + 20,
+        avgAuditTime: 15 + Math.random() * 20, // 15-35分钟
+        recentAudits: generateMockAuditRecords('RECENT', 5),
+        urgentLeads: leads.filter(l => l.auditStatus === 'PENDING_AUDIT').slice(0, 3),
+        myStatistics: {
+          approvalRate: 0.7 + Math.random() * 0.2, // 70%-90%
+          rejectionRate: 0.1 + Math.random() * 0.2, // 10%-30%
+          totalAudited: Math.floor(Math.random() * 100) + 50
+        }
+      }
+
+      return [200, { code: 0, message: '成功', data: result }]
+    })
+
     // 更多模拟API可以根据需要添加
     console.log('[Mock] axios-mock-adapter设置成功')
   } catch (error) {
     console.error('[Mock] 设置axios-mock-adapter时出错:', error)
   }
-} 
+}

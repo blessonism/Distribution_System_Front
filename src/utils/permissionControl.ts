@@ -78,6 +78,7 @@ export const INVITATION_CODE_LIMITS: Record<UserRole, number> = {
  * 定义每个角色可以执行的操作
  */
 export const OPERATION_PERMISSIONS: Record<string, UserRole[]> = {
+  // 邀请系统权限
   'view_invitation_codes': ['super_admin', 'director', 'leader', 'sales'],
   'view_invitation_history': ['super_admin', 'director', 'leader', 'sales'],
   'view_invitation_stats': ['super_admin', 'director', 'leader', 'sales'],
@@ -86,6 +87,27 @@ export const OPERATION_PERMISSIONS: Record<string, UserRole[]> = {
   'deactivate_invitation_code': ['super_admin', 'director', 'leader', 'sales'],
   'export_invitation_history': ['super_admin', 'director', 'leader'],
   'export_invitation_stats': ['super_admin', 'director', 'leader'],
+
+  // 客资管理权限
+  'view_leads': ['super_admin', 'director', 'leader', 'sales'],
+  'create_lead': ['super_admin', 'director', 'leader', 'sales'],
+  'update_lead': ['super_admin', 'director', 'leader', 'sales'],
+  'delete_lead': ['super_admin', 'director', 'leader'],
+  'assign_lead': ['super_admin', 'director', 'leader'],
+  'export_leads': ['super_admin', 'director', 'leader'],
+  'view_lead_statistics': ['super_admin', 'director', 'leader', 'sales'],
+
+  // 客资审核权限
+  'view_pending_leads': ['super_admin', 'director', 'leader', 'sales'],
+  'audit_lead': ['super_admin', 'director', 'leader', 'sales'],
+  'batch_audit_leads': ['super_admin', 'director', 'leader'],
+  'view_audit_records': ['super_admin', 'director', 'leader', 'sales'],
+  'export_audit_data': ['super_admin', 'director', 'leader'],
+  'revoke_audit': ['super_admin', 'director'],
+  'mark_urgent_lead': ['super_admin', 'director', 'leader'],
+  'view_audit_statistics': ['super_admin', 'director', 'leader'],
+  'view_audit_workbench': ['super_admin', 'director', 'leader', 'sales'],
+  'configure_audit_reminders': ['super_admin', 'director', 'leader'],
   'validate_invitation_code': ['super_admin', 'director', 'leader', 'sales', 'agent'], // 所有人都可以验证
   'use_invitation_code': ['super_admin', 'director', 'leader', 'sales', 'agent'], // 所有人都可以使用
   'view_all_invitations': ['super_admin'], // 只有超级管理员可以查看所有邀请
@@ -115,6 +137,22 @@ export const OPERATION_PERMISSIONS: Record<string, UserRole[]> = {
 export class InvitationPermissionController {
   /**
    * 检查用户是否有执行特定操作的权限
+   * 
+   * @param {UserRole} userRole - 用户角色
+   * @param {string} operation - 要执行的操作名称
+   * @returns {PermissionCheckResult} 权限检查结果
+   * @complexity O(1) - 直接数组查找和条件判断
+   * @flow 获取操作权限 -> 验证角色 -> 返回结果
+   * 
+   * @example
+   * ```typescript
+   * const result = InvitationPermissionController.checkOperationPermission('sales', 'view_leads')
+   * if (result.hasPermission) {
+   *   // 执行操作
+   * } else {
+   *   console.error(result.reason)
+   * }
+   * ```
    */
   static checkOperationPermission(
     userRole: UserRole,
@@ -146,6 +184,21 @@ export class InvitationPermissionController {
   
   /**
    * 检查用户是否可以邀请指定角色
+   * 先验证基本邀请权限，再检查目标角色是否在允许范围内
+   * 
+   * @param {UserRole} userRole - 当前用户角色
+   * @param {UserRole} targetRole - 要邀请的目标角色
+   * @returns {PermissionCheckResult} 邀请权限检查结果
+   * @complexity O(1) - 两次数组查找和权限验证
+   * @flow 检查基本权限 -> 验证目标角色 -> 返回结果
+   * 
+   * @example
+   * ```typescript
+   * const result = InvitationPermissionController.checkInvitationPermission('leader', 'agent')
+   * if (result.hasPermission) {
+   *   // 可以邀请代理
+   * }
+   * ```
    */
   static checkInvitationPermission(
     userRole: UserRole,
@@ -285,7 +338,23 @@ export class InvitationPermissionController {
   
   /**
    * 综合权限检查
-   * 在执行任何邀请相关操作前调用此方法
+   * 在执行任何邀请相关操作前调用此方法，提供一站式权限验证
+   * 
+   * @param {OperationContext} context - 操作上下文，包含用户信息和操作详情
+   * @returns {PermissionCheckResult} 综合权限检查结果
+   * @complexity O(1) - 基于操作类型的条件分支，每个分支都是常数时间
+   * @flow 基本权限检查 -> 特定操作验证 -> 返回最终结果
+   * 
+   * @example
+   * ```typescript
+   * const context: OperationContext = {
+   *   userRole: 'sales',
+   *   userId: 'user123',
+   *   operation: 'generate_invitation_code',
+   *   targetRole: 'agent'
+   * }
+   * const result = InvitationPermissionController.comprehensivePermissionCheck(context)
+   * ```
    */
   static comprehensivePermissionCheck(
     context: OperationContext
@@ -422,7 +491,26 @@ export class InvitationPermissionController {
 
 /**
  * 权限装饰器函数
- * 用于包装需要权限检查的函数
+ * 用于包装需要权限检查的函数，在方法执行前自动进行权限验证
+ * 
+ * @param {string} operation - 需要检查的操作权限
+ * @param {() => OperationContext} getUserContext - 获取用户上下文的函数
+ * @returns {Function} 装饰器函数
+ * @complexity O(1) - 装饰器本身的复杂度，实际复杂度取决于被装饰的方法
+ * @flow 装饰器创建 -> 方法调用拦截 -> 权限检查 -> 原方法执行
+ * 
+ * @example
+ * ```typescript
+ * class InvitationService {
+ *   @requirePermission('generate_invitation_code', () => ({ 
+ *     userRole: getCurrentUserRole(), 
+ *     operation: 'generate_invitation_code' 
+ *   }))
+ *   createInvitationCode() {
+ *     // 方法实现
+ *   }
+ * }
+ * ```
  */
 export function requirePermission(
   operation: string,
@@ -566,6 +654,235 @@ export const PermissionCheck = {
           allowedAgentIds: [],
           allowedSalesIds: []
         }
+    }
+  },
+
+  /**
+   * 获取客资审核数据范围权限
+   */
+  getLeadAuditDataScope: (userRole: UserRole, userId: string): LeadAuditDataScope => {
+    switch (userRole) {
+      case 'super_admin':
+        return {
+          canViewAll: true,
+          canAuditAll: true,
+          canBatchAudit: true,
+          canRevoke: true,
+          canExport: true
+        }
+      case 'director':
+        return {
+          canViewAll: true,
+          canAuditAll: true,
+          canBatchAudit: true,
+          canRevoke: true,
+          canExport: true
+        }
+      case 'leader':
+        return {
+          canViewAll: false,
+          canAuditAll: false,
+          canBatchAudit: true,
+          canRevoke: false,
+          canExport: true,
+          // 销售组长只能审核其团队范围内的客资
+          allowedSalesIds: [], // 从API获取团队成员ID
+          teamIds: [] // 从API获取团队ID
+        }
+      case 'sales':
+        return {
+          canViewAll: false,
+          canAuditAll: false,
+          canBatchAudit: false,
+          canRevoke: false,
+          canExport: false,
+          // 销售人员只能审核自己的客资
+          allowedSalesIds: [userId],
+          restrictions: ['只能审核自己提交的客资']
+        }
+      default:
+        return {
+          canViewAll: false,
+          canAuditAll: false,
+          canBatchAudit: false,
+          canRevoke: false,
+          canExport: false,
+          allowedSalesIds: [],
+          restrictions: ['无审核权限']
+        }
+    }
+  }
+}
+
+/**
+ * 客资审核数据范围权限接口
+ */
+export interface LeadAuditDataScope {
+  canViewAll: boolean           // 是否可以查看所有客资
+  canAuditAll?: boolean         // 是否可以审核所有客资
+  canBatchAudit?: boolean       // 是否可以批量审核
+  canRevoke?: boolean           // 是否可以撤销审核
+  canExport?: boolean           // 是否可以导出数据
+  allowedSalesIds?: string[]    // 允许查看的销售人员ID列表
+  allowedLeadIds?: string[]     // 允许查看的客资ID列表
+  teamIds?: string[]            // 允许查看的团队ID列表
+  restrictions?: string[]       // 权限限制说明
+}
+
+/**
+ * 客资审核权限控制器
+ */
+export class LeadAuditPermissionController {
+  /**
+   * 检查客资审核操作权限
+   */
+  static checkLeadAuditPermission(
+    userRole: UserRole,
+    operation: string,
+    context?: {
+      leadId?: string
+      salespersonId?: string
+      teamId?: string
+      userId?: string
+    }
+  ): PermissionCheckResult {
+    const allowedRoles = OPERATION_PERMISSIONS[operation]
+
+    if (!allowedRoles) {
+      return {
+        hasPermission: false,
+        reason: '未知的审核操作类型',
+        errorCode: 'UNKNOWN_AUDIT_OPERATION'
+      }
+    }
+
+    if (!allowedRoles.includes(userRole)) {
+      return {
+        hasPermission: false,
+        reason: `您的角色 (${InvitationPermissionController.getRoleDisplayName(userRole)}) 无权执行此审核操作`,
+        suggestion: `此操作需要以下角色之一: ${allowedRoles.map(r => InvitationPermissionController.getRoleDisplayName(r)).join('、')}`,
+        errorCode: 'INSUFFICIENT_AUDIT_ROLE'
+      }
+    }
+
+    // 基于数据范围的权限检查
+    if (context && context.userId) {
+      const dataScope = PermissionCheck.getLeadAuditDataScope(userRole, context.userId)
+
+      // 检查是否可以查看特定销售人员的客资
+      if (context.salespersonId && !dataScope.canViewAll) {
+        if (!dataScope.allowedSalesIds?.includes(context.salespersonId)) {
+          return {
+            hasPermission: false,
+            reason: '您无权查看此销售人员的客资',
+            errorCode: 'INSUFFICIENT_DATA_SCOPE'
+          }
+        }
+      }
+
+      // 检查批量操作权限
+      if (operation === 'batch_audit_leads' && !dataScope.canBatchAudit) {
+        return {
+          hasPermission: false,
+          reason: '您无权执行批量审核操作',
+          errorCode: 'BATCH_AUDIT_DENIED'
+        }
+      }
+
+      // 检查撤销权限
+      if (operation === 'revoke_audit' && !dataScope.canRevoke) {
+        return {
+          hasPermission: false,
+          reason: '您无权撤销审核结果',
+          errorCode: 'REVOKE_AUDIT_DENIED'
+        }
+      }
+    }
+
+    return {
+      hasPermission: true
+    }
+  }
+
+  /**
+   * 获取用户可审核的客资范围
+   */
+  static getAuditableLeadScope(userRole: UserRole, userId: string): {
+    canAuditAll: boolean
+    allowedSalesIds?: string[]
+    allowedLeadIds?: string[]
+    teamIds?: string[]
+    filters?: Record<string, any>
+  } {
+    const dataScope = PermissionCheck.getLeadAuditDataScope(userRole, userId)
+
+    return {
+      canAuditAll: dataScope.canAuditAll || false,
+      allowedSalesIds: dataScope.allowedSalesIds,
+      allowedLeadIds: dataScope.allowedLeadIds,
+      teamIds: dataScope.teamIds,
+      filters: userRole === 'sales' ? { salespersonId: userId } : undefined
+    }
+  }
+
+  /**
+   * 检查是否可以审核特定客资
+   */
+  static canAuditLead(
+    userRole: UserRole,
+    userId: string,
+    leadData: {
+      id: string
+      salespersonId: string
+      auditStatus: string
+      teamId?: string
+    }
+  ): PermissionCheckResult {
+    // 基础权限检查
+    const basicCheck = this.checkLeadAuditPermission(userRole, 'audit_lead', {
+      userId,
+      leadId: leadData.id,
+      salespersonId: leadData.salespersonId,
+      teamId: leadData.teamId
+    })
+
+    if (!basicCheck.hasPermission) {
+      return basicCheck
+    }
+
+    // 检查客资状态
+    if (leadData.auditStatus !== 'PENDING_AUDIT') {
+      return {
+        hasPermission: false,
+        reason: '只能审核待审核状态的客资',
+        errorCode: 'INVALID_AUDIT_STATUS'
+      }
+    }
+
+    // 获取数据范围权限
+    const scope = this.getAuditableLeadScope(userRole, userId)
+
+    // 检查是否在允许的范围内
+    if (!scope.canAuditAll) {
+      if (scope.allowedSalesIds && !scope.allowedSalesIds.includes(leadData.salespersonId)) {
+        return {
+          hasPermission: false,
+          reason: '您无权审核此销售人员的客资',
+          errorCode: 'SALESPERSON_OUT_OF_SCOPE'
+        }
+      }
+
+      if (scope.allowedLeadIds && !scope.allowedLeadIds.includes(leadData.id)) {
+        return {
+          hasPermission: false,
+          reason: '您无权审核此客资',
+          errorCode: 'LEAD_OUT_OF_SCOPE'
+        }
+      }
+    }
+
+    return {
+      hasPermission: true
     }
   }
 }

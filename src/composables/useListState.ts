@@ -1,15 +1,55 @@
+/**
+ * @fileoverview 列表状态管理组合式API模块
+ * 提供代理列表页面的状态管理功能，包括URL同步、导航状态保存、筛选和分页管理
+ * 
+ * @module composables/useListState
+ * @requires vue
+ * @requires vue-router
+ * @requires @/store/agent
+ * @requires @/types/agent
+ */
+
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentStore } from '@/store/agent'
 import type { AgentStatus, AgentCategory, AgentLevel } from '@/types/agent'
 
 /**
- * 管理代理列表状态的Composable函数
+ * 管理代理列表状态的组合式API
+ * 实现URL参数与Store状态的双向同步，支持列表状态保存和恢复
  * 
- * 实现功能：
- * 1. URL参数与Store状态的同步
+ * @function useListState
+ * @returns {Object} 列表状态管理相关的方法和状态
+ * @complexity O(1) - 各个状态管理操作均为常数时间复杂度
+ * @flow 初始化路由监听 -> URL状态同步 -> 提供状态管理方法
+ * 
+ * 核心功能：
+ * 1. URL参数与Store状态的双向同步
  * 2. 详情页导航与返回列表的状态保存
- * 3. 列表状态的保存与恢复
+ * 3. 筛选条件和分页状态的持久化
+ * 4. 列表状态的保存与恢复机制
+ * 
+ * @example
+ * ```typescript
+ * // 在代理列表组件中使用
+ * const {
+ *   navigateToDetail,
+ *   navigateBackToList,
+ *   applyFilters,
+ *   resetFilters,
+ *   updatePagination
+ * } = useListState()
+ * 
+ * // 导航到详情页并保持列表状态
+ * const handleRowClick = (agent) => {
+ *   navigateToDetail(agent.id, true)
+ * }
+ * 
+ * // 应用筛选条件
+ * const handleFilter = (filters) => {
+ *   applyFilters(filters)
+ * }
+ * ```
  */
 export function useListState() {
   const agentStore = useAgentStore()
@@ -21,7 +61,19 @@ export function useListState() {
   
   /**
    * 从URL同步状态到Store
-   * 将URL查询参数同步到Pinia状态管理中
+   * 将URL查询参数解析并同步到Pinia状态管理中，支持筛选条件和分页信息的恢复
+   * 
+   * @function syncStateFromURL
+   * @returns {void}
+   * @complexity O(1) - 常数时间的状态同步操作
+   * @flow 检查URL参数 -> 解析筛选条件 -> 解析分页信息 -> 更新Store状态
+   * 
+   * @example
+   * ```typescript
+   * // URL: /agents?keyword=test&status=active&page=2
+   * syncStateFromURL()
+   * // Store中的状态会同步为: { filters: { keyword: 'test', status: 'active' }, pagination: { page: 2 } }
+   * ```
    */
   const syncStateFromURL = () => {
     if (!route.query || Object.keys(route.query).length === 0) return
@@ -62,7 +114,19 @@ export function useListState() {
   
   /**
    * 从Store同步状态到URL
-   * 将Pinia中的状态同步到URL查询参数
+   * 将Pinia中的状态同步到URL查询参数，实现状态的持久化保存
+   * 
+   * @function syncStateToURL
+   * @returns {void}
+   * @complexity O(1) - 常数时间的URL更新操作
+   * @flow 获取Store状态 -> 构建查询参数 -> 更新URL -> 避免触发新导航
+   * 
+   * @example
+   * ```typescript
+   * // Store状态: { filters: { keyword: 'test' }, pagination: { page: 2 } }
+   * syncStateToURL()
+   * // URL会更新为: /agents?keyword=test&page=2
+   * ```
    */
   const syncStateToURL = () => {
     const listState = agentStore.getListState
@@ -91,8 +155,22 @@ export function useListState() {
   
   /**
    * 导航到详情页，保留当前列表状态
-   * @param id 代理ID
-   * @param keepQueryParams 是否在详情页URL中保留查询参数
+   * 先将当前列表状态同步到URL，然后导航到详情页，支持状态恢复
+   * 
+   * @param {string} id - 代理ID，用于详情页路由参数
+   * @param {boolean} keepQueryParams - 是否在详情页URL中保留查询参数，默认false
+   * @returns {void}
+   * @complexity O(1) - 导航操作为常数时间复杂度
+   * @flow 同步状态到URL -> 构建导航参数 -> 执行路由跳转
+   * 
+   * @example
+   * ```typescript
+   * // 导航到详情页，不保留查询参数
+   * navigateToDetail('agent123')
+   * 
+   * // 导航到详情页，保留查询参数便于返回时恢复状态
+   * navigateToDetail('agent123', true)
+   * ```
    */
   const navigateToDetail = (id: string, keepQueryParams = false) => {
     // 先同步状态到URL
@@ -121,6 +199,20 @@ export function useListState() {
   
   /**
    * 返回列表页，恢复之前的状态
+   * 智能判断返回方式，优先使用浏览器历史记录以保持状态连续性
+   * 
+   * @function navigateBackToList
+   * @returns {void}
+   * @complexity O(1) - 路由跳转为常数时间操作
+   * @flow 检查来源标记 -> 选择返回方式 -> 执行导航
+   * 
+   * @example
+   * ```typescript
+   * // 在详情页组件中使用
+   * const handleBack = () => {
+   *   navigateBackToList() // 会保持列表页的筛选和分页状态
+   * }
+   * ```
    */
   const navigateBackToList = () => {
     // 判断是否从列表页进入详情页
@@ -137,7 +229,23 @@ export function useListState() {
   
   /**
    * 应用筛选条件
-   * @param filters 筛选条件
+   * 更新Store中的筛选条件并同步到URL，实现筛选状态的持久化
+   * 
+   * @param {Record<string, any>} filters - 筛选条件对象，包含各种筛选字段
+   * @returns {void}
+   * @complexity O(1) - 筛选条件更新为常数时间操作
+   * @flow 更新Store筛选条件 -> 同步状态到URL
+   * 
+   * @example
+   * ```typescript
+   * // 应用筛选条件
+   * applyFilters({
+   *   keyword: '测试代理',
+   *   status: 'active',
+   *   category: 'premium',
+   *   isAdded: true
+   * })
+   * ```
    */
   const applyFilters = (filters: Record<string, any>) => {
     agentStore.updateFilters(filters)
@@ -146,6 +254,19 @@ export function useListState() {
   
   /**
    * 重置所有筛选条件
+   * 清空Store中的筛选条件和分页状态，并同步到URL
+   * 
+   * @function resetFilters
+   * @returns {void}
+   * @complexity O(1) - 状态重置为常数时间操作
+   * @flow 重置Store状态 -> 同步状态到URL
+   * 
+   * @example
+   * ```typescript
+   * // 重置所有筛选条件
+   * resetFilters()
+   * // Store中的筛选条件会被清空，分页重置为第1页
+   * ```
    */
   const resetFilters = () => {
     agentStore.resetListState()
@@ -154,8 +275,22 @@ export function useListState() {
   
   /**
    * 更新分页
-   * @param page 页码
-   * @param pageSize 每页条数
+   * 更新Store中的分页信息并同步到URL，支持页码和每页条数的设置
+   * 
+   * @param {number} page - 页码，从1开始
+   * @param {number} [pageSize] - 每页条数，可选参数
+   * @returns {void}
+   * @complexity O(1) - 分页更新为常数时间操作
+   * @flow 构建分页参数 -> 更新Store分页 -> 同步状态到URL
+   * 
+   * @example
+   * ```typescript
+   * // 更新到第2页
+   * updatePagination(2)
+   * 
+   * // 更新到第3页，每页显示50条
+   * updatePagination(3, 50)
+   * ```
    */
   const updatePagination = (page: number, pageSize?: number) => {
     const pagination: Record<string, number> = { page }
@@ -166,6 +301,7 @@ export function useListState() {
   }
   
   // 监听路由变化，从URL同步状态
+  // 当路由变化时自动从URL恢复列表状态，确保状态的一致性
   watch(() => route.fullPath, () => {
     if (route.name === 'AgentList') {
       // 仅当首次加载或路由参数变化时同步

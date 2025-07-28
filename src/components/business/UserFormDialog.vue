@@ -1,3 +1,60 @@
+<!--
+/**
+ * @fileoverview 用户表单对话框组件
+ * 基于Vue 3 Composition API构建的用户管理表单对话框，提供用户创建和编辑功能
+ * 支持完整的用户信息录入、角色权限配置、表单验证和数据持久化
+ * 集成shadcn-vue对话框组件和响应式布局设计，确保最佳用户体验
+ * 
+ * @component UserFormDialog
+ * @author Frontend Team
+ * @since 1.0.0
+ * @version 1.2.0
+ * 
+ * @description
+ * UserFormDialog是用户管理系统的核心表单组件，提供以下主要功能：
+ * - 📝 完整的用户信息表单，包含基础信息、角色权限和业务配置
+ * - ⚡ 双模式支持，统一处理用户创建和编辑操作
+ * - ✅ 实时表单验证，确保数据的完整性和合规性
+ * - 🔐 角色权限配置，支持多层级用户权限管理
+ * - 💰 佣金比例设置，支持个性化佣金策略配置
+ * - 📱 响应式设计，适配不同屏幕尺寸的设备
+ * - 🔄 智能表单重置，确保状态管理的正确性
+ * 
+ * @usage
+ * ```vue
+ * <template>
+ *   <UserFormDialog
+ *     :open="showDialog"
+ *     :user="editingUser"
+ *     @update:open="showDialog = $event"
+ *     @success="handleSuccess"
+ *   />
+ * </template>
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // 创建新用户
+ * const showCreateDialog = () => {
+ *   editingUser.value = null
+ *   showDialog.value = true
+ * }
+ * 
+ * // 编辑现有用户
+ * const showEditDialog = (user: User) => {
+ *   editingUser.value = user
+ *   showDialog.value = true
+ * }
+ * 
+ * // 处理成功回调
+ * const handleSuccess = () => {
+ *   refreshUserList()
+ *   showDialog.value = false
+ * }
+ * ```
+ */
+-->
+
 <template>
   <Dialog :open="open" @update:open="$emit('update:open', $event)">
     <DialogContent class="sm:max-w-[500px]">
@@ -147,6 +204,10 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * @fileoverview UserFormDialog组件的核心逻辑实现
+ * 使用Vue 3 Composition API实现用户表单的完整功能，包括双模式操作和数据管理
+ */
 import { ref, reactive, watch, nextTick } from 'vue'
 import { Loader2 } from 'lucide-vue-next'
 import type { User, CreateUserRequest, UpdateUserRequest } from '@/types/user'
@@ -172,13 +233,70 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+/**
+ * 组件属性接口定义
+ * 定义UserFormDialog组件的输入属性
+ * 
+ * @interface Props
+ * 
+ * @property {boolean} open - 对话框显示状态控制
+ * @property {User | null} [user] - 编辑模式下的用户数据，null时为创建模式
+ * 
+ * @example
+ * ```typescript
+ * // 创建模式
+ * const createProps: Props = {
+ *   open: true,
+ *   user: null
+ * }
+ * 
+ * // 编辑模式
+ * const editProps: Props = {
+ *   open: true,
+ *   user: {
+ *     id: 'user_001',
+ *     username: 'admin',
+ *     email: 'admin@example.com',
+ *     role: 'super_admin'
+ *   }
+ * }
+ * ```
+ */
 interface Props {
+  /** 对话框显示状态 */
   open: boolean
+  /** 编辑的用户数据，null时为创建模式 */
   user?: User | null
 }
 
+/**
+ * 组件事件定义
+ * 定义UserFormDialog组件对外发出的事件
+ * 
+ * @events
+ * 
+ * @event update:open - 更新对话框显示状态，支持v-model双向绑定
+ * @event success - 操作成功事件，用于通知父组件刷新数据
+ * 
+ * @example
+ * ```typescript
+ * // 事件处理示例
+ * function handleOpenChange(open: boolean) {
+ *   showDialog.value = open
+ * }
+ * 
+ * function handleSuccess() {
+ *   // 刷新用户列表
+ *   await refreshUserList()
+ *   // 显示成功提示
+ *   toast({ title: '操作成功' })
+ * }
+ * ```
+ */
 interface Emits {
+  /** 更新对话框显示状态 */
   'update:open': [value: boolean]
+  /** 操作成功通知 */
   success: []
 }
 
@@ -189,8 +307,38 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 const { toast } = useToast()
 
+/**
+ * 组件状态管理
+ * 管理表单提交的加载状态
+ */
 const loading = ref(false)
 
+/**
+ * 默认表单数据模板
+ * 定义表单字段的初始值和默认配置
+ * 
+ * @const defaultForm
+ * @type {Object}
+ * 
+ * @property {string} username - 用户名，创建时必填
+ * @property {string} email - 邮箱地址，必填字段
+ * @property {string} phone - 手机号码，必填字段
+ * @property {string} password - 密码，创建时必填
+ * @property {'sales'} role - 默认角色为销售
+ * @property {'active'} status - 默认状态为正常
+ * @property {number} level - 默认等级为1
+ * @property {number} commission_rate - 默认佣金比例为0
+ * @property {string} parent_id - 上级用户ID，可选
+ * 
+ * @example
+ * ```typescript
+ * // 重置表单到默认状态
+ * Object.assign(form, defaultForm)
+ * 
+ * // 获取默认角色
+ * const defaultRole = defaultForm.role // 'sales'
+ * ```
+ */
 const defaultForm = {
   username: '',
   email: '',
@@ -203,14 +351,86 @@ const defaultForm = {
   parent_id: '',
 }
 
+/**
+ * 响应式表单数据
+ * 管理用户输入的所有表单字段，支持双向数据绑定
+ * 
+ * @reactive form
+ * @type {typeof defaultForm}
+ * 
+ * @example
+ * ```typescript
+ * // 设置表单数据
+ * form.username = 'admin'
+ * form.email = 'admin@example.com'
+ * form.role = 'super_admin'
+ * 
+ * // 获取表单数据
+ * const formData = {
+ *   username: form.username,
+ *   email: form.email,
+ *   phone: form.phone
+ * }
+ * ```
+ */
 const form = reactive({ ...defaultForm })
 
-// 重置表单
+/**
+ * 重置表单数据
+ * 将表单恢复到默认状态，清除所有用户输入
+ * 
+ * @function resetForm
+ * @returns {void}
+ * 
+ * @complexity O(1) - 对象赋值操作，常数时间复杂度
+ * 
+ * @example
+ * ```typescript
+ * // 在对话框关闭时重置表单
+ * watch(() => props.open, (isOpen) => {
+ *   if (!isOpen) {
+ *     resetForm()
+ *   }
+ * })
+ * 
+ * // 手动重置表单
+ * resetForm()
+ * ```
+ */
 const resetForm = () => {
   Object.assign(form, defaultForm)
 }
 
-// 设置表单数据
+/**
+ * 设置表单数据
+ * 将用户数据填充到表单中，用于编辑模式的数据回显
+ * 
+ * @function setFormData
+ * @param {User} user - 要编辑的用户数据对象
+ * @returns {void}
+ * 
+ * @complexity O(1) - 直接属性赋值，常数时间复杂度
+ * @flow 用户数据 → 表单字段映射 → 数据回显 → 编辑就绪
+ * 
+ * @example
+ * ```typescript
+ * // 编辑用户时设置表单数据
+ * const editUser: User = {
+ *   id: 'user_001',
+ *   username: 'admin',
+ *   email: 'admin@example.com',
+ *   phone: '13800138000',
+ *   role: 'super_admin',
+ *   status: 'active',
+ *   level: 10,
+ *   commission_rate: 5.5,
+ *   parent_id: 'parent_001'
+ * }
+ * 
+ * setFormData(editUser)
+ * // 表单将显示用户的当前信息
+ * ```
+ */
 const setFormData = (user: User) => {
   form.username = user.username
   form.email = user.email
@@ -252,11 +472,40 @@ watch(
   }
 )
 
+/**
+ * 处理表单提交
+ * 根据当前模式执行用户创建或更新操作，包含完整的错误处理和用户反馈
+ * 
+ * @async
+ * @function handleSubmit
+ * @returns {Promise<void>}
+ * 
+ * @complexity O(1) - API调用操作，常数时间复杂度（不考虑网络延迟）
+ * @flow 表单验证 → 数据组装 → API调用 → 状态更新 → 用户反馈
+ * 
+ * @example
+ * ```typescript
+ * // 用户点击提交按钮时自动调用
+ * // 创建模式示例
+ * const createUserFlow = async () => {
+ *   // 表单数据会被组装为CreateUserRequest
+ *   // API调用：userApi.createUser(createData)
+ *   // 成功时发出success事件
+ * }
+ * 
+ * // 编辑模式示例  
+ * const updateUserFlow = async () => {
+ *   // 表单数据会被组装为UpdateUserRequest
+ *   // API调用：userApi.updateUser(userId, updateData)
+ *   // 成功时发出success事件
+ * }
+ * ```
+ */
 const handleSubmit = async () => {
   loading.value = true
   try {
     if (props.user) {
-      // 编辑用户
+      // 编辑用户模式
       const updateData: UpdateUserRequest = {
         email: form.email,
         phone: form.phone,
@@ -272,7 +521,7 @@ const handleSubmit = async () => {
         description: '用户信息已更新',
       })
     } else {
-      // 创建用户
+      // 创建用户模式
       const createData: CreateUserRequest = {
         username: form.username,
         email: form.email,
@@ -303,6 +552,22 @@ const handleSubmit = async () => {
   }
 }
 
+/**
+ * 处理取消操作
+ * 关闭对话框，不保存任何更改
+ * 
+ * @function handleCancel
+ * @returns {void}
+ * 
+ * @complexity O(1) - 简单事件发出，常数时间复杂度
+ * 
+ * @example
+ * ```typescript
+ * // 用户点击取消按钮时调用
+ * handleCancel()
+ * // 对话框将关闭，表单数据不会被保存
+ * ```
+ */
 const handleCancel = () => {
   emit('update:open', false)
 }

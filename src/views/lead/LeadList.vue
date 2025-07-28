@@ -2,15 +2,21 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-semibold">客资管理</h1>
-      <Button @click="showAddDialog = true">
-        <PlusIcon class="h-4 w-4 mr-2" />
-        新增客资
-      </Button>
+      <div class="flex space-x-2">
+        <Button variant="outline" @click="$router.push('/lead/audit')">
+          <CheckCircleIcon class="h-4 w-4 mr-2" />
+          客资审核
+        </Button>
+        <Button @click="showAddDialog = true">
+          <PlusIcon class="h-4 w-4 mr-2" />
+          新增客资
+        </Button>
+      </div>
     </div>
 
     <!-- 筛选面板 -->
-    <div class="bg-white p-4 rounded-lg shadow space-y-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div class="bg-white p-4 rounded-lg shadow space-y-4 mobile-filters">
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mobile-filter-row">
         <!-- 客户姓名搜索 -->
         <div>
           <Label class="text-sm font-medium mb-1 block">客户姓名</Label>
@@ -73,8 +79,8 @@
         <!-- 归属销售筛选 -->
         <div>
           <Label class="text-sm font-medium mb-1 block">归属销售</Label>
-          <Select 
-            v-model="filters.salespersonId" 
+          <Select
+            v-model="filters.salespersonId"
             class="w-full"
           >
             <SelectTrigger>
@@ -85,6 +91,25 @@
               <SelectItem v-for="sales in salesList" :key="sales.id" :value="sales.id">
                 {{ sales.name }}
               </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- 审核状态筛选 -->
+        <div>
+          <Label class="text-sm font-medium mb-1 block">审核状态</Label>
+          <Select
+            v-model="filters.auditStatus"
+            class="w-full"
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="选择审核状态" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部状态</SelectItem>
+              <SelectItem value="PENDING_AUDIT">待审核</SelectItem>
+              <SelectItem value="APPROVED">已通过</SelectItem>
+              <SelectItem value="REJECTED">已驳回</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -102,12 +127,14 @@
     </div>
 
     <!-- 数据表格 -->
-    <DataTable
-      :columns="columns"
-      :data="leads"
-      :loading="loading"
-      :pagination="true"
-      :total-items="total"
+    <div class="mobile-table-container">
+      <DataTable
+        :columns="columns"
+        :data="leads"
+        :loading="loading"
+        :pagination="true"
+        :total-items="total"
+        class="mobile-table"
       :page-size="pagination.pageSize"
       :current-page="pagination.page"
       @page-change="handlePageChange"
@@ -130,73 +157,25 @@
           批量删除
         </Button>
       </template>
-    </DataTable>
+      </DataTable>
+    </div>
     
     <!-- 新增客资弹窗 -->
     <Dialog :open="showAddDialog" @update:open="showAddDialog = $event">
-      <DialogContent class="sm:max-w-[500px]">
+      <DialogContent class="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>新增客资</DialogTitle>
           <DialogDescription>
             请填写客户的基本信息，带 * 的字段为必填项。
           </DialogDescription>
         </DialogHeader>
-        <form @submit.prevent="handleAddLead">
-          <div class="grid gap-4 py-4">
-            <div class="grid grid-cols-4 items-center gap-4">
-              <Label class="text-right" for="name">客户姓名 *</Label>
-              <Input
-                id="name"
-                v-model="newLead.name"
-                class="col-span-3"
-                required
-              />
-            </div>
-            <div class="grid grid-cols-4 items-center gap-4">
-              <Label class="text-right" for="phone">联系电话 *</Label>
-              <Input
-                id="phone"
-                v-model="newLead.phone"
-                class="col-span-3"
-                required
-              />
-            </div>
-            <div class="grid grid-cols-4 items-center gap-4">
-              <Label class="text-right" for="source">来源</Label>
-              <Select v-model="newLead.source" class="col-span-3">
-                <SelectTrigger>
-                  <SelectValue placeholder="选择来源" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="搜索引擎">搜索引擎</SelectItem>
-                  <SelectItem value="客户推荐">客户推荐</SelectItem>
-                  <SelectItem value="广告投放">广告投放</SelectItem>
-                  <SelectItem value="社交媒体-小红书">社交媒体-小红书</SelectItem>
-                  <SelectItem value="线下活动">线下活动</SelectItem>
-                  <SelectItem value="合作渠道">合作渠道</SelectItem>
-                  <SelectItem value="官网咨询">官网咨询</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div class="grid grid-cols-4 items-center gap-4">
-              <Label class="text-right" for="salesperson">归属销售</Label>
-              <Select v-model="newLead.salespersonId" class="col-span-3">
-                <SelectTrigger>
-                  <SelectValue placeholder="选择销售" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem v-for="sales in salesList" :key="sales.id" :value="sales.id">
-                    {{ sales.name }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" @click="showAddDialog = false">取消</Button>
-            <Button type="submit">保存</Button>
-          </DialogFooter>
-        </form>
+
+        <LeadForm
+          mode="create"
+          :loading="addLoading"
+          @submit="handleAddLead"
+          @cancel="showAddDialog = false"
+        />
       </DialogContent>
     </Dialog>
     
@@ -309,9 +288,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive, h } from 'vue'
-import { 
-  PlusIcon, CheckIcon, SearchIcon, TrashIcon, 
-  PencilIcon, MoreHorizontalIcon, DownloadIcon, RefreshCcwIcon
+import {
+  PlusIcon, CheckIcon, SearchIcon, TrashIcon,
+  PencilIcon, MoreHorizontalIcon, DownloadIcon, RefreshCcwIcon, CheckCircleIcon
 } from 'lucide-vue-next'
 import DataTable from '@/components/business/DataTable.vue'
 import { Button } from '@/components/ui/button'
@@ -327,7 +306,8 @@ import {
   SelectTrigger, SelectValue 
 } from '@/components/ui/select'
 import { getLeads, createLead, updateLead } from '@/api/lead'
-import type { Lead, LeadStatus } from '@/types/lead'
+import type { Lead, LeadStatus, CreateLeadRequest } from '@/types/lead'
+import LeadForm from './components/LeadForm.vue'
 
 // 状态变量
 const leads = ref<Lead[]>([])
@@ -343,17 +323,13 @@ const filters = reactive({
   name: '',
   status: 'all',
   source: 'all',
-  salespersonId: 'all'
+  salespersonId: 'all',
+  auditStatus: 'all'
 })
 
 // 新增客资弹窗
 const showAddDialog = ref(false)
-const newLead = reactive({
-  name: '',
-  phone: '',
-  source: '搜索引擎',
-  salespersonId: ''
-})
+const addLoading = ref(false)
 
 // 编辑客资弹窗
 const showEditDialog = ref(false)
@@ -460,6 +436,19 @@ const columns = [
     }
   },
   {
+    accessorKey: 'auditStatus',
+    header: '审核状态',
+    cell: ({ row }: { row: Lead }) => {
+      const auditStatusMap = {
+        'PENDING_AUDIT': { text: '待审核', variant: 'secondary' },
+        'APPROVED': { text: '已通过', variant: 'default' },
+        'REJECTED': { text: '已驳回', variant: 'destructive' }
+      }
+      const auditInfo = auditStatusMap[row.auditStatus || 'PENDING_AUDIT']
+      return h(Badge, { variant: auditInfo.variant }, () => auditInfo.text)
+    }
+  },
+  {
     accessorKey: 'source',
     header: '来源'
   },
@@ -548,27 +537,21 @@ function handleViewLead(lead: Lead) {
 }
 
 // 新增客资
-async function handleAddLead() {
+async function handleAddLead(leadData: CreateLeadRequest) {
+  addLoading.value = true
   try {
-    await createLead({
-      name: newLead.name,
-      phone: newLead.phone,
-      source: newLead.source,
-      salespersonId: newLead.salespersonId
-    })
-    
-    // 重置表单并关闭弹窗
-    Object.keys(newLead).forEach(key => {
-      if (key !== 'source') {
-        newLead[key as keyof typeof newLead] = ''
-      }
-    })
+    await createLead(leadData)
+
+    // 关闭弹窗
     showAddDialog.value = false
-    
+
     // 刷新列表
     fetchLeads()
   } catch (error) {
     console.error('新增客资失败:', error)
+    throw error // 让LeadForm组件处理错误
+  } finally {
+    addLoading.value = false
   }
 }
 

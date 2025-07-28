@@ -13,7 +13,36 @@ import type {
 import type { ApiListResponse } from '@/types/api'
 
 /**
+ * @fileoverview 奖励管理状态管理Store
+ * 基于Pinia的奖励管理系统状态存储，提供完整的奖励结算、二次审核申请和统计分析功能
+ * 包含奖励结算列表管理、二次审核流程控制、提交限制检查、统计数据展示和预览计算等核心功能
+ * 集成周结算预览、奖励统计、状态管理和模拟数据支持，为奖励系统提供统一的数据层
+ * 
+ * @module store/reward
+ * @author Frontend Team
+ * @since 1.0.0
+ */
+
+/**
  * 奖励管理Store
+ * 管理奖励系统的所有状态和操作，支持结算管理、审核申请、统计分析和任务提交控制
+ * 
+ * @store useRewardStore
+ * @example
+ * ```typescript
+ * import { useRewardStore } from '@/store/reward'
+ * 
+ * const rewardStore = useRewardStore()
+ * 
+ * // 检查提交限制
+ * await rewardStore.checkSubmissionLimit('agent123')
+ * 
+ * // 获取奖励结算列表
+ * await rewardStore.fetchRewardSettlements({ agentId: 'agent123' })
+ * 
+ * // 申请二次审核
+ * await rewardStore.requestSecondAudit('task123', 350)
+ * ```
  */
 export const useRewardStore = defineStore('reward', () => {
   // ==================== 状态管理 ====================
@@ -69,21 +98,46 @@ export const useRewardStore = defineStore('reward', () => {
 
   // ==================== 计算属性 ====================
   
-  // 是否可以提交任务
+  /**
+   * 计算属性：是否可以提交任务
+   * 基于提交限制状态判断当前是否允许提交新任务
+   * 
+   * @complexity O(1) - 常数时间复杂度，简单状态检查
+   * @returns {boolean} 可以提交返回true，否则返回false
+   */
   const canSubmitTask = computed(() => submissionLimit.value.canSubmit)
   
-  // 本周是否达到结算门槛
+  /**
+   * 计算属性：本周是否达到结算门槛
+   * 检查本周已通过审核的任务数量是否达到最低结算要求（10个）
+   * 
+   * @complexity O(1) - 常数时间复杂度，简单数值比较
+   * @returns {boolean} 达到门槛返回true，否则返回false
+   */
   const reachedWeeklyThreshold = computed(() => 
     statistics.value.thisWeekApprovedCount >= 10
   )
 
-  // 本周预期奖励
+  /**
+   * 计算属性：本周预期奖励
+   * 基于本周通过审核的任务数量计算预期奖励金额
+   * 只有达到最低门槛（10个任务）才能获得奖励
+   * 
+   * @complexity O(1) - 常数时间复杂度，简单数学计算
+   * @returns {number} 预期奖励金额，未达到门槛则返回0
+   */
   const expectedWeeklyReward = computed(() => {
     const baseReward = statistics.value.thisWeekApprovedCount * 1.0
     return reachedWeeklyThreshold.value ? baseReward : 0
   })
 
-  // 已完成的结算总数
+  /**
+   * 计算属性：已完成的结算总数
+   * 统计已完成结算状态的结算记录数量
+   * 
+   * @complexity O(n) - n为结算记录总数，需要遍历筛选
+   * @returns {number} 已完成结算的数量
+   */
   const completedSettlementsCount = computed(() => 
     settlements.value.filter(s => s.settlementStatus === 'SETTLED').length
   )
@@ -92,6 +146,22 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 检查提交限制
+   * 检查指定代理的任务提交限制状态，包括当前提交次数、每日限制和剩余次数
+   * 目前使用模拟数据避免API 404错误，实际部署时需要启用真实API调用
+   * 
+   * @complexity O(1) - 常数时间复杂度，模拟数据生成或单次API调用
+   * @flow 模拟数据生成 → 提交限制状态更新 → 加载状态管理
+   * 
+   * @param {string} agentId - 代理ID
+   * @returns {Promise<void>} 异步操作完成
+   * 
+   * @example
+   * ```typescript
+   * await rewardStore.checkSubmissionLimit('agent123')
+   * if (rewardStore.canSubmitTask) {
+   *   console.log(`还可以提交 ${rewardStore.submissionLimit.remainingCount} 个任务`)
+   * }
+   * ```
    */
   const checkSubmissionLimit = async (agentId: string) => {
     submissionLimitLoading.value = true
@@ -123,6 +193,20 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 记录任务提交
+   * 记录代理的任务提交操作，更新提交计数和剩余限制
+   * 目前使用模拟逻辑避免API错误，实际部署时需要启用真实API调用
+   * 
+   * @complexity O(1) - 常数时间复杂度，简单计数更新
+   * @flow 提交计数检查 → 计数更新 → 限制状态更新
+   * 
+   * @param {string} agentId - 代理ID
+   * @returns {Promise<void>} 异步操作完成
+   * 
+   * @example
+   * ```typescript
+   * await rewardStore.recordTaskSubmission('agent123')
+   * console.log('任务提交已记录')
+   * ```
    */
   const recordTaskSubmission = async (agentId: string) => {
     try {
@@ -148,6 +232,24 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 获取奖励结算列表
+   * 获取指定代理的奖励结算记录，支持分页和筛选参数
+   * 目前使用模拟数据提供完整的结算记录示例，包含成功和失败的结算案例
+   * 
+   * @complexity O(1) - API调用为常数时间，模拟数据生成也是常数时间
+   * @flow 参数处理 → 模拟数据生成 → 分页信息更新 → 结算列表更新
+   * 
+   * @param {RewardSettlementQuery} params - 查询参数（可选）
+   * @returns {Promise<void>} 异步操作完成
+   * 
+   * @example
+   * ```typescript
+   * await rewardStore.fetchRewardSettlements({
+   *   agentId: 'agent123',
+   *   page: 1,
+   *   pageSize: 10
+   * })
+   * console.log(`获取到 ${rewardStore.settlements.length} 条结算记录`)
+   * ```
    */
   const fetchRewardSettlements = async (params: RewardSettlementQuery = {}) => {
     settlementsLoading.value = true
@@ -222,6 +324,20 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 获取结算详情
+   * 获取指定代理和结算周期的详细结算信息
+   * 
+   * @complexity O(1) - 单次API调用，常数时间复杂度
+   * @flow API调用 → 详情数据获取 → 当前选中结算更新
+   * 
+   * @param {string} agentId - 代理ID
+   * @param {string} settlementWeek - 结算周期（格式：YYYY-WNN）
+   * @returns {Promise<RewardSettlement>} 结算详情对象
+   * 
+   * @example
+   * ```typescript
+   * const settlement = await rewardStore.fetchSettlementDetail('agent123', '2024-W01')
+   * console.log(`结算金额: ${settlement.totalRewardAmount}`)
+   * ```
    */
   const fetchSettlementDetail = async (agentId: string, settlementWeek: string) => {
     try {
@@ -236,6 +352,22 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 获取奖励统计
+   * 获取指定代理的奖励统计数据，包括总收入、本周收入、待审奖励等
+   * 目前使用模拟数据提供完整的统计信息示例
+   * 
+   * @complexity O(1) - 常数时间复杂度，模拟数据生成或单次API调用
+   * @flow 模拟统计数据生成 → 统计状态更新 → 加载状态管理
+   * 
+   * @param {string} agentId - 代理ID
+   * @returns {Promise<void>} 异步操作完成
+   * 
+   * @example
+   * ```typescript
+   * await rewardStore.fetchRewardStatistics('agent123')
+   * const stats = rewardStore.statistics
+   * console.log(`总收入: ${stats.totalEarnings}`)
+   * console.log(`本周任务: ${stats.thisWeekTasksCount}`)
+   * ```
    */
   const fetchRewardStatistics = async (agentId: string) => {
     statisticsLoading.value = true
@@ -270,6 +402,22 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 申请二次审核
+   * 为指定任务申请二次审核，通常用于观看量达到阈值后的奖励申请
+   * 目前使用模拟数据创建二次审核申请记录
+   * 
+   * @complexity O(1) - 常数时间复杂度，单个申请记录创建
+   * @flow 模拟申请数据创建 → 申请列表更新 → 申请对象返回
+   * 
+   * @param {string} taskId - 任务ID
+   * @param {number} currentViewCount - 当前观看量
+   * @param {string} proofScreenshot - 证明截图（可选）
+   * @returns {Promise<SecondAuditRequest>} 二次审核申请对象
+   * 
+   * @example
+   * ```typescript
+   * const request = await rewardStore.requestSecondAudit('task123', 350, 'screenshot.jpg')
+   * console.log(`二次审核申请已提交: ${request.id}`)
+   * ```
    */
   const requestSecondAudit = async (taskId: string, currentViewCount: number, proofScreenshot?: string) => {
     try {
@@ -312,6 +460,23 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 获取二次审核申请列表
+   * 获取二次审核申请的分页列表数据，支持筛选和排序
+   * 
+   * @complexity O(1) - API调用为常数时间复杂度
+   * @flow 查询参数构建 → API调用 → 申请列表更新 → 分页信息更新
+   * 
+   * @param {SecondAuditRequestQuery} params - 查询参数（可选）
+   * @returns {Promise<void>} 异步操作完成
+   * 
+   * @example
+   * ```typescript
+   * await rewardStore.fetchSecondAuditRequests({
+   *   page: 1,
+   *   pageSize: 20,
+   *   status: 'PENDING'
+   * })
+   * console.log(`获取到 ${rewardStore.secondAuditRequests.length} 条申请`)
+   * ```
    */
   const fetchSecondAuditRequests = async (params: SecondAuditRequestQuery = {}) => {
     secondAuditLoading.value = true
@@ -337,6 +502,24 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 检查任务二次审核资格
+   * 检查指定任务是否符合二次审核的条件和资格
+   * 目前使用模拟数据返回资格检查结果
+   * 
+   * @complexity O(1) - 常数时间复杂度，资格检查逻辑
+   * @flow 模拟资格检查 → 结果对象构建 → 检查结果返回
+   * 
+   * @param {string} taskId - 任务ID
+   * @returns {Promise<Object>} 资格检查结果对象
+   * 
+   * @example
+   * ```typescript
+   * const eligibility = await rewardStore.checkSecondAuditEligibility('task123')
+   * if (eligibility.eligible) {
+   *   console.log('任务符合二次审核条件')
+   * } else {
+   *   console.log(`不符合条件: ${eligibility.reason}`)
+   * }
+   * ```
    */
   const checkSecondAuditEligibility = async (taskId: string) => {
     try {
@@ -364,6 +547,25 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 预览周结算
+   * 预览指定代理在特定周期的结算计算结果，包括任务统计和奖励金额
+   * 目前使用模拟数据提供完整的周结算预览信息
+   * 
+   * @complexity O(1) - 常数时间复杂度，预览数据生成
+   * @flow 模拟预览数据生成 → 预览状态更新 → 预览结果返回
+   * 
+   * @param {string} agentId - 代理ID
+   * @param {string} settlementWeek - 结算周期（可选）
+   * @returns {Promise<WeeklySettlementCalculation>} 周结算预览对象
+   * 
+   * @example
+   * ```typescript
+   * const preview = await rewardStore.previewWeeklySettlement('agent123', '2024-W03')
+   * if (preview.isQualified) {
+   *   console.log(`预计奖励: ${preview.totalRewardAmount}`)
+   * } else {
+   *   console.log(`还需完成 ${preview.remainingTasksNeeded} 个任务`)
+   * }
+   * ```
    */
   const previewWeeklySettlement = async (agentId: string, settlementWeek?: string) => {
     settlementPreviewLoading.value = true
@@ -404,6 +606,18 @@ export const useRewardStore = defineStore('reward', () => {
 
   /**
    * 获取当前周期信息
+   * 获取当前的结算周期信息，包括周期开始时间、结束时间等
+   * 
+   * @complexity O(1) - 单次API调用，常数时间复杂度
+   * @flow API调用 → 周期信息获取 → 结果返回
+   * 
+   * @returns {Promise<any>} 当前周期信息对象
+   * 
+   * @example
+   * ```typescript
+   * const weekInfo = await rewardStore.getCurrentWeekInfo()
+   * console.log(`当前周期: ${weekInfo.currentWeek}`)
+   * ```
    */
   const getCurrentWeekInfo = async () => {
     try {
@@ -415,18 +629,55 @@ export const useRewardStore = defineStore('reward', () => {
   }
 
   /**
-   * 分页相关方法
+   * 更新结算列表分页
+   * 更新奖励结算列表的当前页码
+   * 
+   * @complexity O(1) - 常数时间复杂度，简单赋值操作
+   * @flow 页码参数验证 → 分页状态更新
+   * 
+   * @param {number} page - 目标页码
+   * 
+   * @example
+   * ```typescript
+   * rewardStore.updateSettlementsPage(3)
+   * console.log(`切换到第 ${page} 页`)
+   * ```
    */
   const updateSettlementsPage = (page: number) => {
     settlementsPagination.value.page = page
   }
 
+  /**
+   * 更新二次审核申请分页
+   * 更新二次审核申请列表的当前页码
+   * 
+   * @complexity O(1) - 常数时间复杂度，简单赋值操作
+   * @flow 页码参数验证 → 分页状态更新
+   * 
+   * @param {number} page - 目标页码
+   * 
+   * @example
+   * ```typescript
+   * rewardStore.updateSecondAuditPage(2)
+   * console.log(`二次审核列表切换到第 ${page} 页`)
+   * ```
+   */
   const updateSecondAuditPage = (page: number) => {
     secondAuditPagination.value.page = page
   }
 
   /**
-   * 重置store状态
+   * 重置Store状态
+   * 将所有状态重置为初始值，清空数据和加载状态
+   * 
+   * @complexity O(1) - 常数时间复杂度，状态重置操作
+   * @flow 各状态字段重置 → 分页信息重置 → 统计数据清空
+   * 
+   * @example
+   * ```typescript
+   * rewardStore.resetStore()
+   * console.log('奖励Store状态已重置')
+   * ```
    */
   const resetStore = () => {
     settlements.value = []

@@ -1,3 +1,72 @@
+<!--
+/**
+ * @fileoverview 人员节点详情卡片组件
+ * 基于Vue 3 Composition API构建的人员节点详细信息展示卡片，提供完整的组织架构节点分析
+ * 支持团队统计、业绩概览、直接下级展示和上级信息查询等多维度数据展示功能
+ * 集成实时数据加载、模拟数据生成和响应式布局设计，确保最佳的用户体验
+ * 
+ * @component NodeDetailCard
+ * @author Frontend Team
+ * @since 1.0.0
+ * @version 1.3.0
+ * 
+ * @description
+ * NodeDetailCard是PersonnelTree系统中的详情展示组件，提供以下核心功能：
+ * - 👤 完整的人员基础信息展示，包含头像、姓名、角色和联系方式
+ * - 📊 实时团队统计数据，支持按角色分类的下级人员统计
+ * - 🎯 业绩概览面板，展示成交数据和目标达成情况
+ * - 🔗 直接下级列表，支持展开/收起和分页展示
+ * - ⬆️ 上级信息查询，动态加载上级人员基本信息
+ * - 📱 响应式网格布局，适配不同屏幕尺寸的设备
+ * - 🎨 现代化UI设计，使用shadcn-vue组件和Tailwind CSS
+ * 
+ * @features
+ * - **智能数据加载**: 根据节点选择动态加载相关数据
+ * - **分层权限展示**: 根据角色层级显示不同的统计维度
+ * - **实时状态管理**: 支持加载状态、错误处理和空状态展示
+ * - **交互式界面**: ID显示切换、下级列表展开等用户交互
+ * - **数据可视化**: 进度条、徽章和统计卡片的视觉展示
+ * 
+ * @usage
+ * ```vue
+ * <template>
+ *   <NodeDetailCard
+ *     :node="selectedNode"
+ *   />
+ * </template>
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // 基础使用示例
+ * const selectedNode: TreeNodeData = {
+ *   id: 'node_001',
+ *   name: '张经理',
+ *   role: 'manager',
+ *   phone: '13800138000',
+ *   parentId: 'director_001',
+ *   hasChildren: true
+ * }
+ * 
+ * // 选择节点时会自动加载详情数据
+ * function handleNodeSelect(node: TreeNodeData) {
+ *   selectedNode.value = node
+ *   // NodeDetailCard会自动加载:
+ *   // - 直接下级列表
+ *   // - 团队统计数据
+ *   // - 上级信息
+ *   // - 业绩概览
+ * }
+ * ```
+ * 
+ * @performance
+ * - 使用watch监听节点变化，避免不必要的数据重载
+ * - 模拟数据生成优化，减少计算复杂度
+ * - 分页式下级列表展示，提升大团队数据的渲染性能
+ * - 条件渲染优化，根据数据状态智能显示组件
+ */
+-->
+
 <template>
   <Card v-if="node" class="w-full">
     <CardHeader>
@@ -181,6 +250,10 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * @fileoverview NodeDetailCard组件的核心逻辑实现
+ * 使用Vue 3 Composition API实现人员节点详情的完整功能，包含数据加载、统计计算和状态管理
+ */
 import { defineProps, ref, watch, onMounted } from 'vue';
 import type { TreeNodeData, PersonnelRole } from '@/types/personnel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -191,33 +264,142 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2, EyeIcon, EyeOffIcon } from 'lucide-vue-next';
 import { getPersonnelChildren } from '@/api/personnel';
 
+/**
+ * 组件属性接口定义
+ * 定义NodeDetailCard组件的输入属性
+ * 
+ * @interface Props
+ * 
+ * @property {TreeNodeData | null} node - 当前选中的人员节点数据，null时显示空状态
+ * 
+ * @example
+ * ```typescript
+ * const props = {
+ *   node: {
+ *     id: 'node_001',
+ *     name: '张经理',
+ *     role: 'manager',
+ *     phone: '13800138000',
+ *     parentId: 'director_001',
+ *     hasChildren: true
+ *   }
+ * }
+ * ```
+ */
 const props = defineProps<{
+  /** 人员节点数据对象 */
   node: TreeNodeData | null;
 }>();
 
-// 状态管理
+/**
+ * 组件响应式状态管理
+ * 管理组件的各种状态和数据
+ */
+/** 数据加载状态 */
 const isLoading = ref(false);
+/** 下级列表展开状态 */
 const showMore = ref(false);
+/** ID完整显示状态 */
 const showFullId = ref(false);
+/** 直接下级人员列表 */
 const directSubordinates = ref<TreeNodeData[]>([]);
+
+/**
+ * 上级信息状态对象
+ * 管理上级人员的基本信息和加载状态
+ * 
+ * @interface ParentInfo
+ * 
+ * @property {boolean} isLoading - 上级信息加载状态
+ * @property {string} name - 上级人员姓名
+ * @property {PersonnelRole} role - 上级人员角色
+ * @property {string} id - 上级人员ID
+ * 
+ * @example
+ * ```typescript
+ * parentInfo.value = {
+ *   isLoading: false,
+ *   name: '李总监',
+ *   role: 'director',
+ *   id: 'director_001'
+ * }
+ * ```
+ */
 const parentInfo = ref({
   isLoading: false,
   name: '',
   role: '' as PersonnelRole,
   id: ''
 });
+
+/**
+ * 团队统计数据对象
+ * 存储团队规模和角色分布统计信息
+ * 
+ * @interface TeamStats
+ * 
+ * @property {number} total - 团队总人数
+ * @property {number} managerCount - 销售组长数量
+ * @property {number} salesCount - 销售人员数量
+ * @property {number} agentCount - 代理人数量
+ * 
+ * @example
+ * ```typescript
+ * teamStats.value = {
+ *   total: 15,
+ *   managerCount: 3,
+ *   salesCount: 8,
+ *   agentCount: 4
+ * }
+ * ```
+ */
 const teamStats = ref({
   total: 0,
   managerCount: 0,
   salesCount: 0,
   agentCount: 0
 });
+
+/**
+ * 团队业绩数据对象
+ * 存储团队的业绩表现和目标达成情况
+ * 
+ * @interface TeamPerformance
+ * 
+ * @property {number} monthlyDeals - 本月成交数量
+ * @property {number} monthlyAmount - 本月成交金额
+ * @property {number} targetPercentage - 目标达成百分比
+ * 
+ * @example
+ * ```typescript
+ * teamPerformance.value = {
+ *   monthlyDeals: 25,
+ *   monthlyAmount: 850000,
+ *   targetPercentage: 78
+ * }
+ * ```
+ */
 const teamPerformance = ref({
   monthlyDeals: 0,
   monthlyAmount: 0,
   targetPercentage: 0
 });
 
+/**
+ * 角色名称映射表
+ * 将系统角色代码映射为用户友好的中文显示名称
+ * 
+ * @const roleMap
+ * @type {Record<PersonnelRole, string>}
+ * 
+ * @complexity O(1) - 哈希表查找，常数时间复杂度
+ * 
+ * @example
+ * ```typescript
+ * const roleName = roleMap['manager'] // '销售组长'
+ * const directorName = roleMap['director'] // '销售总监'
+ * ```
+ */
 const roleMap: Record<PersonnelRole, string> = {
   director: '销售总监',
   manager: '销售组长',
@@ -225,17 +407,69 @@ const roleMap: Record<PersonnelRole, string> = {
   agent: '代理',
 };
 
+/**
+ * 获取角色对应的头像URL
+ * 根据用户角色返回对应的头像图片地址（当前为占位实现）
+ * 
+ * @function getAvatarUrl
+ * @param {PersonnelRole} role - 用户角色标识
+ * @returns {string} 头像图片URL地址
+ * 
+ * @complexity O(1) - 简单条件判断，常数时间复杂度
+ * 
+ * @todo 实现基于角色的头像映射逻辑
+ * @todo 添加头像加载失败的降级处理
+ * 
+ * @example
+ * ```typescript
+ * const avatarUrl = getAvatarUrl('director') // '' (当前返回空字符串)
+ * ```
+ */
 const getAvatarUrl = (role: PersonnelRole) => {
-  //
+  // TODO: 实现基于角色的头像URL映射
   return '';
 };
 
-// 格式化金额
+/**
+ * 格式化金额显示
+ * 将数字金额转换为本地化的千分位分隔格式
+ * 
+ * @function formatAmount
+ * @param {number} amount - 要格式化的金额数值
+ * @returns {string} 格式化后的金额字符串
+ * 
+ * @complexity O(1) - 简单数值转换，常数时间复杂度
+ * 
+ * @example
+ * ```typescript
+ * formatAmount(1234567) // "1,234,567"
+ * formatAmount(0) // "0"
+ * formatAmount(null) // "0"
+ * ```
+ */
 const formatAmount = (amount: number) => {
   return amount ? amount.toLocaleString() : '0';
 };
 
-// 获取徽章变体
+/**
+ * 获取角色对应的徽章样式变体
+ * 根据人员角色返回相应的Badge组件样式变体
+ * 
+ * @function getBadgeVariant
+ * @param {PersonnelRole} role - 人员角色标识
+ * @returns {string} Badge组件的变体名称
+ * 
+ * @complexity O(1) - 简单switch语句，常数时间复杂度
+ * @flow 角色输入 → 条件匹配 → 样式返回 → 徽章渲染
+ * 
+ * @example
+ * ```typescript
+ * getBadgeVariant('director') // 'default'
+ * getBadgeVariant('manager') // 'secondary'
+ * getBadgeVariant('sales') // 'outline'
+ * getBadgeVariant('agent') // 'destructive'
+ * ```
+ */
 const getBadgeVariant = (role: PersonnelRole) => {
   switch (role) {
     case 'director':
@@ -251,7 +485,27 @@ const getBadgeVariant = (role: PersonnelRole) => {
   }
 };
 
-// 获取下属人员
+/**
+ * 获取下属人员数据
+ * 从API获取当前节点的直接下级人员列表，并触发统计数据计算
+ * 
+ * @async
+ * @function fetchSubordinates
+ * @returns {Promise<void>}
+ * 
+ * @complexity O(n) - n为下级人员数量，需要遍历计算统计
+ * @flow API请求 → 数据处理 → 统计计算 → 业绩生成 → 状态更新
+ * 
+ * @example
+ * ```typescript
+ * // 节点选择时自动调用
+ * await fetchSubordinates()
+ * // 会更新：
+ * // - directSubordinates.value
+ * // - teamStats.value
+ * // - teamPerformance.value
+ * ```
+ */
 const fetchSubordinates = async () => {
   if (!props.node || !props.node.hasChildren) return;
   
@@ -276,7 +530,34 @@ const fetchSubordinates = async () => {
   }
 };
 
-// 计算团队统计信息
+/**
+ * 计算团队统计信息
+ * 基于下级人员列表计算各角色的数量分布统计
+ * 
+ * @function calculateTeamStats
+ * @param {TreeNodeData[]} subordinates - 下级人员数据数组
+ * @returns {void}
+ * 
+ * @complexity O(n) - n为下级人员数量，需要遍历所有人员
+ * @flow 数据输入 → 统计重置 → 角色遍历 → 计数累加 → 结果更新
+ * 
+ * @example
+ * ```typescript
+ * const subordinates = [
+ *   { role: 'manager', name: '张组长' },
+ *   { role: 'sales', name: '李销售' },
+ *   { role: 'agent', name: '王代理' }
+ * ]
+ * 
+ * calculateTeamStats(subordinates)
+ * // teamStats.value = {
+ * //   total: 3,
+ * //   managerCount: 1,
+ * //   salesCount: 1,
+ * //   agentCount: 1
+ * // }
+ * ```
+ */
 const calculateTeamStats = (subordinates: TreeNodeData[]) => {
   // 重置统计
   teamStats.value = {
@@ -298,7 +579,29 @@ const calculateTeamStats = (subordinates: TreeNodeData[]) => {
   });
 };
 
-// 生成模拟业绩数据 (实际项目应从API获取)
+/**
+ * 生成模拟业绩数据
+ * 为演示目的生成随机的团队业绩数据（实际项目中应从API获取真实数据）
+ * 
+ * @function generateMockPerformanceData
+ * @returns {void}
+ * 
+ * @complexity O(1) - 简单随机数生成，常数时间复杂度
+ * @flow 随机计算 → 数据生成 → 状态更新 → 界面刷新
+ * 
+ * @todo 替换为真实的业绩数据API调用
+ * @todo 添加业绩数据的缓存机制
+ * 
+ * @example
+ * ```typescript
+ * generateMockPerformanceData()
+ * // teamPerformance.value = {
+ * //   monthlyDeals: 15,        // 5-24 之间的随机值
+ * //   monthlyAmount: 750000,   // 100000-1100000 之间的随机值
+ * //   targetPercentage: 85     // 1-100 之间的随机值
+ * // }
+ * ```
+ */
 const generateMockPerformanceData = () => {
   teamPerformance.value = {
     monthlyDeals: Math.floor(Math.random() * 20) + 5,
@@ -307,7 +610,24 @@ const generateMockPerformanceData = () => {
   };
 };
 
-// 获取上级信息
+/**
+ * 获取上级人员信息
+ * 从API获取当前节点的上级人员基本信息并更新显示状态
+ * 
+ * @async
+ * @function fetchParentInfo
+ * @returns {Promise<void>}
+ * 
+ * @complexity O(1) - API调用，常数时间复杂度（不考虑网络延迟）
+ * @flow 上级检查 → 加载状态 → API调用 → 数据处理 → 错误处理
+ * 
+ * @example
+ * ```typescript
+ * // 节点选择时自动调用
+ * await fetchParentInfo()
+ * // 会更新 parentInfo.value 的所有字段
+ * ```
+ */
 const fetchParentInfo = async () => {
   if (!props.node || !props.node.parentId) {
     parentInfo.value = { isLoading: false, name: '', role: '' as PersonnelRole, id: '' };
@@ -341,7 +661,39 @@ const fetchParentInfo = async () => {
   }
 };
 
-// 模拟获取人员信息的API (实际项目中应替换为真实API)
+/**
+ * 模拟获取人员信息的API
+ * 为演示目的提供的模拟API函数（实际项目中应替换为真实API）
+ * 
+ * @async
+ * @function getPersonnelById
+ * @param {string} id - 人员ID
+ * @returns {Promise<Object>} 模拟的API响应对象
+ * 
+ * @complexity O(1) - 简单模拟逻辑，常数时间复杂度
+ * @flow ID输入 → 延迟模拟 → 角色判断 → 数据生成 → 响应返回
+ * 
+ * @todo 替换为真实的人员信息API调用
+ * @todo 添加错误响应的模拟场景
+ * 
+ * @example
+ * ```typescript
+ * const response = await getPersonnelById('parent_001')
+ * // 返回结构:
+ * // {
+ * //   data: {
+ * //     code: 200,
+ * //     success: true,
+ * //     data: {
+ * //       id: 'parent_001',
+ * //       name: '张组长',
+ * //       role: 'manager',
+ * //       phone: '13800138000'
+ * //     }
+ * //   }
+ * // }
+ * ```
+ */
 const getPersonnelById = async (id: string) => {
   // 模拟API延迟
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -377,7 +729,34 @@ const getPersonnelById = async (id: string) => {
   };
 };
 
-// 监听节点变化
+/**
+ * 监听节点变化
+ * 当选中的节点发生变化时，自动加载相关数据并重置组件状态
+ * 
+ * @watcher nodeWatcher
+ * @param {TreeNodeData | null} newNode - 新选中的节点数据
+ * @returns {void}
+ * 
+ * @complexity O(1) - 触发异步函数调用，常数时间复杂度
+ * @flow 节点变化 → 数据加载 → 状态重置 → 界面更新
+ * 
+ * @features
+ * - 自动数据加载：新节点选中时加载下级和上级信息
+ * - 状态重置：确保UI状态的正确性
+ * - 空节点处理：清空所有数据和状态
+ * - 立即执行：组件初始化时立即执行一次
+ * 
+ * @example
+ * ```typescript
+ * // 当用户在树形控件中选择不同节点时自动触发
+ * selectedNode.value = newNode
+ * // 监听器会自动：
+ * // 1. 调用 fetchSubordinates() 获取下级
+ * // 2. 调用 fetchParentInfo() 获取上级
+ * // 3. 重置 showMore 和 showFullId 状态
+ * // 4. 清空无效节点的数据
+ * ```
+ */
 watch(() => props.node, (newNode) => {
   if (newNode) {
     fetchSubordinates();

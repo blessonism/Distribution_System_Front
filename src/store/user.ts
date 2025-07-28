@@ -1,3 +1,15 @@
+/**
+ * @fileoverview 用户状态管理Store
+ * 基于Pinia的用户认证和权限管理状态存储，支持登录、注册、邀请系统等功能
+ * 
+ * @module store/user
+ * @requires pinia
+ * @requires @/types/api
+ * @requires @/utils/request
+ * @requires @/api/auth
+ * @requires @/store/invitation
+ */
+
 import { defineStore } from 'pinia'
 import type { User, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse } from '@/types/api'
 import type { UserRole } from '@/types/api'
@@ -5,16 +17,30 @@ import { http } from '@/utils/request'
 import { authApi, handleAuthError } from '@/api/auth'
 import { canUserInvite, getAllowedTargetRoles, getMaxInviteCodes } from '@/store/invitation'
 
+/**
+ * 用户Store状态接口
+ * 定义用户认证和权限管理的完整状态结构
+ * 
+ * @interface UserState
+ */
 interface UserState {
+  /** JWT访问令牌 */
   token: string | null
+  /** 当前用户完整信息 */
   userInfo: User | null
+  /** 用户角色数组（通常包含一个角色） */
   roles: string[]
+  /** 用户权限列表 */
   permissions: string[]
+  /** 路由是否已加载 */
   routesLoaded: boolean
-  // 新增邀请相关状态
+  /** 邀请权限相关状态 */
   invitePermissions: {
+    /** 是否有邀请权限 */
     canInvite: boolean
+    /** 可以邀请的目标角色列表 */
     allowedTargetRoles: UserRole[]
+    /** 最大邀请码数量 */
     maxCodes: number
   }
 }

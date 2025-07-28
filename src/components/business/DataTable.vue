@@ -1,3 +1,90 @@
+<!--
+/**
+ * @fileoverview 通用数据表格组件
+ * 基于Vue 3 Composition API构建的高性能数据表格组件，提供完整的表格展示、分页和自定义渲染功能
+ * 支持响应式布局、加载状态、空状态处理、自定义列渲染和灵活的插槽系统
+ * 集成Tailwind CSS样式系统，提供现代化的视觉体验和无缝的用户交互
+ * 
+ * @component DataTable
+ * @author Frontend Team
+ * @since 1.0.0
+ * @version 1.2.0
+ * 
+ * @description
+ * 这是分销系统前端的核心数据表格组件，提供以下核心功能：
+ * - 🔧 灵活的列配置系统，支持自定义渲染函数
+ * - 📄 完整的分页控制，包含首页、末页、上下页导航
+ * - ⚡ 智能加载状态管理，提供骨架屏效果
+ * - 🎨 响应式设计，适配不同屏幕尺寸
+ * - 🔍 空状态友好提示，提升用户体验
+ * - 🧩 插槽系统，支持工具栏和操作区域自定义
+ * 
+ * @usage
+ * ```vue
+ * <template>
+ *   <DataTable
+ *     :columns="tableColumns"
+ *     :data="tableData"
+ *     :loading="isLoading"
+ *     :pagination="true"
+ *     :total-items="totalCount"
+ *     :current-page="currentPage"
+ *     :page-size="pageSize"
+ *     @page-change="handlePageChange"
+ *   >
+ *     <template #toolbar>
+ *       <div class="flex gap-2">
+ *         <Button @click="handleAdd">添加</Button>
+ *         <Button @click="handleRefresh">刷新</Button>
+ *       </div>
+ *     </template>
+ *     <template #actions>
+ *       <Button @click="handleExport">导出</Button>
+ *     </template>
+ *   </DataTable>
+ * </template>
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // 列配置示例
+ * const columns = [
+ *   {
+ *     id: 'name',
+ *     header: '姓名',
+ *     accessorKey: 'name'
+ *   },
+ *   {
+ *     id: 'status', 
+ *     header: '状态',
+ *     cell: ({ row }) => {
+ *       const status = row.original.status
+ *       return h(Badge, {
+ *         variant: status === 'active' ? 'default' : 'secondary'
+ *       }, status === 'active' ? '激活' : '禁用')
+ *     }
+ *   },
+ *   {
+ *     id: 'actions',
+ *     header: '操作',
+ *     cell: ({ row }) => {
+ *       return h('div', { class: 'flex gap-2' }, [
+ *         h(Button, { 
+ *           size: 'sm',
+ *           onClick: () => handleEdit(row.original)
+ *         }, '编辑'),
+ *         h(Button, { 
+ *           size: 'sm', 
+ *           variant: 'destructive',
+ *           onClick: () => handleDelete(row.original)
+ *         }, '删除')
+ *       ])
+ *     }
+ *   }
+ * ]
+ * ```
+ */
+-->
 <template>
   <div class="w-full">
     <!-- 工具栏 -->
@@ -127,23 +214,93 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * @fileoverview DataTable组件的核心逻辑实现
+ * 使用Vue 3 Composition API和 TypeScript实现的高性能数据表格组件
+ */
 import { computed, h, defineComponent, markRaw } from 'vue'
 
+/**
+ * 表格列定义接口
+ * 定义数据表格中单个列的完整配置信息，支持灵活的数据访问和自定义渲染
+ * 
+ * @interface Column
+ * 
+ * @property {string} [id] - 列的唯一标识符，用于key绑定和追踪
+ * @property {string} [accessorKey] - 数据对象中的属性名，用于自动获取列值
+ * @property {string | (() => any)} [header] - 列标题，支持字符串或自定义渲染函数
+ * @property {(props: { row: any }) => any} [cell] - 自定义单元格渲染函数
+ * 
+ * @example
+ * ```typescript
+ * const column: Column = {
+ *   id: 'status',
+ *   header: '状态',
+ *   accessorKey: 'status',
+ *   cell: ({ row }) => {
+ *     return h(Badge, { 
+ *       variant: row.original.status === 'active' ? 'default' : 'secondary' 
+ *     }, row.original.status)
+ *   }
+ * }
+ * ```
+ */
 interface Column {
+  /** 列的唯一标识符 */
   id?: string
+  /** 数据对象中的属性名 */
   accessorKey?: string
+  /** 列标题，支持字符串或自定义渲染函数 */
   header?: string | (() => any)
+  /** 自定义单元格渲染函数 */
   cell?: (props: { row: any }) => any
 }
 
+/**
+ * DataTable组件属性接口
+ * 定义数据表格组件的完整属性配置，支持数据展示、分页控制和状态管理
+ * 
+ * @interface Props
+ * 
+ * @property {Column[]} columns - 表格列配置数组，定义表格的结构和渲染方式
+ * @property {any[] | undefined} data - 表格数据数组，支持undefined以处理加载状态
+ * @property {boolean} [loading=false] - 加载状态，控制骨架屏显示
+ * @property {boolean} [pagination=false] - 是否启用分页功能
+ * @property {number} [totalItems=0] - 数据总数，用于分页计算
+ * @property {number} [pageSize=10] - 每页显示数量
+ * @property {number} [currentPage=1] - 当前页码
+ * @property {string} [emptyText='暂无数据'] - 空状态提示文本
+ * 
+ * @example
+ * ```typescript
+ * const props: Props = {
+ *   columns: tableColumns,
+ *   data: tableData,
+ *   loading: false,
+ *   pagination: true,
+ *   totalItems: 100,
+ *   pageSize: 20,
+ *   currentPage: 1,
+ *   emptyText: '暂无用户数据'
+ * }
+ * ```
+ */
 interface Props {
+  /** 表格列配置数组 */
   columns: Column[]
+  /** 表格数据数组 */
   data: any[] | undefined
+  /** 加载状态 */
   loading?: boolean
+  /** 是否启用分页 */
   pagination?: boolean
+  /** 数据总数 */
   totalItems?: number
+  /** 每页数量 */
   pageSize?: number
+  /** 当前页码 */
   currentPage?: number
+  /** 空状态提示文本 */
   emptyText?: string
 }
 

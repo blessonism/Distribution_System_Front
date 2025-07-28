@@ -1,3 +1,96 @@
+<!--
+/**
+ * @fileoverview 邀请统计仪表板组件
+ * 基于Vue 3 Composition API构建的综合性邀请数据统计分析组件，提供多维度的邀请效果展示
+ * 集成数据可视化、趋势分析、角色分布、导出功能等核心特性，支持灵活的时间范围选择
+ * 采用shadcn-vue设计系统，确保视觉一致性和优秀的用户体验
+ * 
+ * @component InvitationStatistics
+ * @author Frontend Team
+ * @since 1.0.0
+ * @version 1.8.0
+ * 
+ * @description
+ * InvitationStatistics组件是邀请系统的数据分析中心，主要功能包括：
+ * - 📈 完整的邀请数据概览，包含总邀请数、月度数据、转化率等核心指标
+ * - 📊 可视化趋势图表，支持自定义时间范围和动态数据展示
+ * - 🎅 角色分布统计，直观展示不同角色的邀请情况和占比
+ * - 🕰️ 灵活的时间维度切换，支持周、月、季度三个维度
+ * - 📄 智能趋势分析，提供数据洞察和优化建议
+ * - 🚀 高效时段识别，帮助用户优化邀请策略
+ * - 💾 多格式数据导出，支持Excel、CSV、PDF等格式
+ * - 📝 最近邀请记录展示，提供实时数据反馈
+ * - 📱 响应式设计，完美适配移动端和桌面端
+ * 
+ * @usage
+ * ```vue
+ * <template>
+ *   <InvitationStatistics
+ *     :stats="statisticsData"
+ *     :recent-invites="recentInvites"
+ *     :active-codes-count="activeCount"
+ *     :total-codes-count="totalCount"
+ *     :loading="isLoading"
+ *     @time-range-change="handleTimeRangeChange"
+ *     @export="handleExport"
+ *     @view-all-history="handleViewAllHistory"
+ *   />
+ * </template>
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // 基础使用示例
+ * const statisticsData: InvitationStats = {
+ *   totalInvites: 150,
+ *   monthlyInvites: 45,
+ *   conversionRate: 0.68,
+ *   roleBreakdown: {
+ *     agent: 80,
+ *     sales: 35,
+ *     leader: 20,
+ *     director: 15
+ *   }
+ * }
+ * 
+ * const recentInvites: InvitationRecord[] = [
+ *   {
+ *     id: 'inv_001',
+ *     inviteeName: '张三',
+ *     actualRole: 'agent',
+ *     status: 'completed',
+ *     registeredAt: '2024-01-15T10:30:00Z'
+ *   }
+ * ]
+ * 
+ * function handleTimeRangeChange(timeRange: string) {
+ *   // 处理时间范围变化
+ *   fetchStatistics(timeRange)
+ * }
+ * 
+ * function handleExport(params: ExportParams) {
+ *   // 处理数据导出
+ *   exportStatisticsData(params)
+ * }
+ * ```
+ * 
+ * @dependencies
+ * - shadcn-vue: UI组件库
+ * - lucide-vue-next: 图标库
+ * - Vue 3 Composition API: 响应式状态管理
+ * 
+ * @features
+ * - **数据概览**: 关键指标卡片展示，包含增长率和进度显示
+ * - **角色分布**: 直观的饶图式展示，包含详细列表和百分比
+ * - **趋势分析**: 自定义的简化版图表，支持悬停提示和详细统计
+ * - **智能分析**: 基于数据的趋势分析和优化建议
+ * - **实时反馈**: 最近邀请记录展示，支持状态显示和相对时间
+ * - **数据导出**: 多格式导出支持，灵活的范围选择
+ * - **响应式布局**: CSS Grid和Flexbox布局，适配不同屏幕尺寸
+ * - **性能优化**: 计算属性缓存、条件渲染、懒加载等优化手段
+ */
+-->
+
 <template>
   <Card class="w-full">
     <CardHeader>
@@ -352,6 +445,10 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * @fileoverview InvitationStatistics组件的核心逻辑实现
+ * 使用Vue 3 Composition API实现邀请统计数据的复杂处理、可视化展示和用户交互
+ */
 import { computed, ref, watch } from 'vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -378,12 +475,44 @@ import type { InvitationStats, InvitationRecord, StatsQueryParams } from '@/type
 import type { UserRole } from '@/types/api'
 import { getRoleDisplayName } from '@/api/invitation'
 
-// Props 定义
+/**
+ * 组件属性接口定义
+ * 定义InvitationStatistics组件的输入属性
+ * 
+ * @interface Props
+ * 
+ * @property {InvitationStats | null} stats - 邀请统计数据，包含所有核心指标
+ * @property {InvitationRecord[]} recentInvites - 最近的邀请记录列表
+ * @property {number} activeCodesCount - 当前激活的邀请码数量
+ * @property {number} totalCodesCount - 总邀请码数量
+ * @property {boolean} [loading=false] - 组件加载状态
+ * 
+ * @example
+ * ```typescript
+ * const props: Props = {
+ *   stats: {
+ *     totalInvites: 150,
+ *     monthlyInvites: 45,
+ *     conversionRate: 0.68,
+ *     roleBreakdown: { agent: 80, sales: 35 }
+ *   },
+ *   recentInvites: [],
+ *   activeCodesCount: 8,
+ *   totalCodesCount: 12,
+ *   loading: false
+ * }
+ * ```
+ */
 interface Props {
+  /** 邀请统计数据，包含所有核心指标和角色分布 */
   stats: InvitationStats | null
+  /** 最近的邀请记录，用于展示实时数据 */
   recentInvites: InvitationRecord[]
+  /** 当前激活的邀请码数量 */
   activeCodesCount: number
+  /** 总邀请码数量（包含停用的） */
   totalCodesCount: number
+  /** 组件加载状态，影响按钮和交互禁用 */
   loading?: boolean
 }
 
@@ -391,22 +520,81 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false
 })
 
-// Emits 定义
+/**
+ * 组件事件接口定义
+ * 定义InvitationStatistics组件对外发出的所有事件
+ * 
+ * @interface Emits
+ * 
+ * @event timeRangeChange - 时间范围变化事件，参数为新的时间范围值
+ * @event export - 数据导出事件，参数为导出配置对象
+ * @event viewAllHistory - 查看全部历史记录事件，无参数
+ * 
+ * @example
+ * ```typescript
+ * // 事件处理示例
+ * function handleTimeRangeChange(timeRange: string) {
+ *   // 重新获取对应时间范围的统计数据
+ *   fetchStatistics({ timeRange })
+ * }
+ * 
+ * function handleExport(params: ExportParams) {
+ *   // 处理数据导出请求
+ *   downloadStatisticsReport(params)
+ * }
+ * 
+ * function handleViewAllHistory() {
+ *   // 导航到详细历史记录页面
+ *   router.push('/invitation/history')
+ * }
+ * ```
+ */
 interface Emits {
+  /** 时间范围变化时触发，用于重新获取统计数据 */
   timeRangeChange: [timeRange: string]
+  /** 用户点击导出按钮时触发，传递导出参数 */
   export: [params: { format: string; range: string; timeRange: string }]
+  /** 用户点击查看全部历史按钮时触发 */
   viewAllHistory: []
 }
 
 const emit = defineEmits<Emits>()
 
-// 响应式数据
+/**
+ * 组件响应式状态管理
+ * 管理时间范围选择、导出对话框和相关配置选项
+ */
+/** 当前选中的时间范围 */
 const selectedTimeRange = ref('month')
+/** 导出对话框开启状态 */
 const exportDialogOpen = ref(false)
+/** 选中的导出格式 */
 const exportFormat = ref('excel')
+/** 选中的导出数据范围 */
 const exportRange = ref('current')
 
-// 计算属性
+/**
+ * 计算属性：月度增长率
+ * 模拟计算当前月相比上月的邀请数增长百分比
+ * 
+ * @computed monthlyGrowth
+ * @returns {number} 月度增长百分比，可为负数
+ * 
+ * @complexity O(1) - 简单的数学计算，常数时间复杂度
+ * @flow 数据检查 → 上月数据模拟 → 增长率计算 → 百分比返回
+ * 
+ * @description 计算逻辑：
+ * - 获取当前月邀请数
+ * - 模拟上月数据（当前-随机值）
+ * - 计算增长百分比并四舍五入
+ * 
+ * @example
+ * ```typescript
+ * // 当前月邀请数为45，上月为35
+ * // 增长率 = ((45 - 35) / 35) * 100 = 28.6% -> 29%
+ * const growth = monthlyGrowth.value // 29
+ * ```
+ */
 const monthlyGrowth = computed(() => {
   // 模拟计算月度增长率
   if (!props.stats) return 0
@@ -415,6 +603,27 @@ const monthlyGrowth = computed(() => {
   return Math.round(((current - previous) / previous) * 100)
 })
 
+/**
+ * 计算属性：月度目标完成进度
+ * 根据当前月邀请数和预设目标计算完成百分比
+ * 
+ * @computed monthlyProgress
+ * @returns {number} 月度目标完成百分比(0-100)
+ * 
+ * @complexity O(1) - 简单的数学计算，常数时间复杂度
+ * 
+ * @description 计算逻辑：
+ * - 预设月度目标为50人
+ * - 计算当前完成百分比
+ * - 上限100%，避免超过100%的显示
+ * 
+ * @example
+ * ```typescript
+ * // 当前月邀请数为35，目标为50
+ * // 完成度 = (35 / 50) * 100 = 70%
+ * const progress = monthlyProgress.value // 70
+ * ```
+ */
 const monthlyProgress = computed(() => {
   // 模拟月度目标完成度
   if (!props.stats) return 0
@@ -422,6 +631,29 @@ const monthlyProgress = computed(() => {
   return Math.min(100, Math.round((props.stats.monthlyInvites / target) * 100))
 })
 
+/**
+ * 计算属性：转化率颜色指示
+ * 根据转化率数值返回对应的颜色样式类名
+ * 
+ * @computed conversionRateColor
+ * @returns {string} Tailwind CSS颜色类名
+ * 
+ * @complexity O(1) - 简单的条件判断，常数时间复杂度
+ * 
+ * @description 颜色规则：
+ * - 转化率 >= 70%: 绿色（优秀）
+ * - 转化率 >= 40%: 黄色（一般）
+ * - 转化率 < 40%: 红色（需要改进）
+ * 
+ * @example
+ * ```typescript
+ * // 转化率为75%
+ * const color = conversionRateColor.value // 'bg-green-500'
+ * 
+ * // 转化率为45%
+ * const color = conversionRateColor.value // 'bg-yellow-500'
+ * ```
+ */
 const conversionRateColor = computed(() => {
   const rate = props.stats?.conversionRate || 0
   if (rate >= 70) return 'bg-green-500'
@@ -429,6 +661,29 @@ const conversionRateColor = computed(() => {
   return 'bg-red-500'
 })
 
+/**
+ * 计算属性：转化率状态描述
+ * 根据转化率数值返回对应的中文状态描述
+ * 
+ * @computed conversionRateStatus
+ * @returns {string} 转化率状态的中文描述
+ * 
+ * @complexity O(1) - 简单的条件判断，常数时间复杂度
+ * 
+ * @description 状态分级：
+ * - 转化率 >= 70%: '转化良好'
+ * - 转化率 >= 40%: '转化一般'
+ * - 转化率 < 40%: '需要改进'
+ * 
+ * @example
+ * ```typescript
+ * // 转化率为75%
+ * const status = conversionRateStatus.value // '转化良好'
+ * 
+ * // 转化率为30%
+ * const status = conversionRateStatus.value // '需要改进'
+ * ```
+ */
 const conversionRateStatus = computed(() => {
   const rate = props.stats?.conversionRate || 0
   if (rate >= 70) return '转化良好'

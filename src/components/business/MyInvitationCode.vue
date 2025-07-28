@@ -1,3 +1,94 @@
+<!--
+/**
+ * @fileoverview 我的邀请码组件
+ * 基于Vue 3 Composition API构建的个人邀请码管理组件，提供邀请码选择、链接生成、分享和二维码功能
+ * 集成shadcn-vue设计系统和动态二维码生成，支持多角色邀请码管理、短链接生成、多平台分享等完整功能
+ * 采用响应式设计和性能优化策略，确保在各种设备和网络环境下的流畅体验
+ * 
+ * @component MyInvitationCode
+ * @author Frontend Team
+ * @since 1.0.0
+ * @version 2.4.0
+ * 
+ * @description
+ * MyInvitationCode组件是个人邀请系统的核心管理界面，主要功能包括：
+ * - 🎯 智能角色选择器，支持多角色邀请码的动态筛选和自动匹配
+ * - 📋 便捷的邀请码和链接展示，支持一键复制到剪贴板
+ * - 🔗 自动链接生成功能，基于选定角色和邀请码生成标准邀请链接
+ * - 📱 高质量二维码生成器，支持动态生成、预览、下载功能
+ * - 🔄 智能短链接服务，集成API提供简洁易分享的链接
+ * - 📧 多平台分享支持，包括Web Share API、邮件、短信等分享方式
+ * - 🎨 优雅的空状态处理，当无可用邀请码时提供申请引导
+ * - ⚡ 高性能处理，异步库加载、内存管理、DOM优化等性能策略
+ * - 📱 响应式设计，完美适配移动端和桌面端显示
+ * - 🔧 智能错误处理，提供完善的降级方案和用户反馈
+ * 
+ * @usage
+ * ```vue
+ * <template>
+ *   <MyInvitationCode
+ *     :codes="availableCodes"
+ *     :allowed-target-roles="allowedRoles"
+ *     :loading="isLoading"
+ *     @copy-code="handleCopyCode"
+ *     @copy-link="handleCopyLink"
+ *     @share-link="handleShareLink"
+ *     @request-new-code="handleRequestNewCode"
+ *   />
+ * </template>
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // 基础使用示例
+ * const availableCodes: InvitationCode[] = [
+ *   {
+ *     id: 'inv_001',
+ *     code: 'AGENT2024001',
+ *     targetRole: 'agent',
+ *     status: 'active',
+ *     usageCount: 5
+ *   }
+ * ]
+ * 
+ * const allowedRoles: UserRole[] = ['agent', 'sales', 'leader']
+ * 
+ * function handleCopyCode(code: string) {
+ *   // 处理邀请码复制事件
+ *   analytics.track('invitation_code_copied', { code })
+ * }
+ * 
+ * function handleShareLink(link: string, roleName: string) {
+ *   // 处理链接分享事件
+ *   analytics.track('invitation_shared', { role: roleName, platform: 'web' })
+ * }
+ * 
+ * function handleRequestNewCode(targetRole: UserRole) {
+ *   // 处理新邀请码申请
+ *   createNewInvitationCode(targetRole)
+ * }
+ * ```
+ * 
+ * @dependencies
+ * - shadcn-vue: UI组件库，提供Card、Select、Dialog等基础组件
+ * - lucide-vue-next: 图标库，提供Link、Copy、Share2等操作图标
+ * - qrcode: 二维码生成库，动态加载用于生成邀请链接二维码
+ * - Vue 3 Composition API: 响应式状态管理
+ * 
+ * @features
+ * - **角色管理**: 动态角色选择，自动邀请码匹配，权限控制
+ * - **链接生成**: 标准化链接生成，参数验证，格式统一
+ * - **短链接**: API集成短链接服务，降级方案，错误处理
+ * - **二维码**: 动态生成，高清输出，下载支持，内存管理
+ * - **多平台分享**: Web Share API、邮件、短信，兼容性处理
+ * - **状态管理**: 邀请码状态，使用统计，有效期展示
+ * - **用户体验**: 智能提示，空状态处理，加载反馈
+ * - **响应式布局**: 移动端优化，自适应设计，触摸友好
+ * - **性能优化**: 异步加载，内存管理，渲染优化
+ * - **错误处理**: 完善的错误边界，用户友好的错误提示
+ */
+-->
+
 <template>
   <Card class="w-full">
     <CardHeader>

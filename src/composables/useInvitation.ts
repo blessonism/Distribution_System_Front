@@ -1,6 +1,18 @@
 /**
- * 邀请系统相关的 Composable
- * 集成网络重试机制和状态监控
+ * @fileoverview 邀请系统管理组合式API模块
+ * 提供完整的邀请系统功能，包括邀请码验证、URL邀请处理、权限管理、网络重试机制等
+ * 
+ * @module composables/useInvitation
+ * @requires vue
+ * @requires vue-router
+ * @requires @/store/user
+ * @requires @/store/invitation
+ * @requires @/components/ui/toast/use-toast
+ * @requires @/utils/invitationErrorHandler
+ * @requires @/utils/retryMechanism
+ * @requires @/utils/invitation
+ * @requires @/types/api
+ * @requires @/types/invitation
  */
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -31,7 +43,30 @@ import type { UserRole } from '@/types/api'
 import type { InvitationCode } from '@/types/invitation'
 
 /**
- * 邀请码验证 Composable
+ * 邀请码验证组合式API
+ * 提供邀请码的输入验证、格式化和实时验证功能
+ * 
+ * @function useInviteCodeValidation
+ * @returns {Object} 邀请码验证相关的状态和方法
+ * @complexity O(1) - 验证操作为常数时间复杂度，防抖处理优化频繁调用
+ * @flow 输入格式化 -> 防抖验证 -> 状态更新 -> 结果反馈
+ * 
+ * @example
+ * ```typescript
+ * const {
+ *   inputCode,
+ *   isValid,
+ *   error,
+ *   validateImmediately,
+ *   clearValidation
+ * } = useInviteCodeValidation()
+ * 
+ * // 立即验证邀请码
+ * const result = await validateImmediately('INVITE123')
+ * if (result?.isValid) {
+ *   console.log('邀请码有效')
+ * }
+ * ```
  */
 export function useInviteCodeValidation() {
   // 验证状态
@@ -77,7 +112,15 @@ export function useInviteCodeValidation() {
     debouncedValidate(newCode)
   })
   
-  // 立即验证
+  /**
+   * 立即验证邀请码
+   * 跳过防抖延迟，立即执行邀请码验证
+   * 
+   * @param {string} code - 要验证的邀请码
+   * @returns {Promise<CompleteValidationResult | null>} 验证结果
+   * @complexity O(1) - 单次API调用的时间复杂度
+   * @flow 设置验证状态 -> 调用验证API -> 处理结果 -> 更新状态
+   */
   const validateImmediately = async (code: string) => {
     if (!code) {
       validationResult.value = null
@@ -107,7 +150,14 @@ export function useInviteCodeValidation() {
     }
   }
   
-  // 清空验证结果
+  /**
+   * 清空验证结果
+   * 重置所有验证状态和输入内容
+   * 
+   * @function clearValidation
+   * @returns {void}
+   * @complexity O(1) - 状态重置为常数时间操作
+   */
   const clearValidation = () => {
     inputCode.value = ''
     validationResult.value = null
@@ -126,7 +176,25 @@ export function useInviteCodeValidation() {
 }
 
 /**
- * URL邀请处理 Composable
+ * URL邀请处理组合式API
+ * 处理URL中的邀请参数，支持邀请链接的解析和清理
+ * 
+ * @function useUrlInvitation
+ * @returns {Object} URL邀请处理相关的状态和方法
+ * @complexity O(1) - URL参数解析为常数时间操作
+ * @flow 解析URL参数 -> 提取邀请信息 -> 提供清理方法
+ * 
+ * @example
+ * ```typescript
+ * const { urlInvitation, clearUrlInvitation } = useUrlInvitation()
+ * 
+ * // 检查URL中是否包含邀请信息
+ * if (urlInvitation.value.hasInvitation) {
+ *   console.log('邀请码:', urlInvitation.value.inviteCode)
+ *   // 处理完成后清理URL参数
+ *   await clearUrlInvitation()
+ * }
+ * ```
  */
 export function useUrlInvitation() {
   const route = useRoute()
@@ -138,7 +206,15 @@ export function useUrlInvitation() {
     return extractInvitationFromUrl(searchParams)
   })
   
-  // 清除URL中的邀请参数
+  /**
+   * 清除URL中的邀请参数
+   * 移除URL中的邀请相关查询参数，保持页面URL的整洁
+   * 
+   * @function clearUrlInvitation
+   * @returns {Promise<void>}
+   * @complexity O(1) - 路由更新为常数时间操作
+   * @flow 构建新查询参数 -> 更新路由 -> 避免触发页面刷新
+   */
   const clearUrlInvitation = async () => {
     const newQuery = { ...route.query }
     delete newQuery.invite
@@ -157,7 +233,29 @@ export function useUrlInvitation() {
 }
 
 /**
- * 邀请权限管理 Composable
+ * 邀请权限管理组合式API
+ * 管理当前用户的邀请权限，包括权限检查、目标角色获取和限制管理
+ * 
+ * @function useInvitationPermissions
+ * @returns {Object} 邀请权限相关的计算属性
+ * @complexity O(1) - 权限检查和计算为常数时间操作
+ * @flow 获取用户角色 -> 检查权限 -> 计算限制 -> 返回权限状态
+ * 
+ * @example
+ * ```typescript
+ * const {
+ *   hasPermission,
+ *   allowedTargetRoles,
+ *   inviteCodeLimit,
+ *   canCreateMoreCodes
+ * } = useInvitationPermissions()
+ * 
+ * // 检查权限后显示邀请功能
+ * if (hasPermission.value) {
+ *   console.log('可邀请角色:', allowedTargetRoles.value)
+ *   console.log('邀请码限制:', inviteCodeLimit.value)
+ * }
+ * ```
  */
 export function useInvitationPermissions() {
   const userStore = useUserStore()
@@ -580,7 +678,27 @@ export function useInvitationStats() {
 }
 
 /**
- * 综合邀请管理 Composable
+ * 综合邀请管理组合式API
+ * 整合所有邀请相关功能，提供完整的邀请系统解决方案
+ * 
+ * @function useInvitation
+ * @returns {Object} 包含所有邀请功能的综合对象
+ * @complexity O(1) - 功能组合为常数时间操作，具体复杂度取决于调用的子功能
+ * @flow 组合子功能 -> 提供初始化方法 -> 处理邀请流程 -> 管理生命周期
+ * 
+ * @example
+ * ```typescript
+ * const invitation = useInvitation()
+ * 
+ * // 初始化邀请功能
+ * await invitation.initializeInvitation()
+ * 
+ * // 处理URL邀请（在注册页面）
+ * const urlResult = await invitation.handleUrlInvitation()
+ * 
+ * // 处理注册后的邀请关系建立
+ * const postResult = await invitation.handlePostRegistrationInvitation(registerResponse)
+ * ```
  */
 export function useInvitation() {
   const userStore = useUserStore()
@@ -594,7 +712,15 @@ export function useInvitation() {
   const history = useInvitationHistory()
   const stats = useInvitationStats()
   
-  // 初始化邀请功能
+  /**
+   * 初始化邀请功能
+   * 检查权限并并行加载所有邀请相关数据
+   * 
+   * @function initializeInvitation
+   * @returns {Promise<void>}
+   * @complexity O(1) - 并行API调用，时间复杂度取决于最慢的API
+   * @flow 检查权限 -> 并行加载数据 -> 处理错误
+   */
   const initializeInvitation = async () => {
     if (!permissions.hasPermission.value) {
       console.warn('当前用户没有邀请权限')
@@ -613,7 +739,15 @@ export function useInvitation() {
     }
   }
   
-  // 处理URL邀请（注册页面使用）
+  /**
+   * 处理URL邀请（注册页面使用）
+   * 验证URL中的邀请码并提供用户反馈
+   * 
+   * @function handleUrlInvitation
+   * @returns {Promise<CompleteValidationResult | null>} 验证结果或null
+   * @complexity O(1) - 单次邀请码验证的时间复杂度
+   * @flow 检查URL邀请 -> 验证邀请码 -> 提供用户反馈 -> 返回结果
+   */
   const handleUrlInvitation = async () => {
     const urlInfo = urlInvitation.urlInvitation.value
     if (urlInfo.hasInvitation && urlInfo.inviteCode) {
@@ -639,7 +773,15 @@ export function useInvitation() {
     return null
   }
 
-  // 处理注册后的邀请关系建立
+  /**
+   * 处理注册后的邀请关系建立
+   * 验证并建立用户与邀请人之间的层级关系
+   * 
+   * @param {any} registerResponse - 注册API的响应数据
+   * @returns {Promise<Object | null>} 邀请关系建立结果
+   * @complexity O(1) - 关系处理为常数时间操作
+   * @flow 检查邀请信息 -> 建立关系 -> 执行后续操作 -> 返回结果
+   */
   const handlePostRegistrationInvitation = async (registerResponse: any) => {
     if (!registerResponse.invitationInfo) {
       console.log('注册响应中无邀请信息，跳过关系建立处理')

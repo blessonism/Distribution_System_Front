@@ -1,3 +1,98 @@
+<!--
+/**
+ * @fileoverview 邀请历史记录表格组件
+ * 基于Vue 3 Composition API构建的全功能邀请历史管理组件，提供完整的数据展示、筛选、搜索、分页和导出功能
+ * 集成DataTable组件和shadcn-vue设计系统，支持复杂的筛选条件、实时搜索、用户详情查看等高级功能
+ * 采用响应式设计和性能优化策略，确保在大数据量场景下的流畅体验
+ * 
+ * @component InvitationHistoryTable
+ * @author Frontend Team
+ * @since 1.0.0
+ * @version 2.1.0
+ * 
+ * @description
+ * InvitationHistoryTable组件是邀请系统的核心数据管理界面，主要功能包括：
+ * - 📊 完整的邀请历史记录展示，包含被邀请人、角色、状态等详细信息
+ * - 🔍 多维度筛选功能，支持角色、状态、时间范围、关键词等筛选条件
+ * - 📱 响应式表格设计，完美适配移动端和桌面端显示
+ * - 📄 智能分页系统，支持大数据量的高效分页浏览
+ * - 📤 数据导出功能，支持筛选条件下的数据导出
+ * - 👤 用户详情查看，提供被邀请用户的完整信息展示
+ * - 🔄 实时数据刷新，确保数据的时效性和准确性
+ * - 🎯 智能搜索功能，支持防抖搜索和多字段匹配
+ * - 📈 统计信息展示，包含总邀请数和月度邀请数
+ * - 🎨 优雅的空状态处理，提供友好的用户引导
+ * - ⚡ 性能优化，包含计算属性缓存、事件防抖等优化手段
+ * 
+ * @usage
+ * ```vue
+ * <template>
+ *   <InvitationHistoryTable
+ *     :data="historyData"
+ *     :loading="isLoading"
+ *     :total="totalCount"
+ *     :page="currentPage"
+ *     :page-size="pageSize"
+ *     @refresh="handleRefresh"
+ *     @export="handleExport"
+ *     @page-change="handlePageChange"
+ *     @filter-change="handleFilterChange"
+ *   />
+ * </template>
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // 基础使用示例
+ * const historyData: InvitationRecord[] = [
+ *   {
+ *     id: 'inv_001',
+ *     inviteeName: '张三',
+ *     actualRole: 'agent',
+ *     inviteCode: 'AGENT2024001',
+ *     registeredAt: '2024-01-15T10:30:00Z',
+ *     status: 'completed'
+ *   }
+ * ]
+ * 
+ * function handleRefresh(params?: HistoryQueryParams) {
+ *   // 刷新历史记录数据
+ *   fetchInvitationHistory(params)
+ * }
+ * 
+ * function handleExport(params?: HistoryQueryParams) {
+ *   // 导出历史记录
+ *   exportInvitationHistory(params)
+ * }
+ * 
+ * function handlePageChange(page: number) {
+ *   // 处理分页变化
+ *   currentPage.value = page
+ *   fetchInvitationHistory({ page, pageSize: pageSize.value })
+ * }
+ * ```
+ * 
+ * @dependencies
+ * - DataTable: 核心表格组件，提供数据展示和操作功能
+ * - shadcn-vue: UI组件库，提供Card、Button、Select等基础组件
+ * - lucide-vue-next: 图标库，提供各种操作图标
+ * - Vue 3 Composition API: 响应式状态管理
+ * 
+ * @features
+ * - **数据表格**: 基于DataTable组件的高性能表格展示
+ * - **多维筛选**: 角色、状态、时间范围、关键词等多种筛选方式
+ * - **智能搜索**: 防抖搜索，支持姓名和邀请码的模糊匹配
+ * - **分页导航**: 智能分页显示，支持快速页面跳转
+ * - **数据导出**: 支持筛选条件下的数据导出功能
+ * - **用户详情**: 弹窗显示被邀请用户的详细信息
+ * - **状态显示**: 直观的状态标签和角色标识
+ * - **统计信息**: 实时显示总邀请数和月度统计
+ * - **空状态处理**: 友好的空数据提示和筛选清空引导
+ * - **响应式布局**: 移动端优化的筛选器和表格布局
+ * - **性能优化**: 计算属性缓存、事件防抖、条件渲染等优化
+ */
+-->
+
 <template>
   <Card class="w-full">
     <CardHeader>
@@ -265,6 +360,10 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * @fileoverview InvitationHistoryTable组件的核心逻辑实现
+ * 使用Vue 3 Composition API实现邀请历史数据的复杂管理，包括筛选、搜索、分页、导出等全套功能
+ */
 import { computed, ref, reactive, onMounted, watch, h } from 'vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -291,12 +390,48 @@ import type { InvitationRecord, HistoryQueryParams } from '@/types/invitation'
 import type { UserRole } from '@/types/api'
 import { getRoleDisplayName } from '@/api/invitation'
 
-// Props 定义
+/**
+ * 组件属性接口定义
+ * 定义InvitationHistoryTable组件的输入属性
+ * 
+ * @interface Props
+ * 
+ * @property {InvitationRecord[]} data - 邀请历史记录数据数组
+ * @property {boolean} [loading=false] - 数据加载状态
+ * @property {number} [total=0] - 总记录数，用于分页计算
+ * @property {number} [page=1] - 当前页码
+ * @property {number} [pageSize=20] - 每页显示的记录数
+ * 
+ * @example
+ * ```typescript
+ * const props: Props = {
+ *   data: [
+ *     {
+ *       id: 'inv_001',
+ *       inviteeName: '张三',
+ *       actualRole: 'agent',
+ *       inviteCode: 'AGENT001',
+ *       registeredAt: '2024-01-15T10:30:00Z',
+ *       status: 'completed'
+ *     }
+ *   ],
+ *   loading: false,
+ *   total: 150,
+ *   page: 1,
+ *   pageSize: 20
+ * }
+ * ```
+ */
 interface Props {
+  /** 邀请历史记录数据数组，包含所有需要展示的记录 */
   data: InvitationRecord[]
+  /** 数据加载状态，影响表格和按钮的禁用状态 */
   loading?: boolean
+  /** 总记录数，用于分页器的计算和显示 */
   total?: number
+  /** 当前页码，从1开始 */
   page?: number
+  /** 每页显示的记录数，默认20条 */
   pageSize?: number
 }
 
@@ -307,17 +442,69 @@ const props = withDefaults(defineProps<Props>(), {
   pageSize: 20
 })
 
-// Emits 定义
+/**
+ * 组件事件接口定义
+ * 定义InvitationHistoryTable组件对外发出的所有事件
+ * 
+ * @interface Emits
+ * 
+ * @event refresh - 数据刷新事件，可选传递查询参数
+ * @event export - 数据导出事件，可选传递筛选参数
+ * @event pageChange - 页码变化事件，传递新的页码
+ * @event filterChange - 筛选条件变化事件，传递筛选参数
+ * 
+ * @example
+ * ```typescript
+ * // 事件处理示例
+ * function handleRefresh(params?: HistoryQueryParams) {
+ *   // 重新获取数据，可带筛选条件
+ *   fetchInvitationHistory(params)
+ * }
+ * 
+ * function handleExport(params?: HistoryQueryParams) {
+ *   // 导出当前筛选条件下的数据
+ *   exportInvitationData(params)
+ * }
+ * 
+ * function handlePageChange(page: number) {
+ *   // 切换到指定页码
+ *   loadPage(page)
+ * }
+ * 
+ * function handleFilterChange(filters: HistoryQueryParams) {
+ *   // 应用新的筛选条件
+ *   applyFilters(filters)
+ * }
+ * ```
+ */
 interface Emits {
+  /** 刷新数据事件，通常由用户点击刷新按钮触发 */
   refresh: [params?: HistoryQueryParams]
+  /** 导出数据事件，用户点击导出按钮时触发 */
   export: [params?: HistoryQueryParams]
+  /** 页码变化事件，用户切换页面时触发 */
   pageChange: [page: number]
+  /** 筛选条件变化事件，任何筛选器改变时触发 */
   filterChange: [filters: HistoryQueryParams]
 }
 
 const emit = defineEmits<Emits>()
 
-// 响应式数据
+/**
+ * 组件响应式状态管理
+ * 管理筛选器状态、用户详情弹窗和搜索防抖等核心状态
+ */
+
+/**
+ * 筛选器响应式状态对象
+ * 包含所有可用的筛选条件，支持多维度数据筛选
+ * 
+ * @interface FilterState
+ * @property {UserRole | 'all'} role - 角色筛选，支持所有用户角色或'all'表示全部
+ * @property {'completed' | 'pending' | 'all'} status - 状态筛选，支持已完成、等待中或全部
+ * @property {'today' | 'week' | 'month' | 'quarter' | 'all'} timeRange - 时间范围筛选
+ * @property {string} keyword - 关键词搜索，支持姓名和邀请码搜索
+ */
 const filters = reactive({
   role: 'all' as UserRole | 'all',
   status: 'all' as 'completed' | 'pending' | 'all',
@@ -325,14 +512,48 @@ const filters = reactive({
   keyword: ''
 })
 
+/**
+ * 用户详情弹窗状态对象
+ * 管理用户详情查看弹窗的开启状态和当前查看的用户数据
+ * 
+ * @interface UserDetailDialog
+ * @property {boolean} open - 弹窗是否开启
+ * @property {InvitationRecord | null} user - 当前查看的用户记录
+ */
 const userDetailDialog = reactive({
   open: false,
   user: null as InvitationRecord | null
 })
 
+/**
+ * 搜索防抖定时器引用
+ * 用于实现搜索输入的防抖功能，避免频繁触发搜索请求
+ */
 const searchDebounceTimer = ref<NodeJS.Timeout>()
 
-// 计算属性
+/**
+ * 计算属性：分页信息
+ * 基于props数据计算完整的分页信息对象
+ * 
+ * @computed pagination
+ * @returns {Object} 分页信息对象
+ * 
+ * @complexity O(1) - 简单的数学计算，常数时间复杂度
+ * @flow 属性获取 → 总页数计算 → 分页对象构建 → 信息返回
+ * 
+ * @returns {Object} 分页信息
+ * @returns {number} returns.page - 当前页码
+ * @returns {number} returns.pageSize - 每页记录数
+ * @returns {number} returns.total - 总记录数
+ * @returns {number} returns.totalPages - 总页数
+ * 
+ * @example
+ * ```typescript
+ * // 总记录数为150，每页20条，当前第3页
+ * const paginationInfo = pagination.value
+ * // { page: 3, pageSize: 20, total: 150, totalPages: 8 }
+ * ```
+ */
 const pagination = computed(() => ({
   page: props.page,
   pageSize: props.pageSize,
@@ -340,6 +561,33 @@ const pagination = computed(() => ({
   totalPages: Math.ceil(props.total / props.pageSize)
 }))
 
+/**
+ * 计算属性：可见页码列表
+ * 计算分页器中应该显示的页码按钮，采用当前页前后2页的策略
+ * 
+ * @computed visiblePages
+ * @returns {number[]} 可见页码数组
+ * 
+ * @complexity O(k) - k为可见页码数量，通常为常数
+ * @flow 当前页获取 → 范围计算 → 边界处理 → 页码数组生成
+ * 
+ * @description 可见页码逻辑：
+ * - 显示当前页前后各2页
+ * - 自动处理边界情况（首页和末页）
+ * - 最多显示5个页码按钮
+ * 
+ * @example
+ * ```typescript
+ * // 当前页为5，总页数为10
+ * const visible = visiblePages.value // [3, 4, 5, 6, 7]
+ * 
+ * // 当前页为1，总页数为10
+ * const visible = visiblePages.value // [1, 2, 3]
+ * 
+ * // 当前页为10，总页数为10
+ * const visible = visiblePages.value // [8, 9, 10]
+ * ```
+ */
 const visiblePages = computed(() => {
   const current = pagination.value.page
   const total = pagination.value.totalPages
@@ -356,6 +604,31 @@ const visiblePages = computed(() => {
   return visible
 })
 
+/**
+ * 计算属性：是否有激活的筛选条件
+ * 检查当前是否存在任何非默认的筛选条件
+ * 
+ * @computed hasActiveFilters
+ * @returns {boolean} 是否存在激活的筛选条件
+ * 
+ * @complexity O(1) - 简单的条件判断，常数时间复杂度
+ * 
+ * @description 检查的筛选条件：
+ * - 角色筛选不为'all'
+ * - 状态筛选不为'all'
+ * - 时间范围筛选不为'all'
+ * - 关键词搜索不为空
+ * 
+ * @example
+ * ```typescript
+ * // 所有筛选器都为默认值
+ * const hasFilters = hasActiveFilters.value // false
+ * 
+ * // 设置了角色筛选
+ * filters.role = 'agent'
+ * const hasFilters = hasActiveFilters.value // true
+ * ```
+ */
 const hasActiveFilters = computed(() => {
   return filters.role !== 'all' ||
          filters.status !== 'all' ||

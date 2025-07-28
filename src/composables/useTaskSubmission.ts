@@ -1,6 +1,13 @@
 /**
- * 任务提交业务逻辑 Composable
- * 封装任务提交表单管理、验证、提交等业务逻辑
+ * @fileoverview 任务提交表单管理组合式API模块
+ * 提供完整的推广任务提交功能，包括表单验证、字段管理、URL自动识别、状态管理等
+ * 
+ * @module composables/useTaskSubmission
+ * @requires vue
+ * @requires @/store/promotion
+ * @requires @/composables/useURLRecognition
+ * @requires @/types/promotion
+ * @requires @/components/ui/toast/use-toast
  */
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import type { Ref } from 'vue'
@@ -57,8 +64,40 @@ export interface TaskSubmissionOptions {
 }
 
 /**
- * 任务提交 Composable
- * @param options - 配置选项
+ * 任务提交表单管理组合式API
+ * 提供完整的推广任务提交功能，包括表单验证、URL识别、状态管理和提交流程
+ * 
+ * @function useTaskSubmission
+ * @param {TaskSubmissionOptions} options - 配置选项，包含自动识别、跳转等设置
+ * @returns {Object} 任务提交相关的状态、计算属性和操作方法
+ * @complexity O(1) - 基础操作为常数时间，表单验证复杂度取决于字段数量
+ * @flow 初始化配置 -> 设置验证规则 -> 提供管理方法 -> 处理提交流程
+ * 
+ * @example
+ * ```typescript
+ * const {
+ *   formData,
+ *   isFormValid,
+ *   formErrors,
+ *   isSubmitting,
+ *   updateField,
+ *   submitTask,
+ *   resetForm
+ * } = useTaskSubmission({
+ *   enableAutoRecognition: true,
+ *   autoRedirectOnSuccess: true,
+ *   showSuccessToast: true
+ * })
+ * 
+ * // 更新表单字段
+ * updateField('contentUrl', 'https://www.douyin.com/video/123')
+ * 
+ * // 提交任务
+ * const success = await submitTask()
+ * if (success) {
+ *   console.log('任务提交成功')
+ * }
+ * ```
  */
 export function useTaskSubmission(options: TaskSubmissionOptions = {}) {
   const {
@@ -125,9 +164,26 @@ export function useTaskSubmission(options: TaskSubmissionOptions = {}) {
   }
 
   /**
-   * 验证单个字段
-   * @param field - 字段名
-   * @param value - 字段值
+   * 验证单个表单字段
+   * 根据预定义的验证规则对指定字段进行验证
+   * 
+   * @param {keyof TaskSubmissionRequest} field - 字段名称，如 'platform', 'contentUrl' 等
+   * @param {any} value - 字段值，类型根据字段而定
+   * @returns {FieldValidation} 验证结果，包含是否有效和错误信息
+   * @complexity O(1) - 单字段验证为常数时间操作
+   * @flow 获取验证规则 -> 执行必填验证 -> 执行长度验证 -> 执行格式验证 -> 执行自定义验证
+   * 
+   * @example
+   * ```typescript
+   * // 验证推广链接
+   * const urlValidation = validateField('contentUrl', 'https://www.douyin.com/video/123')
+   * if (!urlValidation.isValid) {
+   *   console.error('URL验证失败:', urlValidation.error)
+   * }
+   * 
+   * // 验证内容描述
+   * const descValidation = validateField('contentDescription', '这是一个精彩的推广内容')
+   * ```
    */
   const validateField = (field: keyof TaskSubmissionRequest, value: any): FieldValidation => {
     const rule = validationRules[field]
@@ -168,6 +224,25 @@ export function useTaskSubmission(options: TaskSubmissionOptions = {}) {
 
   /**
    * 验证整个表单
+   * 对表单中的所有字段进行批量验证，收集所有验证错误
+   * 
+   * @function validateForm
+   * @returns {FormValidation} 表单验证结果，包含整体有效性和各字段错误信息
+   * @complexity O(n) - n为表单字段数量，需要验证每个字段
+   * @flow 获取表单数据 -> 遍历所有字段 -> 调用字段验证 -> 收集错误信息 -> 返回验证结果
+   * 
+   * @example
+   * ```typescript
+   * const validation = validateForm()
+   * if (!validation.isValid) {
+   *   console.log('表单验证失败:')
+   *   Object.entries(validation.errors).forEach(([field, error]) => {
+   *     if (error) {
+   *       console.log(`${field}: ${error}`)
+   *     }
+   *   })
+   * }
+   * ```
    */
   const validateForm = (): FormValidation => {
     const form = promotionStore.submissionForm
@@ -188,7 +263,20 @@ export function useTaskSubmission(options: TaskSubmissionOptions = {}) {
   }
 
   /**
-   * 获取字段显示名称
+   * 获取字段的中文显示名称
+   * 将英文字段名转换为用户友好的中文显示名称
+   * 
+   * @param {keyof TaskSubmissionRequest} field - 字段名称
+   * @returns {string} 字段的中文显示名称
+   * @complexity O(1) - 字典查找为常数时间操作
+   * @flow 查找字段映射表 -> 返回中文名称或原始字段名
+   * 
+   * @example
+   * ```typescript
+   * console.log(getFieldDisplayName('platform')) // "推广平台"
+   * console.log(getFieldDisplayName('contentUrl')) // "推广链接"
+   * console.log(getFieldDisplayName('contentDescription')) // "内容描述"
+   * ```
    */
   const getFieldDisplayName = (field: keyof TaskSubmissionRequest): string => {
     const displayNames: Record<keyof TaskSubmissionRequest, string> = {
@@ -236,9 +324,26 @@ export function useTaskSubmission(options: TaskSubmissionOptions = {}) {
   })
 
   /**
-   * 更新表单字段
-   * @param field - 字段名
-   * @param value - 字段值
+   * 更新单个表单字段
+   * 更新指定字段的值，如果是URL字段且启用自动识别则触发平台识别
+   * 
+   * @param {keyof TaskSubmissionRequest} field - 要更新的字段名
+   * @param {any} value - 新的字段值
+   * @returns {void}
+   * @complexity O(1) - 字段更新为常数时间操作
+   * @flow 更新store中的字段值 -> 检查是否为URL字段 -> 触发自动识别
+   * 
+   * @example
+   * ```typescript
+   * // 更新推广平台
+   * updateField('platform', 'DOUYIN')
+   * 
+   * // 更新推广链接（会触发自动平台识别）
+   * updateField('contentUrl', 'https://www.douyin.com/video/123456')
+   * 
+   * // 更新内容描述
+   * updateField('contentDescription', '这是一个关于美食的推广视频')
+   * ```
    */
   const updateField = (field: keyof TaskSubmissionRequest, value: any) => {
     promotionStore.updateSubmissionForm({ [field]: value })
@@ -251,14 +356,42 @@ export function useTaskSubmission(options: TaskSubmissionOptions = {}) {
 
   /**
    * 批量更新表单数据
-   * @param updates - 更新数据
+   * 一次性更新多个字段的值，提高更新效率
+   * 
+   * @param {Partial<TaskSubmissionRequest>} updates - 要更新的字段对象
+   * @returns {void}
+   * @complexity O(1) - 批量更新为常数时间操作
+   * @flow 调用store的批量更新方法 -> 更新多个字段
+   * 
+   * @example
+   * ```typescript
+   * // 批量更新多个字段
+   * updateForm({
+   *   platform: 'DOUYIN',
+   *   contentType: 'VIDEO',
+   *   contentDescription: '美食制作教程视频'
+   * })
+   * ```
    */
   const updateForm = (updates: Partial<TaskSubmissionRequest>) => {
     promotionStore.updateSubmissionForm(updates)
   }
 
   /**
-   * 重置表单
+   * 重置表单到初始状态
+   * 清空所有表单字段和URL识别结果，恢复到初始状态
+   * 
+   * @function resetForm
+   * @returns {void}
+   * @complexity O(1) - 状态重置为常数时间操作
+   * @flow 重置store中的表单数据 -> 重置URL识别状态
+   * 
+   * @example
+   * ```typescript
+   * // 提交失败或需要重新开始时重置表单
+   * resetForm()
+   * console.log('表单已重置到初始状态')
+   * ```
    */
   const resetForm = () => {
     promotionStore.resetSubmissionForm()
@@ -266,7 +399,31 @@ export function useTaskSubmission(options: TaskSubmissionOptions = {}) {
   }
 
   /**
-   * 提交任务
+   * 提交推广任务
+   * 执行完整的任务提交流程，包括表单验证、数据构建、API调用和结果处理
+   * 
+   * @function submitTask
+   * @returns {Promise<boolean>} 提交是否成功
+   * @complexity O(n) - 复杂度取决于表单验证和网络请求时间
+   * @flow 表单验证 -> 构建请求数据 -> 调用提交API -> 处理结果 -> 显示反馈
+   * 
+   * @example
+   * ```typescript
+   * // 提交任务前确保表单已填写
+   * if (isFormValid.value) {
+   *   try {
+   *     const success = await submitTask()
+   *     if (success) {
+   *       console.log('任务提交成功')
+   *       // 可以进行页面跳转或其他后续操作
+   *     }
+   *   } catch (error) {
+   *     console.error('提交过程中发生错误:', error)
+   *   }
+   * } else {
+   *   console.log('表单验证失败，请检查填写内容')
+   * }
+   * ```
    */
   const submitTask = async (): Promise<boolean> => {
     try {
@@ -339,6 +496,20 @@ export function useTaskSubmission(options: TaskSubmissionOptions = {}) {
 
   /**
    * 清理函数
+   * 停止所有监听器和清理相关资源，防止内存泄漏
+   * 
+   * @function cleanup
+   * @returns {void}
+   * @complexity O(1) - 清理操作为常数时间
+   * @flow 停止URL识别监听 -> 清理URL识别资源
+   * 
+   * @example
+   * ```typescript
+   * // 在组件卸载时手动调用清理
+   * onBeforeUnmount(() => {
+   *   cleanup()
+   * })
+   * ```
    */
   const cleanup = () => {
     stopWatchingPlatform()

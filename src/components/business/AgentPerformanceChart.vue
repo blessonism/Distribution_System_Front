@@ -1,3 +1,77 @@
+<!--
+/**
+ * @fileoverview 代理业绩图表组件
+ * 基于Vue 3 Composition API和ECharts构建的业绩数据可视化组件，提供多维度的代理业绩趋势展示
+ * 支持多时间周期切换、实时数据加载、响应式图表渲染和丰富的交互功能
+ * 集成ECharts图表库，确保高性能的数据可视化体验
+ * 
+ * @component AgentPerformanceChart
+ * @author Frontend Team
+ * @since 1.0.0
+ * @version 1.3.0
+ * 
+ * @description
+ * AgentPerformanceChart组件是代理管理系统的核心数据可视化组件，主要功能包括：
+ * - 📈 多维度业绩趋势展示，支持客资数量、成交金额、提成金额等指标
+ * - ⏰ 灵活的时间周期切换，支持周、月、季、年等不同时间维度
+ * - 🎨 基于ECharts的专业图表渲染，支持平滑曲线和双Y轴显示
+ * - 📱 响应式设计和自适应布局，兼容不同屏幕尺寸
+ * - 🔄 实时数据刷新和加载状态管理
+ * - 🎯 丰富的交互功能，包括数据提示、图例控制等
+ * - ⚡ 性能优化，支持大数据量的高效渲染
+ * 
+ * @usage
+ * ```vue
+ * <template>
+ *   <AgentPerformanceChart
+ *     :performance-data="performanceData"
+ *     :loading="isLoading"
+ *     :period="selectedPeriod"
+ *     @period-change="handlePeriodChange"
+ *     @refresh="handleRefresh"
+ *   />
+ * </template>
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // 基础使用示例
+ * const performanceData: AgentPerformance = {
+ *   trendData: {
+ *     labels: ['1月', '2月', '3月', '4月', '5月'],
+ *     revenue: [50000, 65000, 78000, 85000, 92000],
+ *     clients: [25, 32, 38, 42, 46],
+ *     commission: [2500, 3250, 3900, 4250, 4600]
+ *   }
+ * }
+ * 
+ * function handlePeriodChange(period: string) {
+ *   // 处理时间周期变化
+ *   fetchPerformanceData(period)
+ * }
+ * 
+ * function handleRefresh() {
+ *   // 刷新当前数据
+ *   reloadPerformanceData()
+ * }
+ * ```
+ * 
+ * @dependencies
+ * - ECharts: 专业的数据可视化图表库
+ * - Vue 3 Composition API: 响应式状态管理
+ * - shadcn-vue Button: 周期切换按钮组件
+ * 
+ * @features
+ * - **多时间维度**: 支持周、月、季、年等不同时间周期的数据展示
+ * - **双Y轴设计**: 左侧显示客资数量，右侧显示金额相关数据
+ * - **平滑曲线**: 使用平滑插值算法，提供更美观的趋势展示
+ * - **响应式布局**: 自动适配容器大小变化，支持窗口缩放
+ * - **交互式提示**: 丰富的Tooltip信息，包含格式化的数值显示
+ * - **错误处理**: 完善的错误状态处理和用户反馈机制
+ * - **性能优化**: 延迟加载、深拷贝数据处理，避免内存泄漏
+ */
+-->
+
 <template>
   <div>
     <div class="flex justify-between items-center mb-4">
@@ -33,6 +107,10 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * @fileoverview AgentPerformanceChart组件的核心逻辑实现
+ * 使用Vue 3 Composition API实现ECharts图表的完整功能，包含数据处理、图表渲染和交互管理
+ */
 import { ref, onMounted, watch, onBeforeUnmount, computed, nextTick } from 'vue'
 import { Button } from '@/components/ui/button'
 import * as echarts from 'echarts/core'
@@ -49,7 +127,22 @@ import { LabelLayout, UniversalTransition } from 'echarts/features'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { AgentPerformance, TrendData } from '@/types/agent'
 
-// 注册必要的组件
+/**
+ * ECharts组件注册
+ * 按需注册所需的ECharts组件，减少打包体积并提升性能
+ * 
+ * @description 注册以下组件：
+ * - TitleComponent: 标题组件
+ * - TooltipComponent: 提示框组件
+ * - GridComponent: 网格组件
+ * - DatasetComponent: 数据集组件
+ * - TransformComponent: 数据转换组件
+ * - LegendComponent: 图例组件
+ * - LineChart: 折线图组件
+ * - LabelLayout: 标签布局
+ * - UniversalTransition: 通用过渡动画
+ * - CanvasRenderer: Canvas渲染器
+ */
 echarts.use([
   TitleComponent,
   TooltipComponent,
@@ -63,12 +156,63 @@ echarts.use([
   CanvasRenderer
 ])
 
+/**
+ * 组件属性接口定义
+ * 定义AgentPerformanceChart组件的输入属性
+ * 
+ * @interface Props
+ * 
+ * @property {AgentPerformance | null} [performanceData] - 代理业绩数据对象，包含趋势数据
+ * @property {boolean} [loading] - 数据加载状态，控制加载动画显示
+ * @property {string} [period] - 当前时间周期，用于同步父组件状态
+ * 
+ * @example
+ * ```typescript
+ * const props: Props = {
+ *   performanceData: {
+ *     trendData: {
+ *       labels: ['1月', '2月', '3月'],
+ *       revenue: [50000, 65000, 78000],
+ *       clients: [25, 32, 38],
+ *       commission: [2500, 3250, 3900]
+ *     }
+ *   },
+ *   loading: false,
+ *   period: 'month'
+ * }
+ * ```
+ */
 const props = defineProps<{
+  /** 代理业绩数据，包含趋势图表所需的所有数据 */
   performanceData?: AgentPerformance | null;
+  /** 数据加载状态，true时显示加载动画 */
   loading?: boolean;
-  period?: string; // 添加period属性从父组件接收
+  /** 当前选择的时间周期，从父组件传入 */
+  period?: string;
 }>()
 
+/**
+ * 时间周期选项配置
+ * 定义可选择的时间维度选项，用于切换不同时间范围的数据展示
+ * 
+ * @const periods
+ * @type {Array<{value: string, label: string}>}
+ * 
+ * @description 支持的时间周期：
+ * - week: 周维度数据
+ * - month: 月维度数据
+ * - quarter: 季度维度数据
+ * - year: 年维度数据
+ * 
+ * @example
+ * ```typescript
+ * // 获取所有可用周期
+ * const availablePeriods = periods.map(p => p.value)
+ * 
+ * // 查找特定周期的标签
+ * const monthLabel = periods.find(p => p.value === 'month')?.label // '月'
+ * ```
+ */
 const periods = [
   { value: 'week', label: '周' },
   { value: 'month', label: '月' },
@@ -76,43 +220,167 @@ const periods = [
   { value: 'year', label: '年' },
 ]
 
+/**
+ * 组件响应式状态管理
+ * 管理图表DOM引用、ECharts实例和组件状态
+ */
+/** 图表DOM容器引用 */
 const chartRef = ref<HTMLElement | null>(null)
+/** ECharts图表实例引用 */
 const chart = ref<echarts.ECharts | null>(null)
+/** 当前选中的时间周期 */
 const selectedPeriod = ref(props.period || 'month')
+/** 错误信息状态 */
 const error = ref('')
+/** 本地加载状态 */
 const loading = ref(props.loading || false)
 
-// 监听props中的period变化
+/**
+ * 监听父组件period属性变化
+ * 同步父组件传入的周期选择状态
+ * 
+ * @watcher periodWatcher
+ * @param {string} newPeriod - 新的时间周期值
+ * 
+ * @complexity O(1) - 简单值比较和赋值，常数时间复杂度
+ * @flow 属性变化 → 值比较 → 状态同步 → 界面更新
+ */
 watch(() => props.period, (newPeriod) => {
   if (newPeriod && newPeriod !== selectedPeriod.value) {
     selectedPeriod.value = newPeriod
   }
 }, { immediate: true })
 
+/**
+ * 组件事件定义
+ * 定义AgentPerformanceChart组件对外发出的事件
+ * 
+ * @events
+ * 
+ * @event period-change - 时间周期变化事件，参数为新的周期值
+ * @event refresh - 数据刷新事件，用于通知父组件重新加载数据
+ * 
+ * @example
+ * ```typescript
+ * // 事件处理示例
+ * function handlePeriodChange(period: string) {
+ *   // 处理周期变化，重新获取对应周期的数据
+ *   fetchPerformanceData(period)
+ * }
+ * 
+ * function handleRefresh() {
+ *   // 处理刷新事件，重新加载当前数据
+ *   reloadCurrentData()
+ * }
+ * ```
+ */
 const emit = defineEmits<{
+  /** 时间周期变化事件 */
   (e: 'period-change', period: string): void;
+  /** 数据刷新事件 */
   (e: 'refresh'): void;
 }>()
 
-// 变更周期
+/**
+ * 变更时间周期
+ * 处理用户点击周期按钮的操作，更新本地状态并通知父组件
+ * 
+ * @function changePeriod
+ * @param {string} period - 新选择的时间周期
+ * @returns {void}
+ * 
+ * @complexity O(1) - 简单状态更新和事件发出，常数时间复杂度
+ * @flow 周期选择 → 状态更新 → 事件发出 → 父组件响应
+ * 
+ * @example
+ * ```typescript
+ * // 用户点击月份按钮时调用
+ * changePeriod('month')
+ * 
+ * // 切换到年度视图
+ * changePeriod('year')
+ * ```
+ */
 const changePeriod = (period: string) => {
   selectedPeriod.value = period
   emit('period-change', period)
 }
 
-// 刷新数据
+/**
+ * 刷新数据
+ * 触发数据刷新事件，通知父组件重新加载当前数据
+ * 
+ * @function refreshData
+ * @returns {void}
+ * 
+ * @complexity O(1) - 简单事件发出，常数时间复杂度
+ * 
+ * @example
+ * ```typescript
+ * // 用户点击刷新按钮时调用
+ * refreshData()
+ * // 会触发父组件的refresh事件处理
+ * ```
+ */
 const refreshData = () => {
   emit('refresh')
 }
 
-// 处理窗口大小改变
+/**
+ * 处理窗口大小改变
+ * 响应窗口尺寸变化，自动调整图表大小以适应新的容器尺寸
+ * 
+ * @function handleResize
+ * @returns {void}
+ * 
+ * @complexity O(1) - ECharts内部resize操作，常数时间复杂度
+ * @flow 窗口变化 → 事件触发 → 图表实例检查 → 尺寸调整
+ * 
+ * @example
+ * ```typescript
+ * // 窗口大小改变时自动调用
+ * window.addEventListener('resize', handleResize)
+ * 
+ * // 手动触发图表大小调整
+ * handleResize()
+ * ```
+ */
 const handleResize = () => {
   if (chart.value) {
     chart.value.resize()
   }
 }
 
-// 初始化图表
+/**
+ * 初始化ECharts图表实例
+ * 创建图表实例并进行基础配置，包含DOM检查、实例清理和延迟重试机制
+ * 
+ * @function initChart
+ * @returns {void}
+ * 
+ * @complexity O(1) - DOM操作和实例创建，常数时间复杂度
+ * @flow DOM检查 → 实例清理 → 图表创建 → 加载状态 → 数据更新
+ * 
+ * @features
+ * - DOM元素存在性检查
+ * - 延迟重试机制（100ms）
+ * - 旧实例清理避免内存泄漏
+ * - 自动显示加载动画
+ * - 链式调用数据更新
+ * 
+ * @example
+ * ```typescript
+ * // 组件挂载时初始化
+ * onMounted(() => {
+ *   initChart()
+ * })
+ * 
+ * // 容器变化时重新初始化
+ * if (containerChanged) {
+ *   initChart()
+ * }
+ * ```
+ */
 const initChart = () => {
   if (!chartRef.value) {
     console.log("图表DOM元素不存在，无法初始化");
@@ -142,7 +410,42 @@ const initChart = () => {
   updateChart();
 }
 
-// 计算用于图表的数据
+/**
+ * 计算用于图表的数据
+ * 处理和转换原始性能数据为图表可用格式，包含数据验证和深拷贝处理
+ * 
+ * @computed chartData
+ * @returns {Object | null} 格式化的图表数据对象或null
+ * 
+ * @complexity O(n) - n为数据点数量，需要数组拷贝操作
+ * @flow 数据检查 → 结构验证 → 深拷贝处理 → 格式化输出
+ * 
+ * @returns {Object} 包含以下属性的数据对象：
+ * - labels: 时间标签数组
+ * - revenue: 收入数据数组
+ * - clients: 客户数据数组
+ * - commission: 提成数据数组
+ * 
+ * @example
+ * ```typescript
+ * // 获取格式化的图表数据
+ * const data = chartData.value
+ * if (data) {
+ *   console.log('时间标签:', data.labels)
+ *   console.log('收入数据:', data.revenue)
+ *   console.log('客户数据:', data.clients)
+ *   console.log('提成数据:', data.commission)
+ * }
+ * 
+ * // 数据结构示例
+ * {
+ *   labels: ['1月', '2月', '3月'],
+ *   revenue: [50000, 65000, 78000],
+ *   clients: [25, 32, 38],
+ *   commission: [2500, 3250, 3900]
+ * }
+ * ```
+ */
 const chartData = computed(() => {
   console.log("重新计算chartData...");
   console.log("AgentPerformanceChart接收到的数据:", props.performanceData);
@@ -164,7 +467,36 @@ const chartData = computed(() => {
   };
 })
 
-// 更新图表数据
+/**
+ * 更新图表数据和配置
+ * 根据当前数据状态更新ECharts图表，包含完整的图表配置和错误处理
+ * 
+ * @function updateChart
+ * @returns {void}
+ * 
+ * @complexity O(n) - n为数据点数量，ECharts内部渲染复杂度
+ * @flow 实例检查 → 加载状态 → 数据验证 → 配置构建 → 图表渲染 → 错误处理
+ * 
+ * @features
+ * - 图表实例存在性检查
+ * - 数据有效性验证
+ * - 双Y轴配置（客资数 + 金额）
+ * - 平滑曲线渲染
+ * - 自定义Tooltip格式化
+ * - 响应式X轴标签旋转
+ * - 完整的错误处理和用户反馈
+ * 
+ * @example
+ * ```typescript
+ * // 数据变化时更新图表
+ * watch(() => props.performanceData, () => {
+ *   updateChart()
+ * })
+ * 
+ * // 手动触发图表更新
+ * updateChart()
+ * ```
+ */
 const updateChart = () => {
   if (!chart.value) {
     console.log("图表实例不存在，尝试重新初始化");
