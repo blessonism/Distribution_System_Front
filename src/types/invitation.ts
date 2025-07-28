@@ -94,6 +94,9 @@ export interface InvitationCode {
  *   status: 'completed'
  * }
  * 
+ * 
+
+ 
  * // 检查邀请是否成功
  * function isInvitationSuccessful(record: InvitationRecord): boolean {
  *   return record.status === 'completed' && record.targetRole === record.actualRole

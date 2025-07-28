@@ -619,7 +619,6 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     path: '/settings',
     name: 'Settings',
     component: () => import('@/layouts/MainLayout.vue'),
-    redirect: '/settings/level',
     meta: {
       title: '系统配置',
       icon: 'settings',
@@ -629,36 +628,47 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     },
     children: [
       {
-        path: '/settings/level',
-        name: 'LevelConfig',
+        path: '/settings',
+        name: 'SystemConfig',
         component: () => import('@/views/settings/LevelRule.vue'),
         meta: {
-          title: '等级规则',
-          roles: ['super_admin'],
-          requiresAuth: true,
-        },
-      },
-      {
-        path: '/settings/agent-rules',
-        name: 'AgentRules',
-        component: () => import('@/views/settings/LevelRule.vue'), // 临时使用已存在的组件
-        meta: {
-          title: '代理规则',
-          roles: ['super_admin'],
-          requiresAuth: true,
-        },
-      },
-      {
-        path: '/settings/commission',
-        name: 'CommissionRules',
-        component: () => import('@/views/settings/LevelRule.vue'), // 临时使用已存在的组件
-        meta: {
-          title: '返佣规则',
+          title: '系统配置',
           roles: ['super_admin'],
           requiresAuth: true,
         },
       },
     ],
+  },
+  // 保留原有路由作为兼容性支持，重定向到新的统一配置页面
+  {
+    path: '/settings/level',
+    name: 'LevelConfig',
+    redirect: '/settings?tab=level',
+    meta: {
+      title: '等级规则',
+      roles: ['super_admin'],
+      requiresAuth: true,
+    },
+  },
+  {
+    path: '/settings/agent-rules',
+    name: 'AgentRules',
+    redirect: '/settings?tab=agent',
+    meta: {
+      title: '代理规则',
+      roles: ['super_admin'],
+      requiresAuth: true,
+    },
+  },
+  {
+    path: '/settings/commission',
+    name: 'CommissionRules',
+    redirect: '/settings?tab=commission',
+    meta: {
+      title: '返佣规则',
+      roles: ['super_admin'],
+      requiresAuth: true,
+    },
   },
 ]
 
