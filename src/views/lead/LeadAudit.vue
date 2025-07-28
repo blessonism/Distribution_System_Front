@@ -57,7 +57,7 @@
     <!-- 筛选面板 -->
     <Card>
       <CardContent class="p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mobile-filter-row">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <!-- 审核状态筛选 -->
           <div class="space-y-2">
             <Label>审核状态</Label>
@@ -119,13 +119,15 @@
               />
             </div>
           </div>
-        </div>
-        
-        <div class="flex justify-end mt-4">
-          <Button @click="applyFilters" :disabled="loading">
-            <SearchIcon class="w-4 h-4 mr-1" />
-            搜索
-          </Button>
+
+          <!-- 搜索按钮 -->
+          <div class="space-y-2">
+            <Label class="invisible">搜索</Label>
+            <Button @click="applyFilters" :disabled="loading" class="w-full">
+              <SearchIcon class="w-4 h-4 mr-1" />
+              搜索
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

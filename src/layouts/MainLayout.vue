@@ -81,12 +81,12 @@
                   </svg>
                 </button>
                 
-                <div 
-                  v-show="expandedMenus.includes(String(route.name))" 
+                <div
+                  v-show="expandedMenus.includes(String(route.name))"
                   class="mt-1 ml-4 pl-3 border-l-2 border-gray-200"
                 >
                   <router-link
-                    v-for="child in route.children"
+                    v-for="child in route.children?.filter(child => !child.meta?.hidden)"
                     :key="child.path"
                     :to="child.path"
                     class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors hover:bg-gray-50"
@@ -154,12 +154,12 @@
                   </svg>
                 </button>
                 
-                <div 
-                  v-show="expandedMenus.includes(String(route.name))" 
+                <div
+                  v-show="expandedMenus.includes(String(route.name))"
                   class="mt-1 ml-4 pl-3 border-l-2 border-gray-200"
                 >
                   <router-link
-                    v-for="child in route.children"
+                    v-for="child in route.children?.filter(child => !child.meta?.hidden)"
                     :key="child.path"
                     :to="child.path"
                     class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors hover:bg-gray-50"
