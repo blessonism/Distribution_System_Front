@@ -57,7 +57,7 @@
     <!-- 筛选面板 -->
     <Card>
       <CardContent class="p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mobile-filter-row">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <!-- 审核状态筛选 -->
           <div class="space-y-2">
             <Label>审核状态</Label>
@@ -70,22 +70,6 @@
                 <SelectItem value="PENDING_AUDIT">待审核</SelectItem>
                 <SelectItem value="APPROVED">已通过</SelectItem>
                 <SelectItem value="REJECTED">已驳回</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <!-- 销售人员筛选 -->
-          <div v-if="canViewAll" class="space-y-2">
-            <Label>销售人员</Label>
-            <Select v-model="filters.salespersonId">
-              <SelectTrigger>
-                <SelectValue placeholder="选择销售人员" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">全部销售</SelectItem>
-                <SelectItem v-for="sales in salesList" :key="sales.id" :value="sales.id">
-                  {{ sales.name }}
-                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -119,13 +103,15 @@
               />
             </div>
           </div>
-        </div>
-        
-        <div class="flex justify-end mt-4">
-          <Button @click="applyFilters" :disabled="loading">
-            <SearchIcon class="w-4 h-4 mr-1" />
-            搜索
-          </Button>
+
+          <!-- 搜索按钮 -->
+          <div class="space-y-2">
+            <Label class="invisible">搜索</Label>
+            <Button @click="applyFilters" :disabled="loading" class="w-full">
+              <SearchIcon class="w-4 h-4 mr-1" />
+              搜索
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -318,7 +304,6 @@ const showBatchAuditDialog = ref(false)
 // 筛选条件
 const filters = reactive({
   auditStatus: 'PENDING_AUDIT' as LeadAuditStatus | 'ALL',
-  salespersonId: 'ALL',
   dateRange: 'ALL',
   keyword: ''
 })
@@ -430,7 +415,6 @@ async function fetchLeads() {
       page: pagination.page,
       pageSize: pagination.pageSize,
       auditStatus: filters.auditStatus === 'ALL' ? undefined : filters.auditStatus,
-      salespersonId: filters.salespersonId === 'ALL' ? undefined : filters.salespersonId,
       keyword: filters.keyword || undefined,
       ...permissionFilters
     }

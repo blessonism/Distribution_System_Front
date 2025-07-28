@@ -208,6 +208,7 @@ const settlementColumns = computed(() => [
     id: 'taskCount',
     accessorKey: 'approvedTasksCount',
     header: '通过任务',
+    align: 'center',
     cell: ({ row }: any) => {
       const settlement = row.original
       return h('div', { class: 'text-center' }, [
@@ -220,39 +221,49 @@ const settlementColumns = computed(() => [
     id: 'baseReward',
     accessorKey: 'baseRewardAmount',
     header: '基础奖励',
+    align: 'center',
     cell: ({ row }: any) => {
       const amount = row.original.baseRewardAmount
-      return h('span', {
-        class: 'font-medium text-green-600'
-      }, `¥${amount.toFixed(2)}`)
+      return h('div', { class: 'text-center' }, [
+        h('span', {
+          class: 'font-medium text-green-600'
+        }, `¥${amount.toFixed(2)}`)
+      ])
     }
   },
   {
     id: 'bonusReward',
     accessorKey: 'bonusRewardAmount',
     header: '额外奖励',
+    align: 'center',
     cell: ({ row }: any) => {
       const amount = row.original.bonusRewardAmount
-      return h('span', {
-        class: amount > 0 ? 'font-medium text-purple-600' : 'text-gray-500'
-      }, amount > 0 ? `¥${amount.toFixed(2)}` : '¥0.00')
+      return h('div', { class: 'text-center' }, [
+        h('span', {
+          class: amount > 0 ? 'font-medium text-purple-600' : 'text-gray-500'
+        }, amount > 0 ? `¥${amount.toFixed(2)}` : '¥0.00')
+      ])
     }
   },
   {
     id: 'totalReward',
     accessorKey: 'totalRewardAmount',
     header: '总奖励',
+    align: 'center',
     cell: ({ row }: any) => {
       const amount = row.original.totalRewardAmount
-      return h('span', {
-        class: 'font-semibold text-blue-600 text-lg'
-      }, `¥${amount.toFixed(2)}`)
+      return h('div', { class: 'text-center' }, [
+        h('span', {
+          class: 'font-semibold text-blue-600 text-lg'
+        }, `¥${amount.toFixed(2)}`)
+      ])
     }
   },
   {
     id: 'status',
     accessorKey: 'settlementStatus',
     header: '状态',
+    align: 'center',
     cell: ({ row }: any) => {
       const status = row.original.settlementStatus
       const statusConfig = {

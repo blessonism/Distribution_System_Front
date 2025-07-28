@@ -102,10 +102,11 @@
       <table class="w-full caption-bottom text-sm">
         <thead class="[&_tr]:border-b">
           <tr class="border-b transition-colors hover:bg-muted/20">
-            <th 
-              v-for="column in columns" 
-              :key="column.id || column.accessorKey" 
-              class="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+            <th
+              v-for="column in columns"
+              :key="column.id || column.accessorKey"
+              class="h-12 px-4 align-middle font-medium text-muted-foreground"
+              :class="column.align ? `text-${column.align}` : 'text-left'"
             >
               <template v-if="typeof column.header === 'function'">
                 <component :is="renderHeaderContent(column)" />
@@ -123,10 +124,11 @@
               :key="index"
               class="border-b transition-colors hover:bg-muted/20"
             >
-              <td 
-                v-for="column in columns" 
-                :key="column.id || column.accessorKey" 
+              <td
+                v-for="column in columns"
+                :key="column.id || column.accessorKey"
                 class="p-4 align-middle"
+                :class="column.align ? `text-${column.align}` : ''"
               >
                 <template v-if="column.cell">
                   <component :is="renderCellContent(column, row)" />

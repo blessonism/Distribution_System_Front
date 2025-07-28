@@ -30,6 +30,18 @@ import {
   mockSalespersons,
   mockSources
 } from './leadData'
+import {
+  mockLevelConfig,
+  mockAgentConfig,
+  mockCommissionConfig,
+  mockAuditRecords,
+  mockConfigHistory,
+  mockDataSyncResult,
+  getMockConfigByType,
+  generateConfigId,
+  generateAuditId,
+  generateSyncId
+} from './systemConfigData'
 
 interface TrendData {
   labels: string[];
@@ -1907,8 +1919,127 @@ export function setupMockApi() {
       return [200, { code: 0, message: '成功', data: result }]
     })
 
+    // ==================== 系统配置Mock接口 ====================
+
+    // 获取当前配置
+    mock.onGet(/\/system-config\/current\/(.+)/).reply((config) => {
+      const configType = config.url?.split('/').pop()
+      console.log('[Mock] 获取当前配置:', configType)
+
+      try {
+        const configData = getMockConfigByType(configType as any)
+        console.log('[Mock] 返回配置数据:', configData)
+        return [200, { code: 0, message: '获取成功', data: configData }]
+      } catch (error) {
+        console.log('[Mock] 配置不存在:', error)
+        return [404, { code: 404, message: '配置不存在', data: null }]
+      }
+    })
+
+    // 获取待审核配置
+    mock.onGet(/\/system-config\/pending\/(.+)/).reply((config) => {
+      const configType = config.url?.split('/').pop()
+      console.log('[Mock] 获取待审核配置:', configType)
+
+      // 模拟没有待审核配置的情况
+      return [200, { code: 0, message: '获取成功', data: null }]
+    })
+
+    // 保存配置草稿
+    mock.onPost('/system-config/draft').reply((config) => {
+      const configData = JSON.parse(config.data)
+      const configId = generateConfigId(configData.type)
+
+      console.log('[Mock] 保存配置草稿:', configData)
+
+      return [200, {
+        code: 0,
+        message: '保存成功',
+        data: { id: configId }
+      }]
+    })
+
+    // 提交审核
+    mock.onPost(/\/system-config\/(.+)\/submit-audit/).reply((config) => {
+      const configId = config.url?.split('/')[2]
+      const auditId = generateAuditId()
+
+      console.log('[Mock] 提交配置审核, configId:', configId)
+
+      return [200, {
+        code: 0,
+        message: '提交成功',
+        data: { auditId }
+      }]
+    })
+
+    // 审核配置
+    mock.onPut(/\/system-config\/audit\/(.+)/).reply((config) => {
+      const auditId = config.url?.split('/').pop()
+      const decision = JSON.parse(config.data)
+
+      console.log('[Mock] 审核配置:', auditId, decision)
+
+      return [200, {
+        code: 0,
+        message: '审核完成',
+        data: { success: true }
+      }]
+    })
+
+    // 获取审核记录
+    mock.onGet('/system-config/audit-records').reply(() => {
+      console.log('[Mock] 获取审核记录')
+      return [200, {
+        code: 0,
+        message: '获取成功',
+        data: {
+          list: mockAuditRecords,
+          total: mockAuditRecords.length,
+          page: 1,
+          pageSize: 10
+        }
+      }]
+    })
+
+    // 获取配置历史
+    mock.onGet(/\/system-config\/(.+)\/history/).reply((config) => {
+      const configType = config.url?.split('/')[2]
+      const history = mockConfigHistory.filter(h => h.type === configType)
+
+      return [200, {
+        code: 0,
+        message: '获取成功',
+        data: history
+      }]
+    })
+
+    // 触发数据同步
+    mock.onPost(/\/system-config\/(.+)\/(.+)\/sync/).reply((config) => {
+      const syncId = generateSyncId()
+
+      console.log('[Mock] 触发数据同步')
+
+      return [200, {
+        code: 0,
+        message: '同步已启动',
+        data: { ...mockDataSyncResult, syncId }
+      }]
+    })
+
+    // 获取同步状态
+    mock.onGet(/\/system-config\/sync\/(.+)/).reply((config) => {
+      const syncId = config.url?.split('/').pop()
+
+      return [200, {
+        code: 0,
+        message: '获取成功',
+        data: { ...mockDataSyncResult, syncId }
+      }]
+    })
+
     // 更多模拟API可以根据需要添加
-    console.log('[Mock] axios-mock-adapter设置成功')
+    console.log('[Mock] axios-mock-adapter设置成功，包含系统配置接口')
   } catch (error) {
     console.error('[Mock] 设置axios-mock-adapter时出错:', error)
   }

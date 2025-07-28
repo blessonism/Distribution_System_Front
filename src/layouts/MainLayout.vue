@@ -81,12 +81,12 @@
                   </svg>
                 </button>
                 
-                <div 
-                  v-show="expandedMenus.includes(String(route.name))" 
+                <div
+                  v-show="expandedMenus.includes(String(route.name))"
                   class="mt-1 ml-4 pl-3 border-l-2 border-gray-200"
                 >
                   <router-link
-                    v-for="child in route.children"
+                    v-for="child in route.children?.filter(child => !child.meta?.hidden)"
                     :key="child.path"
                     :to="child.path"
                     class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors hover:bg-gray-50"
@@ -109,70 +109,23 @@
           <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">系统设置</h2>
           <div class="space-y-1">
             <div v-for="route in systemMenuRoutes" :key="route.path">
-              <!-- 单级菜单 -->
+              <!-- 系统配置菜单 - 始终显示为单级菜单 -->
               <router-link
-                v-if="!route.children?.length"
                 :to="route.path"
+                @click="() => {
+                  console.log('[Menu] 点击系统菜单项', route.path);
+                  sidebarOpen = false;
+                }"
                 class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-blue-50"
                 active-class="bg-blue-50 text-blue-600"
                 exact-active-class="bg-blue-50 text-blue-600"
               >
-                <component 
-                  :is="getIcon(route.meta?.icon)" 
+                <component
+                  :is="getIcon(route.meta?.icon)"
                   class="w-5 h-5 mr-3"
                 />
                 <span>{{ route.meta?.title }}</span>
               </router-link>
-
-              <!-- 多级菜单 -->
-              <div v-else class="mb-2">
-                <!-- 与业务菜单相同的多级菜单结构 -->
-                <button
-                  @click="toggleSubmenu(String(route.name))"
-                  class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md transition-colors"
-                  :class="[
-                    isActiveParent(route)
-                      ? 'bg-blue-100 text-blue-700 shadow-sm'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  ]"
-                >
-                  <div class="flex items-center">
-                    <component 
-                      :is="getIcon(route.meta?.icon)" 
-                      class="w-5 h-5 mr-3"
-                    />
-                    <span class="font-semibold">{{ route.meta?.title }}</span>
-                  </div>
-                  <svg 
-                    class="w-4 h-4 transition-transform" 
-                    :class="{ 'rotate-90': route.name && expandedMenus.includes(String(route.name)) }"
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-                
-                <div 
-                  v-show="expandedMenus.includes(String(route.name))" 
-                  class="mt-1 ml-4 pl-3 border-l-2 border-gray-200"
-                >
-                  <router-link
-                    v-for="child in route.children"
-                    :key="child.path"
-                    :to="child.path"
-                    class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors hover:bg-gray-50"
-                    active-class="text-blue-600 font-medium"
-                    exact-active-class="text-blue-600 font-medium"
-                  >
-                    <div class="w-1.5 h-1.5 rounded-full mr-2"
-                      :class="$route.path.startsWith(child.path) ? 'bg-blue-500' : 'bg-gray-300'">
-                    </div>
-                    {{ child.meta?.title }}
-                  </router-link>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -280,7 +233,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watchEffect } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { asyncRoutes } from '@/router/routes'

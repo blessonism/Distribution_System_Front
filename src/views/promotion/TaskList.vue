@@ -355,6 +355,15 @@
       :loading="taskDetailLoading"
       @close="handleCloseSidebar"
     />
+
+    <!-- 二次审核申请表单 -->
+    <SecondAuditRequestForm
+      v-if="currentSecondAuditTask"
+      :task-id="currentSecondAuditTask.id"
+      v-model:open="secondAuditFormOpen"
+      @success="handleSecondAuditSuccess"
+      @cancel="handleSecondAuditCancel"
+    />
   </div>
 </template>
 
@@ -363,11 +372,13 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePromotionStore } from '@/store/promotion'
 import { useUserStore } from '@/store/user'
+import { useRewardStore } from '@/store/reward'
 // 移除权限导入，使用简化的权限检查
 import { useDebounceFn } from '@vueuse/core'
 import type { PromotionTask, AgentTaskFilterParams } from '@/types/promotion'
 import TaskStatsCards from './components/TaskStatsCards.vue'
 import TaskDetailSidebar from './components/TaskDetailSidebar.vue'
+import SecondAuditRequestForm from '@/components/promotion/SecondAuditRequestForm.vue'
 import DataTable from '@/components/business/DataTable.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -380,6 +391,7 @@ import { toast } from '@/components/ui/toast/use-toast'
 const router = useRouter()
 const promotionStore = usePromotionStore()
 const userStore = useUserStore()
+const rewardStore = useRewardStore()
 
 // 响应式状态
 const showDetailSidebar = ref(false)
@@ -387,6 +399,10 @@ const currentTask = ref<PromotionTask | null>(null)
 const selectedTimeRange = ref<string>('all')
 const showAdvancedFilters = ref(false)
 const jumpToPage = ref<number | string>('')
+
+// 二次审核相关状态
+const secondAuditFormOpen = ref(false)
+const currentSecondAuditTask = ref<PromotionTask | null>(null)
 
 // 权限检查 - 统一用户状态访问，添加空值检查
 const canViewTasks = computed(() => {
@@ -657,6 +673,34 @@ const tableColumns = computed(() => [
             })
           ]))
         )
+      } else if (task.status === 'APPROVED') {
+        // 已通过状态：显示二次审核申请按钮（如果符合条件）
+        if (shouldShowSecondAuditButton(task)) {
+          actions.push(
+            h(Button, {
+              variant: 'ghost',
+              size: 'sm',
+              onClick: (e: Event) => {
+                e.stopPropagation()
+                handleRequestSecondAudit(task)
+              },
+              title: '申请二次审核',
+              class: 'text-green-600 hover:text-green-700'
+            }, () => h('svg', {
+              class: 'w-4 h-4',
+              fill: 'none',
+              stroke: 'currentColor',
+              viewBox: '0 0 24 24'
+            }, [
+              h('path', {
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2',
+                d: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'
+              })
+            ]))
+          )
+        }
       } else if (task.status === 'REJECTED') {
         // 已拒绝状态：显示拒绝原因按钮
         actions.push(
@@ -1065,6 +1109,69 @@ const handleViewRejectReason = (task: PromotionTask) => {
     description: reason,
     variant: 'destructive'
   })
+}
+
+// 判断是否应该显示二次审核按钮
+const shouldShowSecondAuditButton = (task: PromotionTask) => {
+  // 只有已通过的任务才显示二次审核按钮
+  if (task.status !== 'APPROVED') return false
+
+  // 如果已经有二次审核标识，则不显示按钮
+  if (task.isSecondAudit) return false
+
+  return true
+}
+
+// 处理二次审核申请
+const handleRequestSecondAudit = async (task: PromotionTask) => {
+  try {
+    // 检查是否可以申请二次审核
+    const eligibility = await rewardStore.checkSecondAuditEligibility(task.id)
+
+    if (!eligibility.eligible) {
+      toast({
+        title: '无法申请',
+        description: eligibility.reason || '该任务不符合二次审核条件',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    // 设置当前任务并打开表单
+    currentSecondAuditTask.value = task
+    secondAuditFormOpen.value = true
+  } catch (error) {
+    console.error('检查二次审核资格失败:', error)
+    toast({
+      title: '检查失败',
+      description: '无法检查二次审核资格，请稍后重试',
+      variant: 'destructive'
+    })
+  }
+}
+
+// 处理二次审核申请成功
+const handleSecondAuditSuccess = (request: any) => {
+  console.log('[TaskList] 二次审核申请成功:', request)
+  toast({
+    title: '申请成功',
+    description: '二次审核申请已提交，我们将在1-2个工作日内完成审核',
+    variant: 'default'
+  })
+
+  // 刷新任务列表
+  loadTaskList()
+
+  // 关闭表单
+  secondAuditFormOpen.value = false
+  currentSecondAuditTask.value = null
+}
+
+// 处理二次审核申请取消
+const handleSecondAuditCancel = () => {
+  console.log('[TaskList] 二次审核申请已取消')
+  secondAuditFormOpen.value = false
+  currentSecondAuditTask.value = null
 }
 </script>
 
