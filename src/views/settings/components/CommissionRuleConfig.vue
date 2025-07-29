@@ -73,25 +73,26 @@
           <DollarSignIcon class="h-5 w-5" />
           <span>返佣规则配置</span>
         </CardTitle>
-        <CardDescription>
-          配置返佣计算方式、发放时机和上限管理
-        </CardDescription>
+        <div class="flex items-center justify-between">
+          <CardDescription>
+            配置返佣计算方式、发放时机和上限管理
+          </CardDescription>
+          <!-- 添加新规则按钮 -->
+          <Button
+            v-if="!readonly"
+            type="button"
+            variant="outline"
+            @click="addNewRule"
+            :disabled="formData.rules.length >= 5"
+          >
+            <PlusIcon class="h-4 w-4 mr-2" />
+            添加规则
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Form @submit="handleSubmit">
           <div class="space-y-6">
-            <!-- 添加新规则按钮 -->
-            <div v-if="!readonly" class="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                @click="addNewRule"
-                :disabled="formData.rules.length >= 5"
-              >
-                <PlusIcon class="h-4 w-4 mr-2" />
-                添加规则
-              </Button>
-            </div>
 
             <!-- 返佣规则列表 -->
             <div v-for="(rule, index) in formData.rules" :key="index" class="border rounded-lg p-4">

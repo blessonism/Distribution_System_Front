@@ -71,25 +71,26 @@
           <UsersIcon class="h-5 w-5" />
           <span>代理规则配置</span>
         </CardTitle>
-        <CardDescription>
-          配置代理层级的升级条件、权限分配和提成比例
-        </CardDescription>
+        <div class="flex items-center justify-between">
+          <CardDescription>
+            配置代理层级的升级条件、权限分配和提成比例
+          </CardDescription>
+          <!-- 添加新层级按钮 -->
+          <Button
+            v-if="!readonly"
+            type="button"
+            variant="outline"
+            @click="addNewLevel"
+            :disabled="formData.rules.length >= 10"
+          >
+            <PlusIcon class="h-4 w-4 mr-2" />
+            添加层级
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Form @submit="handleSubmit">
           <div class="space-y-6">
-            <!-- 添加新层级按钮 -->
-            <div v-if="!readonly" class="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                @click="addNewLevel"
-                :disabled="formData.rules.length >= 10"
-              >
-                <PlusIcon class="h-4 w-4 mr-2" />
-                添加层级
-              </Button>
-            </div>
 
             <!-- 代理规则列表 -->
             <div v-for="(rule, index) in formData.rules" :key="rule.level" class="border rounded-lg p-4">
