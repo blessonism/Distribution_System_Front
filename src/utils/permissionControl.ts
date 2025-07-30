@@ -59,7 +59,7 @@ export const INVITATION_MATRIX: Record<UserRole, UserRole[]> = {
   director: ['leader', 'sales', 'agent'],
   leader: ['sales', 'agent'],
   sales: ['agent'],
-  agent: [] // 代理无法邀请任何人
+  agent: ['agent'] // 代理可以邀请其他代理
 }
 
 /**
@@ -70,7 +70,7 @@ export const INVITATION_CODE_LIMITS: Record<UserRole, number> = {
   director: 3,    // 销售总监可以有3个邀请码
   leader: 2,      // 销售组长可以有2个邀请码
   sales: 1,       // 销售人员可以有1个邀请码
-  agent: 0        // 代理没有邀请码
+  agent: 1        // 代理可以有1个邀请码
 }
 
 /**
@@ -79,12 +79,12 @@ export const INVITATION_CODE_LIMITS: Record<UserRole, number> = {
  */
 export const OPERATION_PERMISSIONS: Record<string, UserRole[]> = {
   // 邀请系统权限
-  'view_invitation_codes': ['super_admin', 'director', 'leader', 'sales'],
-  'view_invitation_history': ['super_admin', 'director', 'leader', 'sales'],
+  'view_invitation_codes': ['super_admin', 'director', 'leader', 'sales', 'agent'],
+  'view_invitation_history': ['super_admin', 'director', 'leader', 'sales', 'agent'],
   'view_invitation_stats': ['super_admin', 'director', 'leader', 'sales'],
-  'generate_invitation_code': ['super_admin', 'director', 'leader', 'sales'],
-  'activate_invitation_code': ['super_admin', 'director', 'leader', 'sales'],
-  'deactivate_invitation_code': ['super_admin', 'director', 'leader', 'sales'],
+  'generate_invitation_code': ['super_admin', 'director', 'leader', 'sales', 'agent'],
+  'activate_invitation_code': ['super_admin', 'director', 'leader', 'sales', 'agent'],
+  'deactivate_invitation_code': ['super_admin', 'director', 'leader', 'sales', 'agent'],
   'export_invitation_history': ['super_admin', 'director', 'leader'],
   'export_invitation_stats': ['super_admin', 'director', 'leader'],
 
@@ -114,15 +114,25 @@ export const OPERATION_PERMISSIONS: Record<string, UserRole[]> = {
   'manage_user_invitations': ['super_admin'], // 只有超级管理员可以管理用户邀请权限
   
   // 推广审核权限
-  'view_promotion_audit_list': ['super_admin', 'director', 'leader'],
-  'view_promotion_task_detail': ['super_admin', 'director', 'leader'],
-  'approve_promotion_task': ['super_admin', 'director', 'leader'],
-  'reject_promotion_task': ['super_admin', 'director', 'leader'],
-  'view_promotion_audit_stats': ['super_admin', 'director', 'leader'],
+  'view_promotion_audit_list': ['super_admin', 'director', 'leader', 'sales'],
+  'view_promotion_task_detail': ['super_admin', 'director', 'leader', 'sales'],
+  'approve_promotion_task': ['super_admin', 'director', 'leader', 'sales'],
+  'reject_promotion_task': ['super_admin', 'director', 'leader', 'sales'],
+  'view_promotion_audit_stats': ['super_admin', 'director', 'leader', 'sales'],
   'export_promotion_audit_data': ['super_admin', 'director'],
   'batch_audit_promotion': ['super_admin', 'director'], // V2功能
   'modify_audit_result': ['super_admin'], // 修改审核结果
   'view_all_auditor_data': ['super_admin'], // 查看所有审核员数据
+
+  // 代理管理权限
+  'view_agent_list': ['super_admin', 'director', 'leader', 'sales'],
+  'view_agent_detail': ['super_admin', 'director', 'leader', 'sales'],
+  'create_agent': ['super_admin', 'director', 'leader', 'sales'],
+  'update_agent': ['super_admin', 'director', 'leader'],
+  'delete_agent': ['super_admin', 'director'],
+  'export_agent_data': ['super_admin', 'director', 'leader'],
+  'view_agent_statistics': ['super_admin', 'director', 'leader', 'sales'],
+  'manage_agent_status': ['super_admin', 'director', 'leader'],
 
   // 代理任务提交权限
   'submit_promotion_task': ['agent', 'super_admin'], // 代理提交任务权限
@@ -625,6 +635,62 @@ export const PermissionCheck = {
   },
 
   /**
+   * 检查是否可以查看代理列表
+   */
+  canViewAgentList: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'view_agent_list')
+  },
+
+  /**
+   * 检查是否可以查看代理详情
+   */
+  canViewAgentDetail: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'view_agent_detail')
+  },
+
+  /**
+   * 检查是否可以创建代理
+   */
+  canCreateAgent: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'create_agent')
+  },
+
+  /**
+   * 检查是否可以更新代理信息
+   */
+  canUpdateAgent: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'update_agent')
+  },
+
+  /**
+   * 检查是否可以删除代理
+   */
+  canDeleteAgent: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'delete_agent')
+  },
+
+  /**
+   * 检查是否可以导出代理数据
+   */
+  canExportAgentData: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'export_agent_data')
+  },
+
+  /**
+   * 检查是否可以查看代理统计
+   */
+  canViewAgentStatistics: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'view_agent_statistics')
+  },
+
+  /**
+   * 检查是否可以管理代理状态
+   */
+  canManageAgentStatus: (userRole: UserRole): PermissionCheckResult => {
+    return InvitationPermissionController.checkOperationPermission(userRole, 'manage_agent_status')
+  },
+
+  /**
    * 获取推广审核数据范围权限
    */
   getPromotionAuditDataScope: (userRole: UserRole, userId: string): AuditDataScope => {
@@ -648,11 +714,117 @@ export const PermissionCheck = {
           allowedAgentIds: [], // 此处应该从用户管理系统获取实际的下属代理ID
           allowedSalesIds: []  // 此处应该从用户管理系统获取实际的下属销售ID
         }
+      case 'sales':
+        return {
+          canViewAll: false,
+          // 销售人员只能查看自己发展的代理的推广任务
+          allowedAgentIds: [], // 此处应该从用户管理系统获取销售发展的代理ID
+          allowedSalesIds: [userId], // 销售可以查看自己的数据
+          restrictions: ['只能审核自己发展的代理的推广任务']
+        }
       default:
         return {
           canViewAll: false,
           allowedAgentIds: [],
           allowedSalesIds: []
+        }
+    }
+  },
+
+  /**
+   * 获取层级关系数据范围权限
+   */
+  getHierarchyDataScope: (userRole: UserRole, userId: string): HierarchyDataScope => {
+    switch (userRole) {
+      case 'super_admin':
+        return {
+          canViewAll: true,
+          canViewTeam: true,
+          canViewPersonal: true,
+          allowedLevels: ['director', 'leader', 'sales', 'agent']
+        }
+      case 'director':
+        return {
+          canViewAll: true,
+          canViewTeam: true,
+          canViewPersonal: true,
+          allowedLevels: ['director', 'leader', 'sales', 'agent']
+        }
+      case 'leader':
+        return {
+          canViewAll: false,
+          canViewTeam: true,
+          canViewPersonal: true,
+          allowedLevels: ['leader', 'sales', 'agent'],
+          // 销售组长可以查看自己团队的层级
+          allowedSalesIds: [], // 从API获取团队成员ID
+          teamIds: [], // 从API获取团队ID
+          restrictions: ['只能查看自己团队的层级结构']
+        }
+      case 'sales':
+        return {
+          canViewAll: false,
+          canViewTeam: false,
+          canViewPersonal: true,
+          allowedLevels: ['sales', 'agent'],
+          // 销售人员只能查看自己和自己发展的代理
+          allowedSalesIds: [userId],
+          allowedAgentIds: [], // 从API获取销售发展的代理ID
+          restrictions: ['只能查看自己和自己发展的代理']
+        }
+      default:
+        return {
+          canViewAll: false,
+          canViewTeam: false,
+          canViewPersonal: false,
+          allowedLevels: [],
+          restrictions: ['无层级查看权限']
+        }
+    }
+  },
+
+  /**
+   * 获取代理管理数据范围权限
+   */
+  getAgentManagementDataScope: (userRole: UserRole, userId: string): AgentManagementDataScope => {
+    switch (userRole) {
+      case 'super_admin':
+        return {
+          canViewAll: true,
+          canManageAll: true,
+          canExport: true
+        }
+      case 'director':
+        return {
+          canViewAll: true,
+          canManageAll: true,
+          canExport: true
+        }
+      case 'leader':
+        return {
+          canViewAll: false,
+          canManageAll: false,
+          canExport: true,
+          // 销售组长只能查看和管理其团队范围内的代理
+          allowedSalesIds: [], // 从API获取团队成员ID
+          teamIds: [] // 从API获取团队ID
+        }
+      case 'sales':
+        return {
+          canViewAll: false,
+          canManageAll: false,
+          canExport: false,
+          // 销售人员只能查看自己发展的代理
+          allowedSalesIds: [userId],
+          restrictions: ['只能查看和管理自己发展的代理']
+        }
+      default:
+        return {
+          canViewAll: false,
+          canManageAll: false,
+          canExport: false,
+          allowedSalesIds: [],
+          restrictions: ['无代理管理权限']
         }
     }
   },
@@ -712,6 +884,33 @@ export const PermissionCheck = {
         }
     }
   }
+}
+
+/**
+ * 层级关系数据范围权限接口
+ */
+export interface HierarchyDataScope {
+  canViewAll: boolean           // 是否可以查看所有层级
+  canViewTeam?: boolean         // 是否可以查看团队层级
+  canViewPersonal?: boolean     // 是否可以查看个人层级
+  allowedLevels?: string[]      // 允许查看的层级列表
+  allowedSalesIds?: string[]    // 允许查看的销售人员ID列表
+  allowedAgentIds?: string[]    // 允许查看的代理ID列表
+  teamIds?: string[]            // 允许查看的团队ID列表
+  restrictions?: string[]       // 权限限制说明
+}
+
+/**
+ * 代理管理数据范围权限接口
+ */
+export interface AgentManagementDataScope {
+  canViewAll: boolean           // 是否可以查看所有代理
+  canManageAll?: boolean        // 是否可以管理所有代理
+  canExport?: boolean           // 是否可以导出数据
+  allowedSalesIds?: string[]    // 允许查看的销售人员ID列表
+  allowedAgentIds?: string[]    // 允许查看的代理ID列表
+  teamIds?: string[]            // 允许查看的团队ID列表
+  restrictions?: string[]       // 权限限制说明
 }
 
 /**

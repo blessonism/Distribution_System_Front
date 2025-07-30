@@ -100,7 +100,7 @@
             <Button
               variant="default"
               size="sm"
-              @click="$emit('approve')"
+              @click="$emit('approve', task.id)"
               class="h-8 px-2"
             >
               <CheckCircle class="h-3 w-3 mr-1" />
@@ -109,7 +109,7 @@
             <Button
               variant="destructive"
               size="sm"
-              @click="$emit('reject')"
+              @click="$emit('reject', task.id)"
               class="h-8 px-2"
             >
               <XCircle class="h-3 w-3 mr-1" />
@@ -147,8 +147,8 @@ defineProps<Props>()
 interface Emits {
   select: []
   viewDetail: []
-  approve: []
-  reject: []
+  approve: [taskId: string]
+  reject: [taskId: string]
 }
 
 defineEmits<Emits>()

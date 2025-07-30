@@ -16,7 +16,7 @@
 
     <!-- 筛选面板 -->
     <div class="bg-white p-4 rounded-lg shadow space-y-4 mobile-filters">
-      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mobile-filter-row">
+      <div class="grid gap-4 mobile-filter-row" :class="isAgent ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-3 lg:grid-cols-4'">
         <!-- 客户姓名搜索 -->
         <div>
           <Label class="text-sm font-medium mb-1 block">客户姓名</Label>
@@ -33,11 +33,11 @@
           </div>
         </div>
         
-        <!-- 状态筛选 -->
-        <div>
+        <!-- 状态筛选 - 仅非代理角色显示 -->
+        <div v-if="!isAgent">
           <Label class="text-sm font-medium mb-1 block">状态</Label>
-          <Select 
-            v-model="filters.status" 
+          <Select
+            v-model="filters.status"
             class="w-full"
           >
             <SelectTrigger>
@@ -53,11 +53,11 @@
           </Select>
         </div>
         
-        <!-- 来源筛选 -->
-        <div>
+        <!-- 来源筛选 - 仅非代理角色显示 -->
+        <div v-if="!isAgent">
           <Label class="text-sm font-medium mb-1 block">来源</Label>
-          <Select 
-            v-model="filters.source" 
+          <Select
+            v-model="filters.source"
             class="w-full"
           >
             <SelectTrigger>
@@ -76,8 +76,8 @@
           </Select>
         </div>
         
-        <!-- 归属销售筛选 -->
-        <div>
+        <!-- 归属销售筛选 - 仅非代理角色显示 -->
+        <div v-if="!isAgent">
           <Label class="text-sm font-medium mb-1 block">归属销售</Label>
           <Select
             v-model="filters.salespersonId"
@@ -287,7 +287,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, h } from 'vue'
+import { ref, onMounted, reactive, h, computed } from 'vue'
+import { useUserStore } from '@/store/user'
 import {
   PlusIcon, CheckIcon, SearchIcon, TrashIcon,
   PencilIcon, MoreHorizontalIcon, DownloadIcon, RefreshCcwIcon, CheckCircleIcon
@@ -308,6 +309,10 @@ import {
 import { getLeads, createLead, updateLead } from '@/api/lead'
 import type { Lead, LeadStatus, CreateLeadRequest } from '@/types/lead'
 import LeadForm from './components/LeadForm.vue'
+
+// 用户store和角色检查
+const userStore = useUserStore()
+const isAgent = computed(() => userStore.userInfo?.role === 'agent')
 
 // 状态变量
 const leads = ref<Lead[]>([])
@@ -490,10 +495,18 @@ const columns = [
 async function fetchLeads() {
   loading.value = true
   try {
+    // 根据用户角色过滤筛选条件
+    const requestFilters = isAgent.value
+      ? {
+          name: filters.name,
+          auditStatus: filters.auditStatus
+        }
+      : { ...filters }
+
     const res = await getLeads({
       page: pagination.page,
       pageSize: pagination.pageSize,
-      ...filters
+      ...requestFilters
     })
     leads.value = res.list
     total.value = res.total

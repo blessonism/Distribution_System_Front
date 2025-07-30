@@ -89,14 +89,62 @@
               </div>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               class="w-full"
               :disabled="loading"
             >
               <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
               {{ loading ? '登录中...' : '登录' }}
             </Button>
+
+            <!-- 测试账号提示 -->
+            <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div class="flex items-center space-x-2 text-blue-700 mb-2">
+                <UserCheck class="w-4 h-4" />
+                <span class="text-sm font-medium">测试账号</span>
+              </div>
+              <div class="text-xs text-blue-600 space-y-1">
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    class="text-left p-2 bg-white rounded border hover:bg-blue-50 transition-colors"
+                    @click="fillTestAccount('director_test', 'Director123!')"
+                    :disabled="loading"
+                  >
+                    <div class="font-medium">总监测试</div>
+                    <div class="text-gray-500">director_test</div>
+                  </button>
+                  <button
+                    type="button"
+                    class="text-left p-2 bg-white rounded border hover:bg-blue-50 transition-colors"
+                    @click="fillTestAccount('leader_test', 'Leader123!')"
+                    :disabled="loading"
+                  >
+                    <div class="font-medium">组长测试</div>
+                    <div class="text-gray-500">leader_test</div>
+                  </button>
+                  <button
+                    type="button"
+                    class="text-left p-2 bg-white rounded border hover:bg-blue-50 transition-colors"
+                    @click="fillTestAccount('sales_test', 'Sales123!')"
+                    :disabled="loading"
+                  >
+                    <div class="font-medium">销售测试</div>
+                    <div class="text-gray-500">sales_test</div>
+                  </button>
+                  <button
+                    type="button"
+                    class="text-left p-2 bg-white rounded border hover:bg-blue-50 transition-colors"
+                    @click="fillTestAccount('agent_test', 'Agent123!')"
+                    :disabled="loading"
+                  >
+                    <div class="font-medium">代理测试</div>
+                    <div class="text-gray-500">agent_test</div>
+                  </button>
+                </div>
+              </div>
+            </div>
           </form>
 
           <!-- 注册表单 -->
@@ -306,11 +354,12 @@ import { toast } from '@/components/ui/toast/use-toast'
 import { validateCode, getRoleDisplayName } from '@/api/invitation'
 import { validateInviteCodeComplete, formatInviteCodeInput } from '@/utils/invitation'
 import { useInvitation } from '@/composables/useInvitation'
-import { 
-  invitationErrorHandler, 
-  handleInviteCodeValidation, 
-  handleInviteRegistration 
+import {
+  invitationErrorHandler,
+  handleInviteCodeValidation,
+  handleInviteRegistration
 } from '@/utils/invitationErrorHandler'
+import { getUserDefaultPath } from '@/config/roleMenus'
 
 const router = useRouter()
 const route = useRoute()
@@ -440,6 +489,13 @@ watch(() => registerForm.inviteCode, (newCode) => {
 // 方法
 const switchToLogin = () => {
   isLoginMode.value = true
+  error.value = ''
+}
+
+// 填充测试账号
+const fillTestAccount = (username: string, password: string) => {
+  loginForm.username = username
+  loginForm.password = password
   error.value = ''
 }
 
@@ -601,7 +657,7 @@ const handleLogin = async () => {
     if (!userStore.routesLoaded && userStore.token) {
       console.log('登录后手动添加动态路由')
       const { asyncRoutes, filterRoutesByRole } = await import('@/router/routes')
-      
+
       const accessibleRoutes = filterRoutesByRole(asyncRoutes, userStore.roles || [])
       accessibleRoutes.forEach(route => {
         if (route.name && !router.hasRoute(route.name)) {
@@ -610,27 +666,50 @@ const handleLogin = async () => {
         }
       })
       userStore.$patch({ routesLoaded: true })
+      localStorage.setItem('routesLoaded', 'true')
     }
     
-    console.log('尝试直接跳转到dashboard')
+    console.log('确定登录后跳转路径')
     try {
       if (!router.hasRoute('Layout')) {
         console.warn('Layout路由尚未加载，可能导致导航失败')
       }
-      
+
       const routes = router.getRoutes()
       console.log('当前所有路由:', routes.map(r => ({ path: r.path, name: r.name })))
-      
-      await router.push('/dashboard')
-      console.log('跳转结束，当前路由:', router.currentRoute.value.path)
+
+      // 根据用户角色确定跳转路径
+      const userRole = userStore.userInfo?.role
+      let targetPath = '/dashboard' // 默认路径
+
+      if (userRole) {
+        // 使用统一的角色路径配置
+        targetPath = getUserDefaultPath(userRole)
+        console.log(`角色 ${userRole}，跳转到默认路径: ${targetPath}`)
+      }
+
+      console.log(`尝试跳转到: ${targetPath}`)
+      await router.push(targetPath)
+      console.log('跳转成功，当前路由:', router.currentRoute.value.path)
     } catch (navError) {
-      console.error('导航到dashboard失败:', navError)
+      console.error('页面跳转失败:', navError)
       error.value = '页面跳转失败，请刷新页面重试'
     }
     
   } catch (err: any) {
     error.value = err.message || '登录失败，请检查用户名和密码'
     console.error('登录失败:', err)
+
+    // 登录失败时不清空表单，保留用户输入
+    // 只清空密码字段（安全考虑）
+    loginForm.password = ''
+
+    // 显示错误提示
+    toast({
+      title: '登录失败',
+      description: error.value,
+      variant: 'destructive',
+    })
   } finally {
     loading.value = false
   }

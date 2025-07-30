@@ -74,6 +74,31 @@ export interface PaginatedResponse<T> {
 }
 
 /**
+ * 列表API响应格式接口
+ * 用于包装列表数据的标准API响应
+ * 
+ * @template T 列表项的数据类型
+ * @interface ApiListResponse
+ * 
+ * @example
+ * ```typescript
+ * const listResponse: ApiListResponse<User> = {
+ *   code: 200,
+ *   success: true,
+ *   message: '获取成功',
+ *   data: {
+ *     list: [{ id: 1, username: 'john' }, ...],
+ *     total: 100,
+ *     page: 1,
+ *     pageSize: 20,
+ *     totalPages: 5
+ *   }
+ * }
+ * ```
+ */
+export interface ApiListResponse<T> extends ApiResponse<PaginatedResponse<T>> {}
+
+/**
  * 分页请求参数接口
  * 用于API请求中的分页、搜索和排序参数
  * 

@@ -15,9 +15,10 @@ import { INVITE_CODE_ERRORS, getInviteCodeErrorMessage } from '@/utils/invitatio
 /**
  * 邀请系统错误接口
  * 定义标准化的错误对象结构，包含错误分类和恢复信息
- * 
+ *
  * @interface InvitationError
  */
+interface InvitationError {
   code: string
   message: string
   type: 'validation' | 'network' | 'permission' | 'business' | 'system'
@@ -33,6 +34,7 @@ import { INVITE_CODE_ERRORS, getInviteCodeErrorMessage } from '@/utils/invitatio
  * 
  * @interface ErrorRecoveryAction
  */
+interface ErrorRecoveryAction {
   label: string
   action: () => void | Promise<void>
   type: 'primary' | 'secondary'

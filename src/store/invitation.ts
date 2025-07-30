@@ -885,9 +885,9 @@ export const ROLE_INVITE_PERMISSIONS: RoleInvitePermission = {
     maxCodes: 1
   },
   agent: {
-    canInvite: false,
-    allowedTargetRoles: [],
-    maxCodes: 0
+    canInvite: true,
+    allowedTargetRoles: ['agent'],
+    maxCodes: 1
   }
 }
 

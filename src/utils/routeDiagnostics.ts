@@ -39,6 +39,7 @@ import { useUserStore } from '@/store/user'
  * </script>
  * ```
  */
+export function useRouteDiagnostics() {
   const router = useRouter()
   const userStore = useUserStore()
 

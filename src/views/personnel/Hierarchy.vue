@@ -23,31 +23,50 @@
             <p class="text-sm font-medium">当前层级:</p>
             <Badge>{{ currentLevelName }}</Badge>
           </div>
-          
+
+          <!-- 权限提示 -->
+          <div v-if="getPermissionRestrictions().length > 0" class="mb-2 p-2 bg-muted/50 rounded text-xs text-muted-foreground">
+            <p v-for="restriction in getPermissionRestrictions()" :key="restriction">
+              {{ restriction }}
+            </p>
+          </div>
+
           <div class="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               @click="navigateToLevel('director')"
-              :disabled="currentLevel === 'director'"
+              :disabled="currentLevel === 'director' || !canViewLevel('director')"
+              :class="{ 'opacity-50': !canViewLevel('director') }"
             >
               销售总监
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               @click="navigateToLevel('manager')"
-              :disabled="currentLevel === 'manager'"
+              :disabled="currentLevel === 'manager' || !canViewLevel('manager')"
+              :class="{ 'opacity-50': !canViewLevel('manager') }"
             >
               销售组长
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               @click="navigateToLevel('sales')"
-              :disabled="currentLevel === 'sales'"
+              :disabled="currentLevel === 'sales' || !canViewLevel('sales')"
+              :class="{ 'opacity-50': !canViewLevel('sales') }"
             >
               销售
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              @click="navigateToLevel('agent')"
+              :disabled="currentLevel === 'agent' || !canViewLevel('agent')"
+              :class="{ 'opacity-50': !canViewLevel('agent') }"
+            >
+              代理
             </Button>
           </div>
         </div>
@@ -125,8 +144,20 @@ import type { TreeNodeData, PersonnelRole } from '@/types/personnel';
 import { useToast } from '@/components/ui/toast/use-toast';
 import type { ApiResponse } from '@/types/api';
 import type { AxiosResponse } from 'axios';
+import { useHierarchyPermission } from '@/composables/useHierarchyPermission';
 
 const { toast } = useToast();
+
+// 权限控制
+const {
+  hierarchyDataScope,
+  hasHierarchyPermission,
+  currentUserRole,
+  canViewLevel,
+  filterPersonnelData,
+  getAccessibleLevels,
+  getPermissionRestrictions
+} = useHierarchyPermission();
 
 // 状态
 const currentLevelPersonnel = ref<TreeNodeData[]>([]);
@@ -203,10 +234,13 @@ const fetchCurrentLevelData = async (parentId: string | null = null) => {
     if (res.data.code === 200 || res.data.success) {
       // 过滤出当前层级的人员
       const levelPersonnel = res.data.data.filter((p: TreeNodeData) => p.role === currentLevel.value);
-      currentLevelPersonnel.value = levelPersonnel;
+
+      // 应用权限过滤
+      const filteredPersonnel = filterPersonnelData(levelPersonnel);
+      currentLevelPersonnel.value = filteredPersonnel;
       
-      // 更新缓存
-      levelPersonnel.forEach(person => {
+      // 更新缓存（使用过滤后的数据）
+      filteredPersonnel.forEach(person => {
         roleDataCache.value[currentLevel.value].set(person.id, person);
       });
       
@@ -301,7 +335,17 @@ const navigateBack = () => {
 // 直接导航到指定层级
 const navigateToLevel = (level: PersonnelRole) => {
   if (level === currentLevel.value) return;
-  
+
+  // 检查权限
+  if (!canViewLevel(level)) {
+    toast({
+      title: '权限不足',
+      description: `您无权查看${roleMap[level]}层级`,
+      variant: 'destructive',
+    });
+    return;
+  }
+
   // 保存当前选中节点
   if (selectedNode.value) {
     lastSelectedNodes.value[currentLevel.value] = selectedNode.value.id;
@@ -573,6 +617,23 @@ const getBadgeVariant = (role: PersonnelRole) => {
 
 // 初始化
 onMounted(() => {
+  // 检查基本权限
+  if (!hasHierarchyPermission.value) {
+    toast({
+      title: '权限不足',
+      description: '您无权访问层级关系功能',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  // 根据用户角色设置初始层级
+  const accessibleLevels = getAccessibleLevels();
+  if (accessibleLevels.length > 0) {
+    // 设置为用户可访问的最高层级
+    currentLevel.value = accessibleLevels[0];
+  }
+
   fetchCurrentLevelData();
 });
 </script> 

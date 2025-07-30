@@ -84,55 +84,131 @@ export function setupMockApi() {
       console.log(`[Mock] 成功加载邀请码数据: ${mockInvitationCodes.length}条`)
     }
 
+    // 定义测试用户数据
+    const testUsers = {
+      'director_test': {
+        id: 'user_001',
+        username: 'director_test',
+        password: 'Director123!',
+        nickname: '张总监',
+        email: 'director@company.com',
+        role: 'director',
+        status: 'active',
+        departmentId: 'dept_001',
+        token: 'mock-token-director',
+        permissions: ['*'], // 全部权限
+        dataScope: 'ALL', // 全部数据权限
+        modules: ['dashboard', 'user-management', 'agent-management', 'lead-management', 'system-config', 'invitation-history', 'promotion-audit']
+      },
+      'leader_test': {
+        id: 'user_002',
+        username: 'leader_test',
+        password: 'Leader123!',
+        nickname: '李组长',
+        email: 'leader@company.com',
+        role: 'leader',
+        status: 'active',
+        departmentId: 'dept_002',
+        teamId: 'team_001',
+        token: 'mock-token-leader',
+        permissions: ['dashboard', 'user-management-dept', 'agent-management-team', 'lead-management', 'promotion-audit'],
+        dataScope: 'DEPARTMENT', // 部门数据权限
+        subordinates: ['user_003', 'user_004'], // 管理的销售
+        agentSubordinates: ['user_005', 'user_006', 'user_007'], // 管理的3级代理
+        modules: ['dashboard', 'user-management', 'agent-management', 'lead-management', 'promotion-audit']
+      },
+      'sales_test': {
+        id: 'user_003',
+        username: 'sales_test',
+        password: 'Sales123!',
+        nickname: '王销售',
+        email: 'sales@company.com',
+        role: 'sales',
+        status: 'active',
+        departmentId: 'dept_002',
+        parentId: 'user_002', // 上级组长
+        token: 'mock-token-sales-test',
+        permissions: ['dashboard', 'agent-management-3-level', 'lead-management', 'promotion-audit'],
+        dataScope: 'AGENT_3_LEVEL', // 3级代理数据权限
+        agentSubordinates: ['user_008', 'user_009', 'user_010'], // 发展的3级代理
+        modules: ['dashboard', 'agent-management', 'lead-management', 'promotion-audit']
+      },
+      'agent_test': {
+        id: 'user_008',
+        username: 'agent_test',
+        password: 'Agent123!',
+        nickname: '赵代理',
+        email: 'agent@company.com',
+        role: 'agent',
+        status: 'active',
+        parentSalesId: 'user_003', // 上级销售
+        agentLevel: 3,
+        token: 'mock-token-agent',
+        permissions: ['lead-management-readonly', 'invitation-management', 'promotion-management'],
+        dataScope: 'PERSONAL', // 个人数据权限
+        modules: ['lead-management', 'invitation-management', 'promotion-management']
+      },
+      // 保留原有用户以兼容性
+      'admin': {
+        id: 1,
+        username: 'admin',
+        password: 'admin123',
+        nickname: '系统管理员',
+        email: 'admin@example.com',
+        role: 'super_admin',
+        status: 'active',
+        token: 'mock-token-admin',
+        permissions: ['*'],
+        dataScope: 'ALL',
+        modules: ['*']
+      },
+      'sales': {
+        id: 2,
+        username: 'sales',
+        password: 'sales123',
+        nickname: '销售人员',
+        email: 'sales@example.com',
+        role: 'sales',
+        status: 'active',
+        token: 'mock-token-sales',
+        permissions: ['dashboard', 'lead', 'deal'],
+        dataScope: 'PERSONAL',
+        modules: ['dashboard', 'lead-management', 'deal-management']
+      }
+    }
+
     // 模拟登录API
     mock.onPost('/auth/login').reply((config) => {
       console.log('[Mock API] 请求登录', config.data)
       const { username, password } = JSON.parse(config.data)
       
-      // 简单的用户名密码验证
-      if (username === 'admin' && password === 'admin123') {
+      // 查找匹配的用户
+      const user = testUsers[username as keyof typeof testUsers]
+      
+      if (user && user.password === password) {
         return [
           200, 
           {
             code: 200,
             success: true,
             data: {
-              token: 'mock-token-admin',
+              token: user.token,
               user: {
-                id: 1,
-                username: 'admin',
-                nickname: '系统管理员',
-                email: 'admin@example.com',
-                role: 'super_admin',
-                status: 'active',
+                id: user.id,
+                username: user.username,
+                nickname: user.nickname,
+                email: user.email,
+                role: user.role,
+                status: user.status,
                 avatar: '',
+                departmentId: user.departmentId || null,
+                teamId: user.teamId || null,
+                parentId: user.parentId || null,
+                agentLevel: user.agentLevel || null,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
               },
-              permissions: ['*'],
-            }
-          }
-        ]
-      } else if (username === 'sales' && password === 'sales123') {
-        return [
-          200, 
-          {
-            code: 200,
-            success: true,
-            data: {
-              token: 'mock-token-sales',
-              user: {
-                id: 2,
-                username: 'sales',
-                nickname: '销售人员',
-                email: 'sales@example.com',
-                role: 'sales',
-                status: 'active',
-                avatar: '',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              },
-              permissions: ['dashboard', 'lead', 'deal'],
+              permissions: user.permissions,
             }
           }
         ]
@@ -154,7 +230,10 @@ export function setupMockApi() {
       // 从请求头获取token
       const token = config.headers?.Authorization?.replace('Bearer ', '')
       
-      if (token === 'mock-token-admin') {
+      // 查找匹配token的用户
+      const user = Object.values(testUsers).find(u => u.token === token)
+      
+      if (user) {
         return [
           200,
           {
@@ -162,39 +241,21 @@ export function setupMockApi() {
             success: true,
             data: {
               user: {
-                id: 1,
-                username: 'admin',
-                nickname: '系统管理员',
-                email: 'admin@example.com',
-                role: 'super_admin',
-                status: 'active',
+                id: user.id,
+                username: user.username,
+                nickname: user.nickname,
+                email: user.email,
+                role: user.role,
+                status: user.status,
                 avatar: '',
+                departmentId: user.departmentId || null,
+                teamId: user.teamId || null,
+                parentId: user.parentId || null,
+                agentLevel: user.agentLevel || null,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
               },
-              permissions: ['*'],
-            }
-          }
-        ]
-      } else if (token === 'mock-token-sales') {
-        return [
-          200,
-          {
-            code: 200,
-            success: true,
-            data: {
-              user: {
-                id: 2,
-                username: 'sales',
-                nickname: '销售人员',
-                email: 'sales@example.com',
-                role: 'sales',
-                status: 'active',
-                avatar: '',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              },
-              permissions: ['dashboard', 'lead', 'deal'],
+              permissions: user.permissions,
             }
           }
         ]
@@ -772,8 +833,8 @@ export function setupMockApi() {
     // 获取邀请码列表
     mock.onGet('/invitation/codes').reply((config) => {
       const token = config.headers?.Authorization
-      const userId = token === 'mock-token-admin' ? '1' : 
-                     token === 'mock-token-sales' ? '4' : '1'
+      const currentUser = Object.values(testUsers).find(u => u.token === token)
+      const userId = currentUser?.id || '1'
       
       // 根据用户ID过滤邀请码
       const userCodes = mockInvitationCodes.filter(code => code.userId === userId)
@@ -976,8 +1037,8 @@ export function setupMockApi() {
     mock.onPost('/invitation/codes').reply((config) => {
       const { targetRole } = JSON.parse(config.data)
       const token = config.headers?.Authorization
-      const userId = token === 'mock-token-admin' ? '1' : 
-                     token === 'mock-token-sales' ? '4' : '1'
+      const currentUser = Object.values(testUsers).find(u => u.token === token)
+      const userId = currentUser?.id || '1'
       
       // 生成随机邀请码函数
       const generateRandomCode = (length: number = 8): string => {
@@ -1064,10 +1125,9 @@ export function setupMockApi() {
     // 获取审核任务列表
     mock.onGet('/promotion/audit/list').reply((config) => {
       const token = config.headers?.Authorization
-      const userRole = token === 'mock-token-admin' ? 'super_admin' : 
-                       token === 'mock-token-sales' ? 'leader' : 'super_admin'
-      const userId = token === 'mock-token-admin' ? '1' : 
-                     token === 'mock-token-sales' ? '4' : '1'
+      const currentUser = Object.values(testUsers).find(u => u.token === token)
+      const userRole = currentUser?.role || 'super_admin'
+      const userId = currentUser?.id || '1'
 
       const { 
         page = 1, 
@@ -1165,10 +1225,9 @@ export function setupMockApi() {
     // 执行审核操作
     mock.onPost('/promotion/audit/execute').reply((config) => {
       const token = config.headers?.Authorization
-      const userId = token === 'mock-token-admin' ? '1' : 
-                     token === 'mock-token-sales' ? '4' : '1'
-      const userName = token === 'mock-token-admin' ? '系统管理员' : 
-                       token === 'mock-token-sales' ? '销售组长' : '系统管理员'
+      const currentUser = Object.values(testUsers).find(u => u.token === token)
+      const userId = currentUser?.id || '1'
+      const userName = currentUser?.nickname || '系统管理员'
 
       try {
         const { taskId, action, comment, rewardAmount } = JSON.parse(config.data)
@@ -1334,8 +1393,8 @@ export function setupMockApi() {
     mock.onGet(/\/promotion\/audit\/check-permission\/(.+)/).reply((config) => {
       const taskId = config.url?.match(/\/promotion\/audit\/check-permission\/(.+)/)?.[1]
       const token = config.headers?.Authorization
-      const userRole = token === 'mock-token-admin' ? 'super_admin' : 
-                       token === 'mock-token-sales' ? 'leader' : 'super_admin'
+      const currentUser = Object.values(testUsers).find(u => u.token === token)
+      const userRole = currentUser?.role || 'super_admin'
 
       if (!taskId) {
         return [
@@ -1385,8 +1444,8 @@ export function setupMockApi() {
     // 批量审核操作 (V2功能)
     mock.onPost('/promotion/audit/batch').reply((config) => {
       const token = config.headers?.Authorization
-      const userRole = token === 'mock-token-admin' ? 'super_admin' : 
-                       token === 'mock-token-sales' ? 'leader' : 'super_admin'
+      const currentUser = Object.values(testUsers).find(u => u.token === token)
+      const userRole = currentUser?.role || 'super_admin'
 
       // 检查批量审核权限
       if (!['super_admin', 'director'].includes(userRole)) {
@@ -1415,8 +1474,8 @@ export function setupMockApi() {
     // 导出审核数据
     mock.onGet('/promotion/audit/export').reply((config) => {
       const token = config.headers?.Authorization
-      const userRole = token === 'mock-token-admin' ? 'super_admin' : 
-                       token === 'mock-token-sales' ? 'leader' : 'super_admin'
+      const currentUser = Object.values(testUsers).find(u => u.token === token)
+      const userRole = currentUser?.role || 'super_admin'
 
       // 检查导出权限
       if (!['super_admin', 'director'].includes(userRole)) {

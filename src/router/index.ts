@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { constantRoutes, asyncRoutes, filterRoutesByRole } from './routes'
 import type { AppRouteRecordRaw } from './routes'
+import { getUserDefaultPath } from '@/config/roleMenus'
 
 // 创建调试函数
 const debug = {
@@ -38,6 +39,11 @@ const debug = {
 
 // 从localStorage中获取routesLoaded状态
 const localRoutesLoaded = localStorage.getItem('routesLoaded') === 'true'
+
+// 循环检测机制
+let navigationCount = 0
+const MAX_NAVIGATION_COUNT = 5
+let lastNavigationTime = 0
 
 // 先创建路由实例
 const router = createRouter({
@@ -131,6 +137,21 @@ if (typeof window !== 'undefined') {
 
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
+  // 循环检测
+  const currentTime = Date.now()
+  if (currentTime - lastNavigationTime < 100) {
+    navigationCount++
+    if (navigationCount > MAX_NAVIGATION_COUNT) {
+      debug.error('检测到路由循环，强制跳转到登录页')
+      navigationCount = 0
+      next('/login')
+      return
+    }
+  } else {
+    navigationCount = 0
+  }
+  lastNavigationTime = currentTime
+
   debug.log(`路由导航：从 ${from.path} 到 ${to.path}`)
   debug.log('路由详细信息:', {
     toPath: to.path,
@@ -149,13 +170,16 @@ router.beforeEach(async (to, from, next) => {
   const token = userStore.token
   // 使用多重检查来判断路由是否已加载
   const dashboardExists = router.hasRoute('Dashboard')
+  const leadExists = router.hasRoute('Lead')
   const localRoutesLoaded = localStorage.getItem('routesLoaded') === 'true'
   const storeRoutesLoaded = userStore.routesLoaded
-  const routesLoaded = dashboardExists && (localRoutesLoaded || storeRoutesLoaded)
+  // 修复：检查关键路由是否存在，不同角色需要不同的路由
+  const routesLoaded = (dashboardExists || leadExists) && (localRoutesLoaded && storeRoutesLoaded)
 
   debug.log('路由状态:', {
     hasToken: !!token,
     dashboardExists,
+    leadExists,
     localRoutesLoaded,
     storeRoutesLoaded,
     routesLoaded,
@@ -165,9 +189,18 @@ router.beforeEach(async (to, from, next) => {
   if (token) {
     // 如果用户已登录
     if (to.path === '/login') {
-      // 如果已登录且目标是登录页，重定向到仪表盘
-      debug.log('用户已登录，访问登录页，重定向到 /dashboard')
-      next({ path: '/dashboard' })
+      // 如果已登录且目标是登录页，根据角色重定向到对应页面
+      const userRole = userStore.userInfo?.role
+      let redirectPath = '/dashboard' // 默认路径
+
+      if (userRole) {
+        redirectPath = getUserDefaultPath(userRole)
+        debug.log(`用户已登录，角色: ${userRole}，重定向到: ${redirectPath}`)
+      } else {
+        debug.log('用户已登录，但角色未知，重定向到默认路径: /dashboard')
+      }
+
+      next({ path: redirectPath })
     } else if (to.path === '/' || (to.path === '/404' && from.path === '/')) {
       // 处理根路径访问或从根路径错误重定向到404的情况
       debug.log('用户已登录，访问根路径（或从根路径重定向到404），准备重定向到 /dashboard')
@@ -195,6 +228,7 @@ router.beforeEach(async (to, from, next) => {
 
           // 标记路由已加载
           userStore.$patch({ routesLoaded: true })
+          localStorage.setItem('routesLoaded', 'true')
 
           // 重定向到dashboard
           next({ path: '/dashboard', replace: true })
@@ -209,7 +243,23 @@ router.beforeEach(async (to, from, next) => {
       // 其他路径的处理
       // 检查动态路由是否已加载
       if (routesLoaded) {
-        // 路由已加载，正常放行
+        // 路由已加载，检查是否需要智能重定向
+        if (to.path === '/promotion' && userStore.userInfo?.role) {
+          const userRole = userStore.userInfo.role
+          if (userRole === 'agent') {
+            // 代理角色重定向到提交任务页面
+            debug.log('代理角色访问推广管理，重定向到提交任务页面')
+            next({ path: '/promotion/submit', replace: true })
+            return
+          } else if (['super_admin', 'director', 'leader'].includes(userRole)) {
+            // 管理员角色重定向到审核页面
+            debug.log('管理员角色访问推广管理，重定向到审核页面')
+            next({ path: '/promotion/audit', replace: true })
+            return
+          }
+        }
+
+        // 正常导航
         debug.log('路由已加载，正常导航')
         next()
       } else {
@@ -228,11 +278,11 @@ router.beforeEach(async (to, from, next) => {
           })
           debug.log('动态路由添加完毕.')
 
-          // 标记路由已加载
-          userStore.$patch({ routesLoaded: true })
+          // 标记路由已加载 - 确保同时更新两个状态
+          userStore.routesLoaded = true
+          localStorage.setItem('routesLoaded', 'true')
 
-          // 使用 replace: true, 这样导航就不会留下历史记录
-          // 确保addRoute()完成后，再重新导航到目标页面
+          // 路由添加完成，重新导航
           debug.log('路由添加完成，重新导航到:', to.fullPath)
           next({ ...to, replace: true })
         } catch (error) {

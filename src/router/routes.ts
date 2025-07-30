@@ -321,7 +321,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     meta: {
       title: '用户管理',
       icon: 'users',
-      roles: ['super_admin', 'director', 'leader'],
+      roles: ['super_admin', 'director', 'leader', 'sales'],
       requiresAuth: true,
       group: 'business'
     },
@@ -340,9 +340,9 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         path: '/user/hierarchy',
         name: 'PersonnelHierarchy',
         component: () => import('@/views/personnel/Hierarchy.vue'),
-        meta: { 
+        meta: {
           title: '层级关系',
-          roles: ['super_admin', 'director', 'leader'],
+          roles: ['super_admin', 'director', 'leader', 'sales'],
           requiresAuth: true
         }
       }
@@ -356,7 +356,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     meta: {
       title: '代理管理',
       icon: 'users-2',
-      roles: ['super_admin', 'director', 'leader'],
+      roles: ['super_admin', 'director', 'leader', 'sales'],
       requiresAuth: true,
       group: 'business'
     },
@@ -367,7 +367,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         component: () => import('@/views/agent/AgentList.vue'),
         meta: {
           title: '代理列表',
-          roles: ['super_admin', 'director', 'leader'],
+          roles: ['super_admin', 'director', 'leader', 'sales'],
           requiresAuth: true,
           keepAlive: true, // 启用组件缓存
           saveScrollPosition: true, // 保存滚动位置
@@ -380,7 +380,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         props: true, // 启用props传参
         meta: {
           title: '代理详情',
-          roles: ['super_admin', 'director', 'leader'],
+          roles: ['super_admin', 'director', 'leader', 'sales'],
           requiresAuth: true,
           hidden: true,
           transition: 'slide-left', // 添加进入动画
@@ -401,7 +401,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     meta: {
       title: '客资管理',
       icon: 'target',
-      roles: ['super_admin', 'director', 'leader', 'sales'],
+      roles: ['super_admin', 'director', 'leader', 'sales', 'agent'],
       requiresAuth: true,
       group: 'business'
     },
@@ -414,7 +414,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
           title: '客资列表',
           icon: 'target',
           group: 'business',
-          roles: ['super_admin', 'director', 'leader', 'sales'],
+          roles: ['super_admin', 'director', 'leader', 'sales', 'agent'],
           requiresAuth: true,
           keepAlive: true,
           saveScrollPosition: true,
@@ -432,7 +432,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
           title: '客资审核',
           icon: 'check-circle',
           group: 'business',
-          roles: ['super_admin', 'director', 'leader'],
+          roles: ['super_admin', 'director', 'leader', 'sales'],
           requiresAuth: true,
           keepAlive: true,
           saveScrollPosition: true,
@@ -477,7 +477,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     meta: {
       title: '邀请管理',
       icon: 'user-plus',
-      roles: ['super_admin', 'director', 'leader', 'sales'],
+      roles: ['super_admin', 'director', 'leader', 'sales', 'agent'],
       requiresAuth: true,
       group: 'business'
     },
@@ -488,7 +488,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         component: () => import('@/views/invitation/InvitationCodes.vue'),
         meta: {
           title: '邀请码管理',
-          roles: ['super_admin', 'director', 'leader', 'sales'],
+          roles: ['super_admin', 'director', 'leader', 'sales', 'agent'],
           requiresAuth: true,
           keepAlive: true,
           saveScrollPosition: true,
@@ -504,7 +504,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         component: () => import('@/views/invitation/InvitationHistory.vue'),
         meta: {
           title: '邀请历史',
-          roles: ['super_admin', 'director', 'leader', 'sales'],
+          roles: ['super_admin', 'director', 'leader', 'sales', 'agent'],
           requiresAuth: true,
           keepAlive: true,
           saveScrollPosition: true,
@@ -520,11 +520,11 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
     path: '/promotion',
     name: 'Promotion',
     component: () => import('@/layouts/MainLayout.vue'),
-    redirect: '/promotion/audit', // 默认重定向到审核页面
+    redirect: '/promotion/submit', // 默认重定向到提交任务页面（代理角色可访问）
     meta: {
       title: '推广管理',
       icon: 'megaphone',
-      roles: ['super_admin', 'director', 'leader', 'agent'],
+      roles: ['super_admin', 'director', 'leader', 'sales', 'agent'],
       requiresAuth: true,
       group: 'business'
     },
@@ -536,7 +536,7 @@ export const asyncRoutes: AppRouteRecordRaw[] = [
         component: () => import('@/views/promotion/AuditList.vue'),
         meta: {
           title: '推广审核',
-          roles: ['super_admin', 'director', 'leader'],
+          roles: ['super_admin', 'director', 'leader', 'sales'],
           requiresAuth: true,
           breadcrumb: [
             { title: '推广管理', parent: '/promotion' },

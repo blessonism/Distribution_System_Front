@@ -33,10 +33,10 @@
           <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">业务功能</h2>
           <div class="space-y-1">
             <div v-for="route in businessMenuRoutes" :key="route.path">
-              <!-- 单级菜单 -->
+              <!-- 单级菜单：无子路由、仪表盘路由、或只有一个可访问子路由 -->
               <router-link
-                v-if="!route.children?.length || route.path === '/dashboard'"
-                :to="route.path"
+                v-if="shouldShowAsSingleMenu(route)"
+                :to="getSingleMenuPath(route)"
                 @click="() => {
                   console.log('[Menu] 点击菜单项', route.path);
                   sidebarOpen = false;
@@ -49,11 +49,11 @@
                   :is="getIcon(route.meta?.icon)" 
                   class="w-5 h-5 mr-3"
                 />
-                <span>{{ route.meta?.title }}</span>
+                <span>{{ getSingleMenuTitle(route) }}</span>
               </router-link>
 
-              <!-- 多级菜单 -->
-              <div v-else class="mb-2">
+              <!-- 多级菜单：有多个可访问的子路由 -->
+              <div v-else-if="getAccessibleChildren(route).length > 1" class="mb-2">
                 <button
                   @click="toggleSubmenu(String(route.name))"
                   class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md transition-colors"
@@ -86,7 +86,7 @@
                   class="mt-1 ml-4 pl-3 border-l-2 border-gray-200"
                 >
                   <router-link
-                    v-for="child in route.children?.filter(child => !child.meta?.hidden)"
+                    v-for="child in getAccessibleChildren(route)"
                     :key="child.path"
                     :to="child.path"
                     class="flex items-center px-3 py-1.5 text-sm rounded-md transition-colors hover:bg-gray-50"
@@ -104,8 +104,8 @@
           </div>
         </div>
 
-        <!-- 系统菜单 -->
-        <div class="px-3">
+        <!-- 系统菜单 - 只有在有可访问的系统菜单时才显示 -->
+        <div v-if="systemMenuRoutes.length > 0" class="px-3">
           <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">系统设置</h2>
           <div class="space-y-1">
             <div v-for="route in systemMenuRoutes" :key="route.path">
@@ -286,14 +286,20 @@ const menuRoutes = computed(() => {
       return true
     }
 
-    const hasAccess = route.meta.roles.some(role => {
-      const permission = userStore.hasPermission(role)
-      console.log('[Menu] 权限检查:', route.path, role, permission)
-      return permission
+    // 检查用户角色是否在路由允许的角色列表中
+    const userRoles = userStore.roles || []
+    const hasAccess = userRoles.some(userRole => {
+      const hasPermission = route.meta.roles.includes(userRole)
+      console.log('[Menu] 权限检查:', route.path, '用户角色:', userRole, '路由要求:', route.meta.roles, '有权限:', hasPermission)
+      return hasPermission
     })
 
-    console.log('[Menu] 路由访问结果:', route.path, hasAccess)
-    return hasAccess
+    // 超级管理员拥有所有权限
+    const isSuperAdmin = userRoles.includes('super_admin')
+    const finalAccess = hasAccess || isSuperAdmin
+
+    console.log('[Menu] 路由访问结果:', route.path, '基础权限:', hasAccess, '超管权限:', isSuperAdmin, '最终结果:', finalAccess)
+    return finalAccess
   })
   console.log('[Menu] 可访问的菜单路由:', accessibleRoutes.map(r => ({
     path: r.path,
@@ -323,6 +329,109 @@ const systemMenuRoutes = computed(() => {
   console.log('[Menu] 系统菜单路由:', routes.map(r => ({path: r.path, name: r.name, title: r.meta?.title})))
   return routes
 })
+
+// 获取有权限的子路由
+const getAccessibleChildren = (route: AppRouteRecordRaw) => {
+  if (!route.children) return []
+
+  const userRoles = userStore.roles || []
+  console.log('[Menu] 检查子路由权限，用户角色:', userRoles)
+
+  return route.children.filter(child => {
+    // 跳过隐藏的子路由
+    if (child.meta?.hidden) {
+      console.log('[Menu] 跳过隐藏子路由:', child.path)
+      return false
+    }
+
+    // 如果子路由没有角色限制，允许访问
+    if (!child.meta?.roles) {
+      console.log('[Menu] 子路由无角色限制:', child.path)
+      return true
+    }
+
+    // 检查用户角色是否在子路由允许的角色列表中
+    const hasAccess = userRoles.some(userRole => {
+      const hasPermission = child.meta.roles.includes(userRole)
+      console.log('[Menu] 子路由权限检查:', child.path, '用户角色:', userRole, '路由要求:', child.meta.roles, '有权限:', hasPermission)
+      return hasPermission
+    })
+
+    // 超级管理员拥有所有权限
+    const isSuperAdmin = userRoles.includes('super_admin')
+    const finalAccess = hasAccess || isSuperAdmin
+
+    console.log('[Menu] 子路由最终权限:', child.path, child.meta?.title, '结果:', finalAccess)
+    return finalAccess
+  })
+}
+
+// 判断是否应该显示为单级菜单
+const shouldShowAsSingleMenu = (route: AppRouteRecordRaw) => {
+  // 仪表盘始终显示为单级菜单
+  if (route.path === '/dashboard') return true
+
+  // 没有子路由，显示为单级菜单
+  if (!route.children?.length) return true
+
+  // 获取可访问的子路由
+  const accessibleChildren = getAccessibleChildren(route)
+
+  // 只有一个可访问的子路由，显示为单级菜单
+  if (accessibleChildren.length === 1) {
+    console.log('[Menu] 父菜单只有一个可访问子路由，显示为单级菜单:', route.path)
+    return true
+  }
+
+  // 没有可访问的子路由，不显示
+  if (accessibleChildren.length === 0) {
+    console.log('[Menu] 父菜单没有可访问子路由，不显示:', route.path)
+    return false
+  }
+
+  // 多个子路由，显示为多级菜单
+  return false
+}
+
+// 获取单级菜单的路径
+const getSingleMenuPath = (route: AppRouteRecordRaw) => {
+  // 仪表盘直接返回自身路径
+  if (route.path === '/dashboard') return route.path
+
+  // 没有子路由，返回自身路径
+  if (!route.children?.length) return route.path
+
+  // 获取可访问的子路由
+  const accessibleChildren = getAccessibleChildren(route)
+
+  // 只有一个子路由，返回子路由路径
+  if (accessibleChildren.length === 1) {
+    return accessibleChildren[0].path
+  }
+
+  // 默认返回自身路径
+  return route.path
+}
+
+// 获取单级菜单的标题
+const getSingleMenuTitle = (route: AppRouteRecordRaw) => {
+  // 仪表盘直接返回自身标题
+  if (route.path === '/dashboard') return route.meta?.title
+
+  // 没有子路由，返回自身标题
+  if (!route.children?.length) return route.meta?.title
+
+  // 获取可访问的子路由
+  const accessibleChildren = getAccessibleChildren(route)
+
+  // 只有一个子路由，返回子路由标题
+  if (accessibleChildren.length === 1) {
+    return accessibleChildren[0].meta?.title
+  }
+
+  // 默认返回自身标题
+  return route.meta?.title
+}
 
 // 页面标题
 const pageTitle = computed(() => {

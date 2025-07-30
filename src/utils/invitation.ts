@@ -732,8 +732,8 @@ export function formatInviteCodeInput(input: string): string {
 export function hasInvitationPermission(userRole?: UserRole): boolean {
   if (!userRole) return false
   
-  // agent角色不能使用邀请功能
-  const allowedRoles: UserRole[] = ['super_admin', 'director', 'leader', 'sales']
+  // 允许使用邀请功能的角色
+  const allowedRoles: UserRole[] = ['super_admin', 'director', 'leader', 'sales', 'agent']
   return allowedRoles.includes(userRole)
 }
 
