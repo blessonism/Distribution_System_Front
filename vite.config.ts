@@ -37,7 +37,12 @@ export default defineConfig({
     // 确保单页应用能处理所有路由
     middlewareMode: false,
     // 配置自动打开浏览器
-    open: true,
+
+    // 新增 host 配置，允许公网访问
+    host: true, 
+
+    // 修改 open 配置，禁止自动打开浏览器
+    open: false, 
     // 强制退出时不提示
     strictPort: false,
     // 热更新配置

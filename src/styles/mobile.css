@@ -1,23 +1,66 @@
 /**
  * 移动端适配样式
- * 
- * 针对客资管理模块的移动端优化
+ *
+ * 针对所有数据表格组件的移动端优化
+ * 包括客资管理、代理管理、用户管理、邀请历史、奖励结算等模块
  */
 
 /* 移动端基础适配 */
 @media (max-width: 768px) {
-  /* 表格优化 */
+  /* 全局 DataTable 组件响应式优化 */
+  /* DataTable 最外层容器 */
+  .w-full:has(.rounded-md.border) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* DataTable 表格容器优化 */
+  .rounded-md.border:has(table.w-full.caption-bottom.text-sm) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+
+  /* DataTable 表格本身优化 */
+  table.w-full.caption-bottom.text-sm {
+    min-width: 800px; /* 确保表格有最小宽度 */
+  }
+
+  /* DataTable 表头和单元格优化 */
+  table.w-full.caption-bottom.text-sm th,
+  table.w-full.caption-bottom.text-sm td {
+    white-space: nowrap;
+    padding: 8px 12px !important;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+
+  /* DataTable 表头特殊样式 */
+  table.w-full.caption-bottom.text-sm th {
+    background-color: hsl(var(--muted));
+    font-weight: 500;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  /* DataTable 行悬停效果优化 */
+  table.w-full.caption-bottom.text-sm tr:hover {
+    background-color: hsl(var(--muted) / 0.5);
+  }
+
+  /* 兼容原有的移动端表格样式 */
   .mobile-table-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: 8px;
     border: 1px solid #e5e7eb;
   }
-  
+
   .mobile-table {
     min-width: 800px; /* 确保表格有最小宽度 */
   }
-  
+
   /* 表格单元格优化 */
   .mobile-table th,
   .mobile-table td {
@@ -355,6 +398,17 @@
   .mobile-table td {
     padding: 6px 8px;
     font-size: 12px;
+  }
+
+  /* 超小屏幕下的 DataTable 优化 */
+  table.w-full.caption-bottom.text-sm th,
+  table.w-full.caption-bottom.text-sm td {
+    padding: 6px 8px !important;
+    font-size: 12px;
+  }
+
+  table.w-full.caption-bottom.text-sm {
+    min-width: 700px; /* 超小屏幕下稍微减小最小宽度 */
   }
   
   .mobile-customer-info {
