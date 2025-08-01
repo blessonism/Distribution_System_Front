@@ -81,11 +81,19 @@ request.interceptors.response.use(
       return response // 保持返回整个 response 以符合 Axios 类型
     }
 
-    // 业务失败
+    // 业务失败 - 构造包含错误码的错误对象
+    const error = new Error(data.message || '请求失败') as any
+    error.response = response
+    error.code = data.data?.error_code || data.code
+
     if (typeof window !== 'undefined') {
-      console.error('API Error:', data.message)
+      console.error('API Error:', {
+        message: data.message,
+        errorCode: data.data?.error_code,
+        httpStatus: response.status
+      })
     }
-    return Promise.reject(new Error(data.message || '请求失败'))
+    return Promise.reject(error)
   },
   /**
    * HTTP错误处理器

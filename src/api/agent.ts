@@ -87,21 +87,17 @@ export const agentApi = {
    * console.log(`总业绩: ${performance.totalRevenue}，趋势: ${performance.trendData?.length} 个数据点`)
    * ```
    */
-  getAgentPerformance: (id: string, params?: AgentPerformanceQueryParams): Promise<AgentPerformance> => {
+  getAgentPerformance: async (id: string, params?: AgentPerformanceQueryParams): Promise<AgentPerformance> => {
     console.log('[API] 调用获取业绩数据:', id, params);
-    return http.get(`/agents/${id}/performance`, { params })
-      .then(response => {
-        console.log('[API] 获取到的原始业绩数据:', response);
-        // 确保response中有trendData
-        if (!response.trendData && params?.includeTrend) {
-          console.error('[API] 响应缺少trendData属性!');
-        }
-        return response;
-      })
-      .catch(error => {
-        console.error('[API] 获取业绩数据失败:', error);
-        throw error;
-      });
+    const response = await http.get(`/agents/${id}/performance`, { params })
+    console.log('[API] 获取到的原始业绩数据:', response);
+
+    // 确保response中有trendData
+    if (!response.trendData && params?.includeTrend) {
+      console.error('[API] 响应缺少trendData属性!');
+    }
+
+    return response;
   },
 
   /**

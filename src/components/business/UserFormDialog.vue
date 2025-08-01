@@ -542,11 +542,9 @@ const handleSubmit = async () => {
     emit('success')
     emit('update:open', false)
   } catch (error: any) {
-    toast({
-      title: props.user ? '修改失败' : '创建失败',
-      description: error.message || '操作失败，请重试',
-      variant: 'destructive',
-    })
+    // 使用统一的错误处理工具
+    const { showErrorToast } = await import('@/utils/errorCodeMapping')
+    showErrorToast(error, props.user ? '修改失败' : '创建失败')
   } finally {
     loading.value = false
   }

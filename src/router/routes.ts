@@ -213,6 +213,7 @@ export const constantRoutes: AppRouteRecordRaw[] = [
       hidden: true,
     },
   },
+
   // 根路径 - 由路由守卫处理重定向逻辑
   {
     path: '/',

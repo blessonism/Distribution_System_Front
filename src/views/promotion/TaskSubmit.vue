@@ -412,15 +412,13 @@ const handleSubmitSuccess = async (taskId: string) => {
 }
 
 // 处理提交错误
-const handleSubmitError = (error: string) => {
+const handleSubmitError = async (error: string) => {
   if (!isComponentMounted.value) return
 
   try {
-    toast({
-      title: '提交失败',
-      description: error,
-      variant: 'destructive'
-    })
+    // 使用统一的错误处理工具
+    const { showErrorToast } = await import('@/utils/errorCodeMapping')
+    showErrorToast({ message: error }, '提交失败')
   } catch (err) {
     console.error('[TaskSubmit] 显示错误提示失败:', err)
   }

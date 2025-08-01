@@ -517,75 +517,9 @@ export default promotionAuditApi
  * ```
  */
 export const handlePromotionAuditError = (error: any): string => {
-  const errorMap: Record<string, string> = {
-    // 权限相关错误
-    'AUDIT_001': '您没有审核权限',
-    'AUDIT_002': '您只能审核指定范围内的任务',
-    'AUDIT_003': '该任务已被其他审核员处理',
-    'AUDIT_004': '该任务当前状态不允许审核',
-    'AUDIT_005': '您无法审核自己提交的任务',
-
-    // 数据验证错误
-    'AUDIT_101': '审核意见不能为空',
-    'AUDIT_102': '审核意见长度不能超过200字符',
-    'AUDIT_103': '奖励金额必须大于0',
-    'AUDIT_104': '奖励金额超出范围限制',
-    'AUDIT_105': '任务ID格式不正确',
-
-    // 业务逻辑错误
-    'AUDIT_201': '任务不存在或已被删除',
-    'AUDIT_202': '任务状态异常，无法执行审核',
-    'AUDIT_203': '审核操作超时，请重新尝试',
-    'AUDIT_204': '批量审核任务数量超出限制',
-    'AUDIT_205': '审核历史记录获取失败',
-
-    // 系统错误
-    'AUDIT_301': '审核系统暂时不可用',
-    'AUDIT_302': '数据导出功能暂时不可用',
-    'AUDIT_303': '统计数据计算异常',
-    'AUDIT_304': '审核记录保存失败',
-
-    // 文件处理错误
-    'AUDIT_401': '推广内容链接无效',
-    'AUDIT_402': '推广内容预览生成失败',
-    'AUDIT_403': '导出文件生成失败',
-    'AUDIT_404': '文件大小超出限制'
-  }
-
-  // 提取错误码
-  const errorCode = error?.response?.data?.code || error?.code || error?.message
-
-  // 如果有对应的错误映射，返回友好信息
-  if (errorCode && errorMap[errorCode]) {
-    return errorMap[errorCode]
-  }
-
-  // 检查HTTP状态码
-  const status = error?.response?.status
-  switch (status) {
-    case 400:
-      return '请求参数错误'
-    case 401:
-      return '未登录或登录已过期'
-    case 403:
-      return '没有权限访问此功能'
-    case 404:
-      return '请求的资源不存在'
-    case 409:
-      return '数据冲突，请刷新后重试'
-    case 422:
-      return '数据验证失败'
-    case 429:
-      return '操作过于频繁，请稍后重试'
-    case 500:
-      return '服务器内部错误，请稍后重试'
-    case 502:
-      return '服务暂时不可用'
-    case 503:
-      return '服务维护中，请稍后重试'
-    default:
-      return error?.response?.data?.message || error?.message || '操作失败，请重试'
-  }
+  // 使用统一的错误处理工具
+  const { handleApiError } = require('@/utils/errorCodeMapping')
+  return handleApiError(error)
 }
 
 /**

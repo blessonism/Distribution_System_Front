@@ -186,11 +186,9 @@ const checkEligibility = async () => {
     eligibilityResult.value = await rewardStore.checkSecondAuditEligibility(props.taskId)
   } catch (error) {
     console.error('检查二次审核资格失败:', error)
-    toast({
-      title: '检查失败',
-      description: '无法检查二次审核资格，请稍后重试',
-      variant: 'destructive'
-    })
+    // 使用统一的错误处理工具
+    const { showErrorToast } = await import('@/utils/errorCodeMapping')
+    showErrorToast(error, '检查失败')
   } finally {
     checkingEligibility.value = false
   }
@@ -231,11 +229,9 @@ const handleSubmit = async () => {
     handleCancel()
   } catch (error: any) {
     console.error('申请二次审核失败:', error)
-    toast({
-      title: '申请失败',
-      description: error?.message || '申请失败，请稍后重试',
-      variant: 'destructive'
-    })
+    // 使用统一的错误处理工具
+    const { showErrorToast } = await import('@/utils/errorCodeMapping')
+    showErrorToast(error, '申请失败')
   } finally {
     submitting.value = false
   }

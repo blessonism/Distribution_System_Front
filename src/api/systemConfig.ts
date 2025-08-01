@@ -133,13 +133,8 @@ export const systemConfigApi = {
    * ```
    */
   getCurrentConfig: async (type: ConfigType): Promise<SystemConfig> => {
-    try {
-      const response = await http.get<SystemConfig>(`/system-config/current/${type}`)
-      return response
-    } catch (error) {
-      console.error(`[系统配置API] 获取${type}配置失败:`, error)
-      throw error
-    }
+    const response = await http.get<SystemConfig>(`/system-config/current/${type}`)
+    return response
   },
 
   /**
@@ -160,13 +155,8 @@ export const systemConfigApi = {
    * ```
    */
   getPendingConfig: async (type: ConfigType): Promise<SystemConfig | null> => {
-    try {
-      const response = await http.get<SystemConfig | null>(`/system-config/pending/${type}`)
-      return response
-    } catch (error) {
-      console.error(`[系统配置API] 获取${type}待审核配置失败:`, error)
-      throw error
-    }
+    const response = await http.get<SystemConfig | null>(`/system-config/pending/${type}`)
+    return response
   },
 
   /**
@@ -191,13 +181,8 @@ export const systemConfigApi = {
    * ```
    */
   saveDraft: async (configData: CreateConfigRequest): Promise<string> => {
-    try {
-      const response = await http.post<{ id: string }>('/system-config/draft', configData)
-      return response.id
-    } catch (error) {
-      console.error('[系统配置API] 保存草稿失败:', error)
-      throw error
-    }
+    const response = await http.post<{ id: string }>('/system-config/draft', configData)
+    return response.id
   },
 
   /**

@@ -372,27 +372,9 @@ export const getStats = invitationApi.getStats
  * ```
  */
 export const handleInvitationError = (error: any): string => {
-  const errorMap: Record<string, string> = {
-    'INVITE_001': '邀请码无效或不存在',
-    'INVITE_002': '邀请码已过期',
-    'INVITE_003': '您的角色无法使用此邀请码',
-    'INVITE_004': '不能使用自己的邀请码',
-    'INVITE_005': '您没有邀请权限',
-    'INVITE_006': '邀请码使用次数已达上限',
-    'INVITE_007': '邀请码不存在',
-    'INVITE_008': '此邀请码已被您使用过',
-  }
-  
-  // 提取错误码
-  const errorCode = error?.response?.data?.code || error?.code || error?.message
-  
-  // 如果有对应的错误映射，返回友好信息
-  if (errorCode && errorMap[errorCode]) {
-    return errorMap[errorCode]
-  }
-  
-  // 返回默认错误信息
-  return error?.response?.data?.message || error?.message || '操作失败，请重试'
+  // 使用统一的错误处理工具
+  const { handleApiError } = require('@/utils/errorCodeMapping')
+  return handleApiError(error)
 }
 
 /**

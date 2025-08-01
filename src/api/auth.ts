@@ -336,72 +336,9 @@ export default authApi
  * ```
  */
 export const handleAuthError = (error: any): string => {
-  const errorMap: Record<string, string> = {
-    // 登录相关错误
-    'AUTH_001': '用户名或密码错误',
-    'AUTH_002': '账户已被禁用',
-    'AUTH_003': '账户已被锁定，请稍后重试',
-    'AUTH_004': '登录会话已过期，请重新登录',
-    
-    // 注册相关错误
-    'REG_001': '用户名已存在',
-    'REG_002': '邮箱已被注册',
-    'REG_003': '密码强度不够',
-    'REG_004': '邮箱格式不正确',
-    'REG_005': '用户名格式不正确',
-    'REG_006': '手机号格式不正确',
-    'REG_007': '注册失败，请稍后重试',
-    
-    // 邀请码相关错误（复用邀请API的错误处理）
-    'INVITE_001': '邀请码无效或不存在',
-    'INVITE_002': '邀请码已过期',
-    'INVITE_003': '您的角色无法使用此邀请码',
-    'INVITE_004': '不能使用自己的邀请码',
-    'INVITE_005': '您没有邀请权限',
-    
-    // 令牌相关错误
-    'TOKEN_001': '访问令牌无效',
-    'TOKEN_002': '访问令牌已过期',
-    'TOKEN_003': '刷新令牌无效',
-    'TOKEN_004': '刷新令牌已过期',
-    
-    // 密码重置相关错误
-    'PWD_RESET_001': '重置令牌无效',
-    'PWD_RESET_002': '重置令牌已过期',
-    'PWD_RESET_003': '该邮箱未注册',
-    'PWD_RESET_004': '重置邮件发送失败',
-  }
-  
-  // 提取错误码
-  const errorCode = error?.response?.data?.code || error?.code || error?.message
-  
-  // 如果有对应的错误映射，返回友好信息
-  if (errorCode && errorMap[errorCode]) {
-    return errorMap[errorCode]
-  }
-  
-  // 检查HTTP状态码
-  const status = error?.response?.status
-  switch (status) {
-    case 400:
-      return '请求参数错误'
-    case 401:
-      return '用户名或密码错误'
-    case 403:
-      return '账户无权限访问'
-    case 404:
-      return '用户不存在'
-    case 409:
-      return '用户名或邮箱已存在'
-    case 422:
-      return '数据验证失败'
-    case 429:
-      return '请求过于频繁，请稍后重试'
-    case 500:
-      return '服务器内部错误，请稍后重试'
-    default:
-      return error?.response?.data?.message || error?.message || '操作失败，请重试'
-  }
+  // 使用统一的错误处理工具
+  const { handleApiError } = require('@/utils/errorCodeMapping')
+  return handleApiError(error)
 }
 
 /**
