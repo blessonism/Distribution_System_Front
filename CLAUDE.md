@@ -1,4 +1,8 @@
-- - - # ✍️ 项目开发核心准则 (claude.md)
+- - - # CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# ✍️ 分销系统 Web 管理后台前端开发指南
 
       ### 🔄 项目上下文与感知
 
